@@ -101,14 +101,12 @@ function normalizeDashboardResponse(payload: BackendDashboardResponse): Dashboar
 export function createApiClient(options: ApiClientOptions = {}) {
   const baseUrl = options.baseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
   const fetchImpl = options.fetchImpl ?? fetch;
-  const ownerToken = process.env.NEXT_PUBLIC_OWNER_TOKEN ?? "";
 
   const get = async <T,>(path: string, fallback: T): Promise<T> => {
     if (!baseUrl) return fallback;
     try {
       const response = await fetchImpl(`${baseUrl}${path}`, {
         cache: "no-store",
-        headers: ownerToken ? { "X-Owner-Token": ownerToken } : undefined,
       });
       return await safeJson<T>(response);
     } catch {
@@ -123,7 +121,6 @@ export function createApiClient(options: ApiClientOptions = {}) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(ownerToken ? { "X-Owner-Token": ownerToken } : {}),
         },
         body: JSON.stringify(body),
       });

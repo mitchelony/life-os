@@ -1,95 +1,186 @@
 # Life OS
 
-Life OS is a private, single-user life management app focused on financial clarity, upcoming responsibilities, quick logging, and calm daily decision-making.
+Life OS is a private, single-user life management app designed to make money and responsibilities easier to see and act on.
 
-This repository is structured as a monorepo:
+The product is built around a small set of questions:
 
-- `apps/web`: Next.js PWA client
-- `apps/api`: FastAPI backend
-- `supabase`: SQL migrations, seed data, and local Supabase guidance
-- `docs`: PRD and supporting docs
-
-## Why This App Exists
-
-The app is designed to answer a few questions immediately:
-
-- What is next?
+- What needs attention next?
 - What comes after that?
-- What can I safely spend right now?
-- What bills or debts need attention?
-- What actions matter this week?
+- How much can I safely spend before the next income arrives?
+- What debt, bill, or task needs action this week?
 
-The product is intentionally single-user. It should feel private, calm, elegant, and operational rather than analytical or enterprise-heavy.
+This repository contains the full MVP codebase: a Next.js web app, a FastAPI backend, Supabase database assets, and product documentation.
 
-## Stack
+## Project Status
 
-- Frontend: Next.js, React, TypeScript, Tailwind CSS, Framer Motion
+Life OS is currently in MVP development.
+
+- Manual entry is the source of truth.
+- The web app is usable before full backend integration.
+- The backend and database foundations exist, but Supabase production auth and data wiring are still being completed.
+- The product is intentionally owner-only. There is no team or multi-user model.
+
+## Repository Structure
+
+```text
+apps/
+  api/        FastAPI backend
+  web/        Next.js App Router frontend
+docs/         Product and architecture documents
+supabase/     Migrations, seed data, and local Supabase setup
+```
+
+Key references:
+
+- [Product requirements](/Users/MAC/Documents/GitHub/life-os/docs/PRD.md)
+- [Architecture notes](/Users/MAC/Documents/GitHub/life-os/docs/ARCHITECTURE.md)
+- [Contributor contract](/Users/MAC/Documents/GitHub/life-os/AGENTS.md)
+
+## Tech Stack
+
+- Frontend: Next.js App Router, React, TypeScript, Tailwind CSS, Framer Motion
 - Backend: FastAPI, Pydantic, SQLAlchemy
-- Data: Supabase Postgres, Supabase Auth
+- Database: Supabase Postgres
+- Local development: SQLite is still used for lightweight API development
 
-## Local Developer Steps
+## Prerequisites
 
-1. Upgrade Node to 20 LTS.
-   Why: the web app is scaffolded for a modern Next.js toolchain that does not support Node 16.
+Install the following before working in the repo:
 
-   Example with `nvm`:
+- Node.js 20+
+- Python 3.11+
+- npm
+- Supabase CLI
 
-   ```bash
-   nvm install 20
-   nvm use 20
-   node --version
-   ```
+Optional but recommended:
 
-2. Create a Python virtual environment.
-   Why: the API uses FastAPI and Python dependencies isolated from your global interpreter.
+- `nvm` for Node version management
+- a local Python virtual environment
 
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -U pip
-   pip install -r apps/api/requirements-dev.txt
-   ```
+## Quick Start
 
-3. Copy the environment template.
-   Why: both the API and web app expect shared local configuration.
+### 1. Clone and enter the repo
 
-   ```bash
-   cp .env.example .env
-   ```
+```bash
+git clone https://github.com/mitchelony/life-os.git
+cd life-os
+```
 
-4. Start local Supabase and apply schema.
-   Why: the app depends on Postgres tables, policies, and seed data.
+### 2. Use Node 20
 
-   See [supabase/README.md](/Users/MAC/Documents/GitHub/life-os/supabase/README.md).
+```bash
+source ~/.nvm/nvm.sh
+nvm install 20
+nvm use 20
+node -v
+npm -v
+```
 
-5. Install the web dependencies.
-   Why: the frontend source is included in the repo, but packages still need to be installed locally.
+### 3. Create the Python environment
 
-   ```bash
-   npm install
-   ```
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -r apps/api/requirements-dev.txt
+```
 
-6. Run the API and web app in separate terminals.
+### 4. Create local environment config
 
-   API:
+```bash
+cp .env.example .env
+```
 
-   ```bash
-   source .venv/bin/activate
-   npm run dev:api
-   ```
+### 5. Install frontend dependencies
 
-   Web:
+```bash
+npm install
+```
 
-   ```bash
-   npm run dev:web
-   ```
+### 6. Start the apps
 
-## Notes On Auth
+In one terminal:
 
-- Production should use owner-only Supabase magic link auth.
-- Local development includes a lightweight dev-login path for bootstrapping the single owner account.
+```bash
+cd /Users/MAC/Documents/GitHub/life-os
+source .venv/bin/activate
+npm run dev:api
+```
 
-## Core Product Documents
+In another terminal:
 
-- [Product Requirements](/Users/MAC/Documents/GitHub/life-os/docs/PRD.md)
-- [Agent Build Contract](/Users/MAC/Documents/GitHub/life-os/AGENTS.md)
+```bash
+cd /Users/MAC/Documents/GitHub/life-os
+source ~/.nvm/nvm.sh
+nvm use 20
+npm run dev:web
+```
+
+## Local Development Workflow
+
+### Frontend
+
+- Dev server: `npm run dev:web`
+- Build: `npm run build:web`
+- Lint: `npm run lint:web`
+- Tests:
+
+```bash
+npm --workspace apps/web run test
+```
+
+### Backend
+
+- Dev server:
+
+```bash
+source .venv/bin/activate
+npm run dev:api
+```
+
+- Tests:
+
+```bash
+cd apps/api
+source ../../.venv/bin/activate
+python3 -m pytest
+```
+
+## Database and Supabase
+
+The repo includes Supabase migrations and seed data for the long-term production direction.
+
+For local database work:
+
+- see [supabase/README.md](/Users/MAC/Documents/GitHub/life-os/supabase/README.md)
+- use `supabase start` for a local stack
+- use `supabase db reset` to apply migrations and seed data
+
+The current backend can still run locally with SQLite for lightweight development.
+
+## Security Notes
+
+This app handles sensitive financial information. Keep the following in mind:
+
+- Do not expose the development API outside your local machine.
+- Keep `.env`, `.venv`, SQLite files, and generated build output out of cloud-sync tools when possible.
+- The browser should not be treated as a secure storage boundary.
+- Production auth is intended to move to owner-only Supabase auth. The current dev auth path is for local development only.
+
+## Product Principles
+
+- Single user only
+- Calm and high-signal dashboard
+- Explainable available-spend math
+- Mobile-first interaction
+- Manual entry before automation
+
+## Contribution Guidance
+
+Before making major changes, read:
+
+- [AGENTS.md](/Users/MAC/Documents/GitHub/life-os/AGENTS.md)
+- [docs/PRD.md](/Users/MAC/Documents/GitHub/life-os/docs/PRD.md)
+- [docs/ARCHITECTURE.md](/Users/MAC/Documents/GitHub/life-os/docs/ARCHITECTURE.md)
+
+These documents define the product scope, architecture, and UX constraints for the MVP.

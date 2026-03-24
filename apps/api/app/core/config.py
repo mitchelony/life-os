@@ -12,11 +12,11 @@ class Settings(BaseSettings):
     database_url: str = Field(default="sqlite:///./life_os.db", alias="DATABASE_URL")
     default_currency: str = Field(default="USD", alias="DEFAULT_CURRENCY")
     owner_id: str = Field(default="00000000-0000-0000-0000-000000000001", alias="OWNER_ID")
-    dev_owner_token: str = Field(default="dev-owner-token", alias="DEV_OWNER_TOKEN")
+    dev_owner_token: str = Field(alias="DEV_OWNER_TOKEN")
     auth_strategy: str = Field(default="dev-token", alias="AUTH_STRATEGY")
+    allow_dev_login: bool = Field(default=True, alias="ALLOW_DEV_LOGIN")
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
-

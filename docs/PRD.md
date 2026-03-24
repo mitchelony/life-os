@@ -39,7 +39,7 @@ The home screen must let the user answer, within seconds:
 
 ### Included
 
-- onboarding flow
+- initial setup flow in Settings
 - dashboard
 - accounts
 - expense entry
@@ -48,6 +48,7 @@ The home screen must let the user answer, within seconds:
 - bills and obligations
 - debt tracking
 - available-spend calculation
+- roadmap and payment-order planning
 - tasks and reminders
 - settings and app preferences
 
@@ -79,7 +80,8 @@ Must show:
 
 - `What's Next`
 - `What's After That`
-- `Available Spend`
+- `Available Now`
+- `Available Through Next Income`
 - account status snapshot
 - upcoming income
 - overdue obligations
@@ -107,9 +109,9 @@ Flow:
 - Surface them as suggestions and autocomplete options
 - Prefer recent and frequent items first
 
-### Onboarding
+### Initial Setup
 
-First launch should gather:
+First launch should gather the baseline financial picture:
 
 - accounts and balances
 - debt balances and minimums
@@ -119,13 +121,42 @@ First launch should gather:
 - essential weekly spending target
 - protected minimum cash buffer
 
-The onboarding flow should leave the dashboard immediately useful.
+The initial setup flow should leave the dashboard immediately useful.
+
+### Roadmap
+
+Roadmap should act as a cash-flow-first planning layer, not a generic goal tracker.
+
+It should answer:
+
+- When the next paycheck hits, what gets paid first?
+- Which debts or obligations matter most right now?
+- What goal is active, blocked, overdue, or complete?
+- What is the next best step?
+
+Roadmap should support:
+
+- major goals
+- status and priority
+- step-level progress
+- strategy-backed guidance
+- next-income payment plans
+- focus mode with one clear next move
 
 ## 7. Available Spend Logic
 
-### Formula
+### Core Formula
 
 `available_spend = liquid_cash - protected_cash_buffer - manual_reserves - required_obligations_due_before_next_income - minimum_debt_payments_due_before_next_income - essential_spend_target_remaining_until_next_income`
+
+### Display Model
+
+The product should show two related numbers:
+
+- `Available Now`
+- `Available Through Next Income`
+
+The second number may include expected, reliable income before the current planning horizon.
 
 ### Why This Formula
 
@@ -136,7 +167,8 @@ The onboarding flow should leave the dashboard immediately useful.
 
 ### Display Requirements
 
-- prominent hero number on the dashboard
+- prominent primary number on the dashboard
+- clear distinction between current cash safety and next-income planning
 - explanation breakdown available on demand
 - negative value should trigger a warning tone, not panic-heavy styling
 
@@ -169,6 +201,8 @@ The onboarding flow should leave the dashboard immediately useful.
 ### Tasks
 
 - due date, priority, status, linked financial entity, and notes
+- should not simply repeat roadmap strategy items in different words
+- should focus on short-horizon follow-up actions
 
 ### Settings
 
@@ -176,37 +210,58 @@ The onboarding flow should leave the dashboard immediately useful.
 - essential weekly target
 - savings floor
 - dashboard preferences
+- initial setup state
+
+### Roadmap Strategy
+
+The roadmap strategy layer should:
+
+- accept a strict JSON planning schema
+- guide payment order and debt/obligation handling
+- influence guidance across the dashboard, debts, obligations, and tasks
+- stay advisory only during MVP
+- not silently rewrite the ledger or account balances
 
 ## 9. Technical Direction
 
 - Frontend: Next.js, React, TypeScript, Tailwind CSS
 - Backend: FastAPI, Pydantic, SQLAlchemy
 - Database: Supabase Postgres
-- Auth: Supabase magic link for one owner in production, dev-login locally
+- Auth: owner-only production auth later, local dev-token flow during MVP
 
-## 10. Success Criteria
+## 10. Security Expectations
+
+- the app is private and single-user
+- local development auth must stay local-only
+- browser-visible configuration must not contain owner secrets
+- financial logic should remain explainable and easy to audit
+- local browser storage is acceptable for MVP convenience, but should be treated as sensitive
+
+## 11. Success Criteria
 
 The MVP is successful if:
 
-- onboarding can be completed in one sitting
+- initial setup can be completed in one sitting
 - the dashboard becomes immediately meaningful afterward
 - expense logging is fast enough to feel low-friction on mobile
 - the user trusts the available-spend number
 - top priorities surface without digging through screens
+- roadmap makes the next paycheck plan obvious without feeling like a budgeting spreadsheet
 
-## 11. Tradeoffs
+## 12. Tradeoffs
 
 - Manual entry increases reliability but requires discipline
 - Owner-only auth keeps the system simple but is not designed for future public sign-up without refactor
 - Available-spend logic is intentionally conservative and may feel restrictive at times
 - The MVP favors clarity over exhaustive financial modeling
+- Roadmap strategy is advisory in MVP, so it guides action without mutating stored financial truth
 
-## 12. Initial Delivery Phases
+## 13. Initial Delivery Phases
 
 1. docs and monorepo scaffold
 2. schema and seed data
 3. backend domain foundations
 4. frontend shell, onboarding, and quick add
 5. dashboard and financial explanation
-6. tests, browser validation, polish
-
+6. roadmap strategy and mobile refinement
+7. tests, browser validation, polish

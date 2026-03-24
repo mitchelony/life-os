@@ -1,73 +1,114 @@
-# Supabase
+# Life OS Supabase
 
-This folder contains the database foundation for the Life OS app.
+This directory contains the database assets for Life OS.
 
-## Contents
+It is the long-term data layer for the product and includes:
 
-- `migrations/20260323000100_initial_schema.sql`: enums, tables, indexes, triggers, and RLS policies.
-- `seed.sql`: single-owner starter data for local development.
+- SQL migrations
+- local seed data
+- Supabase project configuration
 
-## Local setup
+The current app is still in an MVP transition phase, so some local backend flows can run without full Supabase wiring. This folder documents the intended database path.
 
-1. Install the Supabase CLI if you do not already have it.
-2. The repo already includes `supabase/config.toml`, so you can start the local stack directly.
-3. From the repo root, start the local stack:
+## Directory Contents
 
-```bash
-supabase start
+```text
+config.toml      Supabase local project config
+migrations/      schema changes
+seed.sql         local development seed data
 ```
 
-4. Load the schema and seed data into the local database:
+## Database Design Principles
+
+- every row is owner-scoped
+- `transactions` are the source of truth for real money movement
+- `income_entries` represent expected or planned income
+- obligations and debts drive urgency and spendability logic
+- migrations should be additive and readable
+
+## Local Supabase Setup
+
+Prerequisite:
+
+- install the Supabase CLI
+
+From the repository root:
 
 ```bash
+cd /Users/MAC/Documents/GitHub/life-os
+supabase start
 supabase db reset
 ```
 
-`db reset` applies the migration and then runs `supabase/seed.sql`.
+What this does:
 
-## Remote setup
+- starts the local Supabase services
+- applies the migrations in `supabase/migrations`
+- runs `supabase/seed.sql`
 
-1. Link the project to your hosted Supabase instance:
+## Remote Supabase Setup
+
+Link a hosted project:
 
 ```bash
-supabase link --project-ref <your-project-ref>
+supabase link --project-ref <project-ref>
 ```
 
-2. Push migrations to the remote database:
+Push migrations:
 
 ```bash
 supabase db push
 ```
 
-3. Apply any sample data manually if you want demo rows in production. Keep `seed.sql` local unless you explicitly want seeded demo content on the remote instance.
+Use caution with seed data on hosted environments. `seed.sql` is meant for local development unless you intentionally want starter data in a remote project.
 
-## Owner UUID
+## Seed Data and Owner UUID
 
-The seed file uses a fixed owner UUID:
+The seed file uses a fixed owner UUID to keep local development predictable.
 
-```text
-11111111-1111-1111-1111-111111111111
-```
-
-Update that UUID in `seed.sql` if you want the starter data to attach to a different owner record.
+If you want local seed data to match a real authenticated owner, update the UUID in `seed.sql` before running `supabase db reset`.
 
 Why this matters:
 
-- every row in this schema is owner-scoped
-- seed data must match the auth user id if you want RLS to line up with a real login
-- keeping one UUID makes the local dev story simple and explicit
+- row-level security depends on the authenticated owner id
+- seed data will not line up with auth unless the UUIDs match
+- keeping one explicit owner id makes local setup easier to reason about
 
-## Important conventions
+## Workflow Guidelines
 
-- `transactions` are the source of truth for actual financial movement.
-- `accounts.current_balance` is a live snapshot field, not a separate ledger.
-- credit card balances are stored as the amount owed.
-- archive data instead of deleting it where possible; `is_active` flags are preferred over hard deletes.
-- if you change the schema, add a new migration instead of editing an applied one.
+- add new migrations instead of editing old applied migrations
+- keep schema changes easy to review
+- prefer explicit ownership rules over hidden database magic
+- avoid putting core business logic into triggers when service-layer logic is more appropriate
 
-## What you need to do manually
+## Recommended Commands
 
-- If you want the seed data to match your real Supabase Auth user, replace the owner UUID in `seed.sql` with that user id before running `supabase db reset`.
-- If you create a new Supabase project, run `supabase link` before `supabase db push`.
-- If you need a fresh local database after schema changes, run `supabase db reset`.
-- If you want the seeded `profiles` row to match a real authenticated owner, create that owner in Supabase Auth first and then replace the UUID in `seed.sql`. Why: RLS policies key off the auth user id.
+Start local stack:
+
+```bash
+supabase start
+```
+
+Reset database:
+
+```bash
+supabase db reset
+```
+
+Stop local stack:
+
+```bash
+supabase stop
+```
+
+## Manual Tasks You May Need To Do
+
+- update the owner UUID in `seed.sql` if you want seeded data to match a real auth user
+- rerun `supabase db reset` after migration changes when you need a clean local database
+- run `supabase link` before `supabase db push` for a new hosted project
+
+## Relationship to the Rest of the Repo
+
+- [root README](/Users/MAC/Documents/GitHub/life-os/README.md) explains the full repo setup
+- [apps/api/README.md](/Users/MAC/Documents/GitHub/life-os/apps/api/README.md) covers backend development
+- [docs/ARCHITECTURE.md](/Users/MAC/Documents/GitHub/life-os/docs/ARCHITECTURE.md) captures the domain model and API direction

@@ -29,5 +29,8 @@ def explain_available_spend_from_data(
 
 
 @router.post("/explain", response_model=AvailableSpendExplainResponse)
-def explain_available_spend(payload: AvailableSpendInput) -> AvailableSpendExplainResponse:
+def explain_available_spend(
+    payload: AvailableSpendInput,
+    _: str = Depends(get_owner_id),
+) -> AvailableSpendExplainResponse:
     return compute_available_spend(payload)

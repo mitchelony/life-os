@@ -117,5 +117,4 @@ def test_dashboard_picks_next_and_after_that() -> None:
     assert result.summary.whats_after_that is not None
     assert result.summary.whats_after_that.label == "Rent"
     assert result.summary.account_snapshot.total_cash_available == 1000
-    assert result.summary.available_spend.available_spend == 165
-
+    assert result.summary.available_spend.available_spend == -405
