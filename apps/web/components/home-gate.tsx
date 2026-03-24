@@ -3,7 +3,10 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Panel, cn } from "@/components/ui";
+import { hasAuthSession } from "@/lib/auth";
+import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/finance";
+import { getInitialAppRoute } from "@/lib/onboarding";
 import { sampleDashboard } from "@/lib/sample-data";
 
 const onboardingKey = process.env.NEXT_PUBLIC_ONBOARDING_KEY ?? "life-os-onboarded";
@@ -12,8 +15,38 @@ export function HomeGate() {
   const router = useRouter();
 
   useEffect(() => {
-    const isOnboarded = window.localStorage.getItem(onboardingKey) === "true";
-    router.replace(isOnboarded ? "/dashboard" : "/settings");
+    let cancelled = false;
+
+    async function routeUser() {
+      const signedIn = hasAuthSession();
+      if (!signedIn) {
+        router.replace("/login");
+        return;
+      }
+
+      const localOnboarded = window.localStorage.getItem(onboardingKey) === "true";
+      const onboarding = await api.startOnboarding();
+      const isOnboardingComplete = onboarding?.state.is_complete ?? localOnboarded;
+      if (cancelled) return;
+
+      if (isOnboardingComplete) {
+        window.localStorage.setItem(onboardingKey, "true");
+      } else {
+        window.localStorage.removeItem(onboardingKey);
+      }
+
+      router.replace(
+        getInitialAppRoute({
+          hasAuthSession: signedIn,
+          isOnboardingComplete,
+        }),
+      );
+    }
+
+    void routeUser();
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   return (

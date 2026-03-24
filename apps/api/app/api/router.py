@@ -11,6 +11,7 @@ from app.api.routes.income_sources import router as income_sources_router
 from app.api.routes.merchants import router as merchants_router
 from app.api.routes.obligations import router as obligations_router
 from app.api.routes.onboarding import router as onboarding_router
+from app.api.routes.quick_add import router as quick_add_router
 from app.api.routes.reserves import router as reserves_router
 from app.api.routes.settings import router as settings_router
 from app.api.routes.suggestions import router as suggestions_router
@@ -21,6 +22,7 @@ api_router = APIRouter(prefix="/api")
 api_router.include_router(auth_router)
 api_router.include_router(dashboard_router)
 api_router.include_router(onboarding_router)
+api_router.include_router(quick_add_router)
 api_router.include_router(accounts_router)
 api_router.include_router(categories_router)
 api_router.include_router(merchants_router)

@@ -11,6 +11,8 @@ from app.models.domain import (
     Merchant,
     Profile,
     Reserve,
+    RoadmapItem,
+    StrategyDocument,
     Task,
     Transaction,
 )
@@ -28,6 +30,8 @@ __all__ = [
     "Obligation",
     "Profile",
     "Reserve",
+    "RoadmapItem",
+    "StrategyDocument",
     "Task",
     "Transaction",
 ]

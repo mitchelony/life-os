@@ -24,9 +24,8 @@ def complete_onboarding(db: Session, owner_id: str) -> OnboardingState:
 def ensure_owner_profile(db: Session, owner_id: str, display_name: str | None = None) -> Profile:
     profile = db.query(Profile).filter(Profile.owner_id == owner_id).one_or_none()
     if profile is None:
-        profile = Profile(owner_id=owner_id, display_name=display_name, currency="USD")
+        profile = Profile(id=owner_id, owner_id=owner_id, display_name=display_name, currency="USD")
         db.add(profile)
         db.commit()
         db.refresh(profile)
     return profile
-

@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import JSON, Boolean, Date, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, UUIDTimestampMixin
@@ -150,3 +150,30 @@ class Reserve(UUIDTimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+
+class RoadmapItem(UUIDTimestampMixin, Base):
+    __tablename__ = "roadmap_items"
+
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    category: Mapped[str] = mapped_column(String(40), default="finances", nullable=False)
+    status: Mapped[str] = mapped_column(String(24), default="planned", nullable=False)
+    priority: Mapped[str] = mapped_column(String(24), default="medium", nullable=False)
+    target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    timeframe_label: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    progress_mode: Mapped[str] = mapped_column(String(16), default="steps", nullable=False)
+    progress_value: Mapped[float] = mapped_column(Numeric(5, 2), default=0, nullable=False)
+    steps: Mapped[list[dict]] = mapped_column(JSON, default=list, nullable=False)
+    dependency_ids: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    linked_strategy_goal_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    strategy_backed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class StrategyDocument(UUIDTimestampMixin, Base):
+    __tablename__ = "strategy_documents"
+
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    document: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)

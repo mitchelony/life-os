@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpRight, Compass, Plus, RefreshCw, Settings2, X } from "lucide-react";
+import { ArrowUpRight, Compass, LogOut, Plus, RefreshCw, Settings2, X } from "lucide-react";
 import type { ReactNode, TouchEvent as ReactTouchEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { cn, Button } from "@/components/ui";
 import { formatMoney, formatSignedMoney } from "@/lib/finance";
+import { signOut } from "@/lib/auth";
 import {
   getPullToRefreshDistance,
   getPullToRefreshProgress,
@@ -33,6 +34,8 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   const mobilePrimaryItems = getMobilePrimaryNavItems(navItems);
   const mobileSecondaryItems = getMobileSecondaryNavItems(navItems);
   const mobileMoreActive = isMobileSecondaryRoute(pathname, navItems);
+  const showMobileSummary = activePath === "/dashboard";
+  const showMobileQuickAddButton = !["/quick-add", "/roadmap", "/settings"].includes(activePath);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -74,6 +77,13 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
       }, 900);
     }
     resetPullState();
+  }
+
+  async function handleSignOut() {
+    await signOut();
+    setMobileMenuOpen(false);
+    router.replace("/login");
+    router.refresh();
   }
 
   const pullProgress = getPullToRefreshProgress(pullDistance);
@@ -139,6 +149,9 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
           <Button className="mt-4 w-full" onClick={() => router.refresh()}>
             Refresh snapshot
           </Button>
+          <Button variant="ghost" className="mt-2 w-full" onClick={handleSignOut}>
+            <LogOut className="h-4 w-4" /> Log out
+          </Button>
         </div>
       </aside>
 
@@ -165,31 +178,28 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-[0.26em] text-muted md:text-[11px] md:tracking-[0.28em]">Life OS</p>
               <div className="mt-1 truncate text-[1.35rem] font-semibold tracking-tight md:text-lg">{activeItem.label}</div>
-              <div className="mt-2 flex flex-wrap items-center gap-2 md:hidden">
-                <span className="rounded-full border border-line bg-white/92 px-3 py-1 text-xs font-medium text-ink shadow-[0_6px_20px_rgba(16,32,24,0.06)]">
-                  Available now <span className="tabular-nums">{formatSignedMoney(dashboard.availableSpend.availableNow)}</span>
-                </span>
-                <span className="rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent">
-                  Through next income {formatMoney(dashboard.availableSpend.availableThroughNextIncome)}
-                </span>
+              {showMobileSummary ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2 md:hidden">
+                  <span className="rounded-full border border-line bg-white/92 px-3 py-1 text-xs font-medium text-ink shadow-[0_6px_20px_rgba(16,32,24,0.06)]">
+                    Available now <span className="tabular-nums">{formatSignedMoney(dashboard.availableSpend.availableNow)}</span>
+                  </span>
+                  <span className="rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent">
+                    Through next income {formatMoney(dashboard.availableSpend.availableThroughNextIncome)}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+            {showMobileQuickAddButton ? (
+              <div className="flex items-center gap-2 md:hidden">
+                <Link
+                  href="/quick-add"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-accent text-white shadow-[0_10px_22px_rgba(61,111,94,0.16)] transition hover:bg-[#315a4c]"
+                  aria-label="Quick add"
+                >
+                  <Plus className="h-4.5 w-4.5" />
+                </Link>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link
-                href="/quick-add"
-                className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent text-white shadow-[0_12px_24px_rgba(61,111,94,0.18)] transition hover:bg-[#315a4c] md:hidden"
-                aria-label="Quick add"
-              >
-                <Plus className="h-5 w-5" />
-              </Link>
-              <Link
-                href="/settings"
-                className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-line bg-white/92 text-ink shadow-[0_8px_22px_rgba(16,32,24,0.06)] transition hover:bg-white md:hidden"
-                aria-label="Settings"
-              >
-                <Settings2 className="h-4 w-4" />
-              </Link>
-            </div>
+            ) : null}
           </div>
           <div className="hidden items-center gap-2 md:flex">
             <Link href="/quick-add" className={cn("inline-flex items-center justify-center rounded-full px-4 py-2.5 text-sm font-medium transition duration-200 ease-out bg-accent text-white hover:-translate-y-0.5 hover:bg-[#315a4c]")}>
@@ -201,7 +211,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
           </div>
         </header>
 
-        <main className="flex-1 pb-[calc(9rem+env(safe-area-inset-bottom))] md:life-scrollbar md:min-h-0 md:overflow-y-auto md:pb-0">
+        <main className="flex-1 pb-[calc(6.75rem+env(safe-area-inset-bottom))] md:life-scrollbar md:min-h-0 md:overflow-y-auto md:pb-0">
           {children}
         </main>
 
@@ -262,14 +272,17 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
                 <Button variant="ghost" className="mt-4 h-10 w-full rounded-full" onClick={() => router.refresh()}>
                   <RefreshCw className="h-3.5 w-3.5" /> Refresh snapshot
                 </Button>
+                <Button variant="ghost" className="mt-2 h-10 w-full rounded-full" onClick={handleSignOut}>
+                  <LogOut className="h-3.5 w-3.5" /> Log out
+                </Button>
               </div>
             </div>
           </div>
         ) : null}
 
-        <nav className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-2 lg:hidden">
-          <div className="mx-auto max-w-md rounded-[30px] border border-line bg-[rgba(255,255,255,0.96)] px-2 py-2 shadow-[0_18px_50px_rgba(16,32,24,0.14)] backdrop-blur-2xl">
-            <div className="grid grid-cols-5 gap-1">
+        <nav className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[calc(0.55rem+env(safe-area-inset-bottom))] pt-2 lg:hidden">
+          <div className="mx-auto max-w-md rounded-[24px] border border-line bg-[rgba(255,255,255,0.96)] px-2 py-1.5 shadow-[0_14px_34px_rgba(16,32,24,0.1)] backdrop-blur-2xl">
+            <div className="grid grid-cols-5 gap-1.5">
               {mobilePrimaryItems.map((item) => {
                 const Icon = item.icon;
                 const active = activePath === item.href;
@@ -278,11 +291,11 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex min-h-[4.6rem] flex-col items-center justify-center gap-1 rounded-[22px] px-2 py-2 text-[10px] font-medium leading-tight transition",
+                      "flex min-h-[3.35rem] flex-col items-center justify-center gap-0.5 rounded-[16px] px-1 py-1.5 text-[9px] font-medium leading-tight transition",
                       active ? "bg-ink text-bg shadow-[0_10px_24px_rgba(16,32,24,0.14)]" : "text-ink/78 hover:bg-white hover:text-ink",
                     )}
                   >
-                    <Icon className="h-[1.08rem] w-[1.08rem]" />
+                    <Icon className="h-[0.95rem] w-[0.95rem]" />
                     <span className="text-center">{item.mobileLabel}</span>
                   </Link>
                 );
@@ -291,11 +304,11 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
                 className={cn(
-                  "flex min-h-[4.6rem] flex-col items-center justify-center gap-1 rounded-[22px] px-2 py-2 text-[10px] font-medium leading-tight transition",
+                  "flex min-h-[3.35rem] flex-col items-center justify-center gap-0.5 rounded-[16px] px-1 py-1.5 text-[9px] font-medium leading-tight transition",
                   mobileMoreActive || mobileMenuOpen ? "bg-accent-soft text-accent" : "text-ink/78 hover:bg-white hover:text-ink",
                 )}
               >
-                <Compass className="h-[1.08rem] w-[1.08rem]" />
+                <Compass className="h-[0.95rem] w-[0.95rem]" />
                 <span className="text-center">Browse</span>
               </button>
             </div>

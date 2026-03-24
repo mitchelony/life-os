@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from app.models.enums import AccountType, DebtStatus, IncomeStatus, ObligationFrequency, TaskStatus
-from app.schemas.domain import AccountRead, DashboardSnapshot, DebtRead, IncomeEntryRead, ObligationRead, ReserveRead, TaskRead
+from app.schemas.domain import AccountRead, DashboardSnapshot, DebtRead, IncomeEntryRead, ObligationRead, ReserveRead, TaskRead, TransactionRead
 from app.services.dashboard import DashboardService
 
 
@@ -93,6 +93,24 @@ def test_dashboard_picks_next_and_after_that() -> None:
                 notes=None,
             )
         ],
+        transactions=[
+            TransactionRead(
+                id="tx1",
+                owner_id="owner",
+                created_at="2026-01-01T00:00:00Z",
+                updated_at="2026-01-01T00:00:00Z",
+                kind="expense",
+                amount=75,
+                account_id="a1",
+                category_id=None,
+                merchant_id=None,
+                income_source_id=None,
+                occurred_on=today,
+                notes="Groceries",
+                is_planned=False,
+                is_cleared=True,
+            )
+        ],
         reserves=[
             ReserveRead(
                 id="r1",
@@ -116,5 +134,40 @@ def test_dashboard_picks_next_and_after_that() -> None:
     assert result.summary.whats_next.label == "Call landlord"
     assert result.summary.whats_after_that is not None
     assert result.summary.whats_after_that.label == "Rent"
-    assert result.summary.account_snapshot.total_cash_available == 1000
-    assert result.summary.available_spend.available_spend == -405
+    assert result.summary.account_snapshot.total_cash_available == 925
+    assert result.summary.available_spend.available_spend == -480
+
+
+def test_dashboard_response_includes_snapshot_details() -> None:
+    today = date.today()
+    snapshot = DashboardSnapshot(
+        accounts=[
+            AccountRead(
+                id="a1",
+                owner_id="owner",
+                created_at="2026-01-01T00:00:00Z",
+                updated_at="2026-01-01T00:00:00Z",
+                name="Checking",
+                type=AccountType.checking,
+                institution="Bank",
+                balance=1000,
+                is_active=True,
+                notes=None,
+            )
+        ],
+        obligations=[],
+        debts=[],
+        tasks=[],
+        income_entries=[],
+        transactions=[],
+        reserves=[],
+        settings={"protected_cash_buffer": "100"},
+        protected_cash_buffer=100,
+        essential_spend_target=25,
+    )
+
+    result = DashboardService(snapshot).build()
+
+    assert result.snapshot.accounts[0].name == "Checking"
+    assert result.snapshot.settings["protected_cash_buffer"] == "100"
+    assert result.snapshot.transactions == []

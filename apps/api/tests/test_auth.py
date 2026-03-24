@@ -57,14 +57,61 @@ def test_available_spend_post_requires_owner_token(monkeypatch) -> None:
     assert response.status_code == 401
 
 
+def test_supabase_auth_accepts_verified_bearer_token(monkeypatch) -> None:
+    monkeypatch.setenv("AUTH_STRATEGY", "supabase")
+    monkeypatch.setenv("SUPABASE_URL", "http://localhost:54321")
+    monkeypatch.setenv("SUPABASE_ANON_KEY", "test-anon-key")
+    get_settings.cache_clear()
+
+    monkeypatch.setattr("app.core.deps._get_supabase_owner_id", lambda token: "owner-123" if token == "good-token" else None)
+
+    client = _client(monkeypatch)
+    response = client.get("/api/auth/whoami", headers={"Authorization": "Bearer good-token"})
+
+    assert response.status_code == 200
+    assert response.json() == {"owner_id": "owner-123"}
+
+
+def test_supabase_auth_requires_bearer_token(monkeypatch) -> None:
+    monkeypatch.setenv("AUTH_STRATEGY", "supabase")
+    monkeypatch.setenv("SUPABASE_URL", "http://localhost:54321")
+    monkeypatch.setenv("SUPABASE_ANON_KEY", "test-anon-key")
+    get_settings.cache_clear()
+
+    client = _client(monkeypatch)
+    response = client.get("/api/auth/whoami")
+
+    assert response.status_code == 401
+
+
 def test_unknown_auth_strategy_fails_closed(monkeypatch) -> None:
     monkeypatch.setenv("AUTH_STRATEGY", "supabase")
+    monkeypatch.setenv("SUPABASE_URL", "")
+    monkeypatch.setenv("SUPABASE_ANON_KEY", "")
     get_settings.cache_clear()
 
     try:
-        get_owner_id("test-owner-token")
+        get_owner_id("Bearer test-owner-token")
     except Exception as exc:
         assert getattr(exc, "status_code", None) == 503
-        assert "not configured" in str(getattr(exc, "detail", ""))
+        assert "Supabase auth is not configured" in str(getattr(exc, "detail", ""))
     else:
-        raise AssertionError("Expected get_owner_id() to fail for unsupported auth strategies")
+        raise AssertionError("Expected get_owner_id() to fail when Supabase auth is not configured")
+
+
+def test_dashboard_preflight_allows_local_web_origin(monkeypatch) -> None:
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001")
+    get_settings.cache_clear()
+
+    client = _client(monkeypatch)
+    response = client.options(
+        "/api/dashboard",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization,content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"

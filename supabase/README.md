@@ -66,13 +66,16 @@ Use caution with seed data on hosted environments. `seed.sql` is meant for local
 
 The seed file uses a fixed owner UUID to keep local development predictable.
 
-If you want local seed data to match a real authenticated owner, update the UUID in `seed.sql` before running `supabase db reset`.
+The current local seed also creates the owner auth account directly in Supabase Auth:
+
+- email: `owner@life-os.local`
+- password: `life-os-local-dev`
 
 Why this matters:
 
 - row-level security depends on the authenticated owner id
-- seed data will not line up with auth unless the UUIDs match
-- keeping one explicit owner id makes local setup easier to reason about
+- the seed keeps the auth user and the seeded financial data aligned
+- local sign-in works immediately after `supabase db reset`
 
 ## Workflow Guidelines
 
@@ -110,5 +113,5 @@ supabase stop
 ## Relationship to the Rest of the Repo
 
 - [root README](/Users/MAC/Documents/GitHub/life-os/README.md) explains the full repo setup
-- [apps/api/README.md](/Users/MAC/Documents/GitHub/life-os/apps/api/README.md) covers backend development
-- [docs/ARCHITECTURE.md](/Users/MAC/Documents/GitHub/life-os/docs/ARCHITECTURE.md) captures the domain model and API direction
+- [apps/api/README.md](/Users/MAC/GitHub/life-os/apps/api/README.md) covers backend development
+- [docs/ARCHITECTURE.md](/Users/MAC/GitHub/life-os/docs/ARCHITECTURE.md) captures the domain model and API direction

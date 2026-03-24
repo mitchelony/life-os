@@ -28,6 +28,7 @@ Important product rules:
 - `income_entries` represent planned or expected income
 - available-spend math must stay conservative and explainable
 - auth is owner-only and lightweight during MVP
+- Supabase email/password is the main auth path
 
 ## Project Layout
 
@@ -46,7 +47,7 @@ tests/        API and service tests
 From the repository root:
 
 ```bash
-cd /Users/MAC/Documents/GitHub/life-os
+cd /Users/MAC/GitHub/life-os
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -U pip
@@ -56,10 +57,18 @@ cp .env.example .env
 
 ## Run the API
 
-From the repository root:
+Before starting the API, start local Supabase and reset the database:
 
 ```bash
-cd /Users/MAC/Documents/GitHub/life-os
+cd /Users/MAC/GitHub/life-os
+supabase start
+supabase db reset
+```
+
+Then run the API from the repository root:
+
+```bash
+cd /Users/MAC/GitHub/life-os
 source .venv/bin/activate
 npm run dev:api
 ```
@@ -80,16 +89,18 @@ Common local variables:
 
 - `ENVIRONMENT`
 - `DATABASE_URL`
-- `OWNER_ID`
-- `DEV_OWNER_TOKEN`
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 - `AUTH_STRATEGY`
 - `ALLOW_DEV_LOGIN`
 
 Notes:
 
-- local development currently uses a lightweight dev-token flow
-- `DEV_OWNER_TOKEN` should stay server-side only
-- `ALLOW_DEV_LOGIN` should only be enabled for local development
+- local development should normally use `AUTH_STRATEGY=supabase`
+- `DATABASE_URL` should point at the local Supabase Postgres instance
+- `DEV_OWNER_TOKEN` is now optional local fallback only
+- `ALLOW_DEV_LOGIN` should stay `false` unless you explicitly need the fallback
 
 ## Tests
 
@@ -132,4 +143,7 @@ Planned direction for production:
 - owner-only Supabase auth
 - cleaner environment separation between local dev and hosted environments
 
-Until then, the API should stay narrow, predictable, and easy to audit.
+Local owner seed for Supabase auth:
+
+- email: `owner@life-os.local`
+- password: `life-os-local-dev`

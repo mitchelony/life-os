@@ -59,16 +59,16 @@ supabase/     Migrations, seed data, and local database setup
 The frontend is responsible for:
 
 - rendering the app shell and route screens
-- local-first interaction flows
+- owner sign-in and session restore through Supabase auth
 - mobile-first UX
 - roadmap and strategy workspace
-- temporary browser persistence for local MVP state
-- consuming stable API responses when backend data is available
+- consuming stable API responses as the primary persistence path
+- keeping a local mirror only for transient fallback and resilience
 
 Important note:
 
-- browser state is still used for parts of the MVP
-- that state is convenient, but it should not be treated as a strong security boundary
+- browser state still exists for convenience, but it is not the source of truth
+- browser storage should still be treated as sensitive but non-secure
 
 ### Backend
 
@@ -90,7 +90,7 @@ The database layer is responsible for:
 - readable additive migrations
 - clear distinction between actual records and planning records
 
-Supabase is the long-term data platform, but local SQLite is still used for lightweight backend development.
+Supabase Postgres is now the intended local and hosted database path.
 
 ## API Shape
 
@@ -148,7 +148,7 @@ It is the planning layer that connects:
 
 The current strategy model is:
 
-- local and advisory
+- API-backed and advisory
 - JSON-based
 - used to guide payment order and focus
 - not allowed to silently mutate the financial ledger
@@ -163,9 +163,10 @@ This means:
 Current MVP auth posture:
 
 - owner-only
-- lightweight local development flow
-- dev token stays server-side
-- browser should not ship the owner token
+- Supabase email/password is the normal path
+- the backend verifies Supabase bearer tokens and derives `owner_id` from the session
+- the browser should not ship any owner secret
+- local dev-token fallback is optional and should stay disabled unless explicitly needed
 
 The local dev path is intentionally temporary. Production should move to a stronger owner-only auth flow.
 
@@ -201,7 +202,6 @@ The local dev path is intentionally temporary. Production should move to a stron
 
 ## Known MVP Tradeoffs
 
-- some state still lives in the browser
-- local dev auth is not production auth
+- some state is mirrored in the browser for convenience
 - strategy guidance is advisory rather than authoritative
-- SQLite and Supabase development paths both currently exist during the transition period
+- the frontend still uses lightweight client-side session handling instead of a full cookie/middleware Supabase SSR flow

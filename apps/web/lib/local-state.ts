@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { api, type BackendDashboardResponse, type BackendSetupPayload } from "@/lib/api";
 import { computeAvailableSpend, getCreditCardBalance, getTotalCash, money } from "@/lib/finance";
 import { sampleDashboard } from "@/lib/sample-data";
 import type {
@@ -185,6 +186,21 @@ function normalizeRoadmapItem(item: Partial<RoadmapItem>, index = 0): RoadmapIte
     urgencyScore: typeof item.urgencyScore === "number" ? item.urgencyScore : undefined,
     reason: typeof item.reason === "string" ? item.reason : undefined,
   };
+}
+
+function hasApiSetupData(payload: BackendSetupPayload) {
+  return (
+    payload.accounts.length > 0 ||
+    payload.obligations.length > 0 ||
+    payload.debts.length > 0 ||
+    payload.income.length > 0 ||
+    payload.roadmap_items.length > 0 ||
+    Boolean(payload.strategy_document) ||
+    payload.notes.trim().length > 0 ||
+    payload.protected_buffer !== "0" ||
+    payload.essential_target !== "0" ||
+    payload.savings_floor !== "0"
+  );
 }
 
 function normalizeStoredLifeOsSetup(raw: Partial<StoredLifeOsSetup>): StoredLifeOsSetup {
@@ -1542,6 +1558,184 @@ export function applyQuickAddToSetup(setup: StoredLifeOsSetup, draft: QuickAddDr
   return nextSetup;
 }
 
+function storedSetupFromApiDashboard(payload: BackendDashboardResponse, localSetup: StoredLifeOsSetup | null): StoredLifeOsSetup {
+  const nextSetup = createEmptyStoredLifeOsSetup();
+  nextSetup.displayName = localSetup?.displayName ?? "Life owner";
+  nextSetup.protectedBuffer = payload.snapshot.settings.protected_cash_buffer ?? "0";
+  nextSetup.essentialTarget = payload.snapshot.settings.essential_spend_target ?? "0";
+  nextSetup.savingsFloor = payload.snapshot.settings.savings_floor ?? "0";
+  nextSetup.notes = payload.snapshot.settings.owner_notes ?? localSetup?.notes ?? "";
+  nextSetup.accounts = payload.snapshot.accounts.map((account) => ({
+    id: account.id,
+    name: account.name,
+    institution: account.institution ?? "",
+    type: account.type === "debt" ? "credit_card" : account.type,
+    balance: String(account.balance),
+  }));
+  nextSetup.obligations = payload.snapshot.obligations.map((item) => ({
+    id: item.id,
+    name: item.name,
+    amount: String(item.amount),
+    dueDate: item.due_on,
+    recurrence: item.frequency === "one_time" ? "one-time" : (item.frequency as RecurrenceFrequency),
+    linkedAccount: payload.snapshot.accounts.find((account) => account.type === "checking")?.name,
+  }));
+  nextSetup.debts = payload.snapshot.debts.map((item) => ({
+    id: item.id,
+    name: item.name,
+    balance: String(item.balance),
+    minimum: String(item.minimum_payment),
+    dueDate: item.due_on ?? startOfTodayIso().slice(0, 10),
+  }));
+  nextSetup.income = payload.snapshot.income_entries
+    .filter((item) => item.status === "expected")
+    .map((item) => ({
+      id: item.id,
+      source: item.source_name,
+      expectedAmount: String(item.amount),
+      dueDate: item.expected_on ?? startOfTodayIso().slice(0, 10),
+      recurrence: "one-time",
+      linkedAccount: payload.snapshot.accounts.find((account) => account.id === item.account_id)?.name,
+    }));
+  nextSetup.transactions = payload.snapshot.transactions.map((item) => ({
+    id: item.id,
+    kind: item.kind,
+    title: item.title ?? item.counterparty_name ?? item.category_name ?? "Manual entry",
+    amount: String(item.amount),
+    date: item.occurred_on,
+    account: item.account_name ?? "Manual account",
+    counterparty: item.counterparty_name ?? item.title ?? "Manual entry",
+    category: item.category_name ?? "Uncategorized",
+    notes: item.notes ?? undefined,
+  }));
+  nextSetup.roadmapItems = localSetup?.roadmapItems ?? [];
+  nextSetup.strategyDocument = localSetup?.strategyDocument ?? null;
+  return nextSetup;
+}
+
+export function storedSetupFromApiSetup(payload: BackendSetupPayload, localSetup: StoredLifeOsSetup | null): StoredLifeOsSetup {
+  const nextSetup = normalizeStoredLifeOsSetup(localSetup ?? createEmptyStoredLifeOsSetup());
+  nextSetup.displayName = payload.display_name || nextSetup.displayName;
+  nextSetup.protectedBuffer = payload.protected_buffer || "0";
+  nextSetup.essentialTarget = payload.essential_target || "0";
+  nextSetup.savingsFloor = payload.savings_floor || "0";
+  nextSetup.notes = payload.notes || "";
+  nextSetup.accounts = payload.accounts.map((item, index) => ({
+    id: nextSetup.accounts[index]?.id ?? `api-account-${index}`,
+    name: item.name,
+    institution: item.institution,
+    type: item.type,
+    balance: item.balance,
+  }));
+  nextSetup.obligations = payload.obligations.map((item, index) => ({
+    id: nextSetup.obligations[index]?.id ?? `api-obligation-${index}`,
+    name: item.name,
+    amount: item.amount,
+    dueDate: item.due_date,
+    recurrence: item.recurrence,
+    linkedAccount: item.linked_account,
+  }));
+  nextSetup.debts = payload.debts.map((item, index) => ({
+    id: nextSetup.debts[index]?.id ?? `api-debt-${index}`,
+    name: item.name,
+    balance: item.balance,
+    minimum: item.minimum,
+    dueDate: item.due_date,
+  }));
+  nextSetup.income = payload.income.map((item, index) => ({
+    id: nextSetup.income[index]?.id ?? `api-income-${index}`,
+    source: item.source,
+    expectedAmount: item.expected_amount,
+    dueDate: item.due_date,
+    recurrence: item.recurrence,
+    linkedAccount: item.linked_account,
+  }));
+  nextSetup.roadmapItems = payload.roadmap_items.map((item, index) =>
+    normalizeRoadmapItem(
+      {
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        category: item.category,
+        status: item.status,
+        priority: item.priority,
+        targetDate: item.target_date ?? undefined,
+        timeframeLabel: item.timeframe_label ?? undefined,
+        progressMode: item.progress_mode,
+        progressValue: item.progress_value,
+        steps: item.steps,
+        notes: item.notes ?? undefined,
+        dependencyIds: item.dependency_ids,
+        linkedStrategyGoalId: item.linked_strategy_goal_id ?? undefined,
+        strategyBacked: item.strategy_backed,
+      },
+      index,
+    ),
+  );
+  nextSetup.strategyDocument = (payload.strategy_document as StrategyDocument | null | undefined) ?? null;
+  return nextSetup;
+}
+
+export function storedSetupToBackendSetupPayload(setup: StoredLifeOsSetup): BackendSetupPayload {
+  return {
+    display_name: setup.displayName,
+    protected_buffer: setup.protectedBuffer,
+    essential_target: setup.essentialTarget,
+    savings_floor: setup.savingsFloor,
+    notes: setup.notes,
+    accounts: setup.accounts.map((item) => ({
+      name: item.name,
+      institution: item.institution,
+      type: item.type,
+      balance: item.balance,
+    })),
+    obligations: setup.obligations.map((item) => ({
+      name: item.name,
+      amount: item.amount,
+      due_date: item.dueDate,
+      recurrence: item.recurrence,
+      linked_account: item.linkedAccount,
+    })),
+    debts: setup.debts.map((item) => ({
+      name: item.name,
+      balance: item.balance,
+      minimum: item.minimum,
+      due_date: item.dueDate,
+    })),
+    income: setup.income.map((item) => ({
+      source: item.source,
+      expected_amount: item.expectedAmount,
+      due_date: item.dueDate,
+      recurrence: item.recurrence,
+      linked_account: item.linkedAccount,
+    })),
+    roadmap_items: setup.roadmapItems.map((item) => ({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      category: item.category,
+      status: item.status,
+      priority: item.priority,
+      target_date: item.targetDate,
+      timeframe_label: item.timeframeLabel,
+      progress_mode: item.progressMode,
+      progress_value: item.progressValue,
+      steps: item.steps.map((step) => ({
+        id: step.id,
+        title: step.title,
+        completed: step.completed,
+        dueDate: step.dueDate,
+        notes: step.notes,
+      })),
+      notes: item.notes,
+      dependency_ids: item.dependencyIds,
+      linked_strategy_goal_id: item.linkedStrategyGoalId,
+      strategy_backed: Boolean(item.strategyBacked),
+    })),
+    strategy_document: setup.strategyDocument,
+  };
+}
+
 export function readStoredLifeOsSetup(): StoredLifeOsSetup | null {
   if (typeof window === "undefined") return null;
   const raw = window.localStorage.getItem(setupKey);
@@ -1675,6 +1869,14 @@ export function useStoredLifeOsSetup() {
       setHydrated(true);
     };
     sync();
+    void api.getSetup().then((payload) => {
+      const localSetup = readStoredLifeOsSetup();
+      if (!hasApiSetupData(payload) && localSetup) return;
+      const nextSetup = storedSetupFromApiSetup(payload, localSetup);
+      saveStoredLifeOsSetup(nextSetup);
+      setSetup(nextSetup);
+      setHydrated(true);
+    });
     window.addEventListener("storage", sync);
     window.addEventListener(changedEvent, sync);
     return () => {
@@ -1684,8 +1886,10 @@ export function useStoredLifeOsSetup() {
   }, []);
 
   const save = (nextSetup: StoredLifeOsSetup) => {
-    saveStoredLifeOsSetup(nextSetup);
-    setSetup(nextSetup);
+    const normalized = normalizeStoredLifeOsSetup(nextSetup);
+    saveStoredLifeOsSetup(normalized);
+    setSetup(normalized);
+    void api.saveSetup(storedSetupToBackendSetupPayload(normalized));
   };
 
   return {
@@ -1696,22 +1900,35 @@ export function useStoredLifeOsSetup() {
 }
 
 export function useLifeOsDashboard() {
-  const [setup, setSetup] = useState<StoredLifeOsSetup | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  const [dashboard, setDashboard] = useState<DashboardSnapshot>(sampleDashboard);
 
   useEffect(() => {
-    const sync = () => {
-      setSetup(readStoredLifeOsSetup());
-      setHydrated(true);
+    let cancelled = false;
+
+    const sync = async () => {
+      const localSetup = readStoredLifeOsSetup();
+      if (!cancelled) {
+        setDashboard(buildDashboardFromSetup(localSetup));
+      }
+
+      const apiDashboard = await api.getDashboardData();
+      if (!cancelled && apiDashboard) {
+        setDashboard(buildDashboardFromSetup(storedSetupFromApiDashboard(apiDashboard, localSetup)));
+      }
     };
-    sync();
-    window.addEventListener("storage", sync);
-    window.addEventListener(changedEvent, sync);
+
+    void sync();
+    const onChange = () => {
+      void sync();
+    };
+    window.addEventListener("storage", onChange);
+    window.addEventListener(changedEvent, onChange);
     return () => {
-      window.removeEventListener("storage", sync);
-      window.removeEventListener(changedEvent, sync);
+      cancelled = true;
+      window.removeEventListener("storage", onChange);
+      window.removeEventListener(changedEvent, onChange);
     };
   }, []);
 
-  return useMemo(() => buildDashboardFromSetup(hydrated ? setup : null), [hydrated, setup]);
+  return useMemo(() => dashboard, [dashboard]);
 }

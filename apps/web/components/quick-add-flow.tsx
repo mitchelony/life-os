@@ -117,8 +117,9 @@ export function QuickAddFlow() {
 
   function handleSubmit() {
     startTransition(() => {
-      void api.submitQuickAdd(draft).then(() => {
+      void api.submitQuickAdd(draft).then((result) => {
         const storedSetup = readStoredLifeOsSetup();
+        const apiSaved = !("draft" in result);
         let setupUpdated = false;
         if (storedSetup) {
           saveStoredLifeOsSetup(applyQuickAddToSetup(storedSetup, draft));
@@ -126,7 +127,7 @@ export function QuickAddFlow() {
         }
 
         setSubmitted(
-          !setupUpdated
+          !setupUpdated && !apiSaved
             ? "Finish setup in Settings to save locally"
             : recurrence === "one-time"
               ? kind === "income"

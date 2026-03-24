@@ -59,12 +59,17 @@ If you want the web app to call the API, create a local env file:
 cp apps/web/.env.example apps/web/.env.local
 ```
 
+The web app now expects Supabase auth env values in `apps/web/.env.local`:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
 ## Run the Web App
 
 From the repository root:
 
 ```bash
-cd /Users/MAC/Documents/GitHub/life-os
+cd /Users/MAC/GitHub/life-os
 source ~/.nvm/nvm.sh
 nvm use 20
 npm run dev:web
@@ -86,8 +91,9 @@ The frontend currently uses a very small env surface:
 Important:
 
 - the web app no longer ships the owner token to the browser
-- local API auth should remain server-side in the API `.env`
-- if no backend base URL is set, the app can still run with local sample and browser-stored state
+- the web app signs in the owner through Supabase email/password and sends the bearer token to the backend
+- API-backed persistence is now the preferred path for dashboard, quick add, settings, and roadmap data
+- browser storage is still used as a mirror/fallback, not the primary saved truth
 
 ## Scripts
 
@@ -114,7 +120,7 @@ npm --workspace apps/web run test
 Run the frontend test suite:
 
 ```bash
-cd /Users/MAC/Documents/GitHub/life-os
+cd /Users/MAC/GitHub/life-os
 source ~/.nvm/nvm.sh
 nvm use 20
 npm --workspace apps/web run test
@@ -123,6 +129,7 @@ npm --workspace apps/web run test
 Current tests focus on:
 
 - local state and financial logic
+- auth/session-aware API client behavior
 - roadmap and strategy behavior
 - app shell behavior
 - API client behavior

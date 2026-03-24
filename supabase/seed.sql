@@ -1,404 +1,365 @@
--- Change this UUID to match the owner auth user id you want to seed locally.
--- The schema is single-user by design, so every seeded row belongs to one owner.
 select set_config('search_path', 'public', true);
 
-insert into public.profiles (id, email, display_name)
-values (
-  '11111111-1111-1111-1111-111111111111'::uuid,
-  'owner@life-os.local',
-  'Life OS Owner'
-)
-on conflict (id) do update
-  set email = excluded.email,
-      display_name = excluded.display_name,
-      updated_at = now();
-
-insert into public.app_settings (user_id, currency_code, timezone, week_starts_on, dashboard_horizon_days, low_balance_warning_threshold, compact_mode)
-values (
-  '11111111-1111-1111-1111-111111111111'::uuid,
-  'USD',
-  'America/Chicago',
-  1,
-  7,
-  150,
-  false
-)
-on conflict (user_id) do update
-  set currency_code = excluded.currency_code,
-      timezone = excluded.timezone,
-      week_starts_on = excluded.week_starts_on,
-      dashboard_horizon_days = excluded.dashboard_horizon_days,
-      low_balance_warning_threshold = excluded.low_balance_warning_threshold,
-      compact_mode = excluded.compact_mode,
-      updated_at = now();
-
-insert into public.onboarding_state (user_id, is_completed, current_step, state)
-values (
-  '11111111-1111-1111-1111-111111111111'::uuid,
-  false,
-  'baseline_setup',
-  jsonb_build_object(
-    'accounts', true,
-    'debts', true,
-    'bills', true,
-    'income_sources', true,
-    'targets', true
+do $$
+declare
+  owner_id constant text := '11111111-1111-1111-1111-111111111111';
+  owner_email constant text := 'owner@life-os.local';
+  owner_password constant text := 'life-os-local-dev';
+begin
+  insert into auth.users (
+    id,
+    instance_id,
+    aud,
+    role,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    raw_app_meta_data,
+    raw_user_meta_data,
+    created_at,
+    updated_at,
+    confirmation_token,
+    email_change,
+    email_change_token_new,
+    recovery_token
   )
-)
-on conflict (user_id) do update
-  set is_completed = excluded.is_completed,
-      current_step = excluded.current_step,
-      state = excluded.state,
+  values (
+    owner_id::uuid,
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    'authenticated',
+    'authenticated',
+    owner_email,
+    crypt(owner_password, gen_salt('bf')),
+    now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"display_name":"Life OS Owner"}'::jsonb,
+    now(),
+    now(),
+    '',
+    '',
+    '',
+    ''
+  )
+  on conflict (id) do update
+    set email = excluded.email,
+        encrypted_password = excluded.encrypted_password,
+        raw_app_meta_data = excluded.raw_app_meta_data,
+        raw_user_meta_data = excluded.raw_user_meta_data,
+        updated_at = now();
+
+  insert into auth.identities (
+    id,
+    user_id,
+    identity_data,
+    provider,
+    provider_id,
+    last_sign_in_at,
+    created_at,
+    updated_at
+  )
+  values (
+    gen_random_uuid(),
+    owner_id::uuid,
+    format('{"sub":"%s","email":"%s"}', owner_id, owner_email)::jsonb,
+    'email',
+    owner_email,
+    now(),
+    now(),
+    now()
+  )
+  on conflict (provider, provider_id) do update
+    set identity_data = excluded.identity_data,
+        last_sign_in_at = excluded.last_sign_in_at,
+        updated_at = now();
+end $$;
+
+insert into public.categories (id, owner_id, name, "group", is_active)
+values
+  ('30000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Housing', 'needs', true),
+  ('30000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Utilities', 'needs', true),
+  ('30000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'Debt', 'needs', true),
+  ('30000000-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', 'Income', 'income', true)
+on conflict (id) do update
+  set name = excluded.name,
+      "group" = excluded."group",
+      is_active = excluded.is_active,
       updated_at = now();
 
-insert into public.accounts (id, user_id, name, type, institution, opening_balance, current_balance, sort_order, is_active, notes)
+insert into public.accounts (id, owner_id, name, type, institution, balance, is_active, notes)
 values
-  ('21111111-1111-1111-1111-111111111111'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Wells Fargo Checking', 'checking', 'Wells Fargo', 1200.00, 1450.00, 1, true, 'Primary spending account'),
-  ('21111111-1111-1111-1111-111111111112'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Cash App Checking', 'checking', 'Cash App', 250.00, 320.50, 2, true, 'Secondary cash account'),
-  ('21111111-1111-1111-1111-111111111113'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Cash App Savings', 'savings', 'Cash App', 1700.00, 1800.00, 3, true, 'Protected savings buffer'),
-  ('21111111-1111-1111-1111-111111111114'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Capital One Credit Card', 'credit_card', 'Capital One', 590.12, 640.12, 4, true, 'Credit card balance stored as amount owed')
+  ('20000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Checking', 'checking', 'Wells Fargo', 425.13, true, 'Main spending account'),
+  ('20000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Savings', 'savings', 'Cash App', 180.00, true, 'Small protected buffer'),
+  ('20000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'Capital One Credit Card', 'credit_card', 'Capital One', 498.28, true, 'Balance stored as amount owed')
 on conflict (id) do update
   set name = excluded.name,
       type = excluded.type,
       institution = excluded.institution,
-      opening_balance = excluded.opening_balance,
-      current_balance = excluded.current_balance,
-      sort_order = excluded.sort_order,
+      balance = excluded.balance,
       is_active = excluded.is_active,
       notes = excluded.notes,
       updated_at = now();
 
-insert into public.categories (id, user_id, name, kind, icon, color, sort_order, is_active, is_builtin, notes)
+insert into public.merchants (id, owner_id, name, kind, is_active)
 values
-  ('31111111-1111-1111-1111-111111111111'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Housing', 'expense', 'home', '#64748b', 1, true, true, 'Rent and housing costs'),
-  ('31111111-1111-1111-1111-111111111112'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Utilities', 'expense', 'zap', '#0f766e', 2, true, true, 'Internet, electricity, phone, and similar bills'),
-  ('31111111-1111-1111-1111-111111111113'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Groceries', 'expense', 'shopping-cart', '#166534', 3, true, true, 'Food and household staples'),
-  ('31111111-1111-1111-1111-111111111114'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Transportation', 'expense', 'car-front', '#1d4ed8', 4, true, true, 'Fuel, transit, rides, and parking'),
-  ('31111111-1111-1111-1111-111111111115'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Dining Out', 'expense', 'utensils', '#c2410c', 5, true, true, 'Eating out and coffee'),
-  ('31111111-1111-1111-1111-111111111116'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Health', 'expense', 'heart-pulse', '#be123c', 6, true, true, 'Medical, pharmacy, and wellness'),
-  ('31111111-1111-1111-1111-111111111117'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Subscriptions', 'expense', 'repeat', '#7c3aed', 7, true, true, 'Recurring services'),
-  ('31111111-1111-1111-1111-111111111118'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Debt Payment', 'expense', 'banknote', '#991b1b', 8, true, true, 'Debt and minimum payments'),
-  ('31111111-1111-1111-1111-111111111119'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Income', 'income', 'badge-dollar-sign', '#047857', 1, true, true, 'Paychecks and income inflows'),
-  ('31111111-1111-1111-1111-111111111120'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Savings', 'both', 'piggy-bank', '#0ea5e9', 2, true, true, 'Transfers into savings or goal funding')
+  ('40000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Roommate', 'merchant', true),
+  ('40000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Landlord', 'merchant', true)
 on conflict (id) do update
   set name = excluded.name,
       kind = excluded.kind,
-      icon = excluded.icon,
-      color = excluded.color,
-      sort_order = excluded.sort_order,
       is_active = excluded.is_active,
-      is_builtin = excluded.is_builtin,
-      notes = excluded.notes,
       updated_at = now();
 
-insert into public.merchants (id, user_id, name, usage_count, last_used_at, is_active, notes)
+insert into public.income_sources (id, owner_id, name, kind, is_active)
 values
-  ('41111111-1111-1111-1111-111111111111'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Walmart', 4, now() - interval '3 days', true, 'Common grocery and household store'),
-  ('41111111-1111-1111-1111-111111111112'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Shell', 2, now() - interval '4 days', true, 'Fuel stop'),
-  ('41111111-1111-1111-1111-111111111113'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Comcast', 1, now() - interval '9 days', true, 'Internet provider')
+  ('50000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Tutoring', 'income', true),
+  ('50000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Photoshoots', 'income', true)
 on conflict (id) do update
   set name = excluded.name,
-      usage_count = excluded.usage_count,
-      last_used_at = excluded.last_used_at,
+      kind = excluded.kind,
       is_active = excluded.is_active,
-      notes = excluded.notes,
       updated_at = now();
 
-insert into public.income_sources (id, user_id, name, usage_count, last_used_at, is_active, notes)
+insert into public.app_settings (owner_id, key, value)
 values
-  ('51111111-1111-1111-1111-111111111111'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Employer Payroll', 6, now() - interval '5 days', true, 'Primary paycheck source'),
-  ('51111111-1111-1111-1111-111111111112'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Cash App Deposits', 2, now() - interval '11 days', true, 'Side work and transfers'),
-  ('51111111-1111-1111-1111-111111111113'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Refunds', 1, now() - interval '14 days', true, 'Refund and reimbursement inflows')
-on conflict (id) do update
-  set name = excluded.name,
-      usage_count = excluded.usage_count,
-      last_used_at = excluded.last_used_at,
-      is_active = excluded.is_active,
-      notes = excluded.notes,
+  ('11111111-1111-1111-1111-111111111111', 'protected_cash_buffer', '100'),
+  ('11111111-1111-1111-1111-111111111111', 'essential_spend_target', '25'),
+  ('11111111-1111-1111-1111-111111111111', 'savings_floor', '100'),
+  ('11111111-1111-1111-1111-111111111111', 'owner_notes', 'Keep the dashboard calm and focused.')
+on conflict (owner_id, key) do update
+  set value = excluded.value,
       updated_at = now();
 
-insert into public.budget_targets (id, user_id, name, target_type, cadence, amount, effective_start, is_active, notes)
+update public.onboarding_state
+set is_complete = true,
+    current_step = 'complete',
+    completed_at = current_date,
+    updated_at = now()
+where owner_id = '11111111-1111-1111-1111-111111111111';
+
+insert into public.obligations (id, owner_id, name, amount, due_on, frequency, is_paid, is_recurring, notes)
 values
-  ('61111111-1111-1111-1111-111111111111'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Protected Cash Buffer', 'protected_cash_buffer', 'one_time', 500.00, current_date, true, 'Minimum cash that should stay untouched'),
-  ('61111111-1111-1111-1111-111111111112'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Essential Weekly Spend', 'essential_weekly_spend', 'weekly', 175.00, current_date, true, 'Food and essentials budget between paychecks'),
-  ('61111111-1111-1111-1111-111111111113'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Savings Goal', 'savings_goal', 'monthly', 1000.00, current_date, true, 'Longer-term cushion and goals')
+  ('90000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Rent', 950.00, current_date + 6, 'monthly', false, true, 'Main monthly rent'),
+  ('90000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Utilities', 442.70, current_date - 2, 'one_time', false, false, 'Overdue balance owed through roommate')
 on conflict (id) do update
   set name = excluded.name,
-      target_type = excluded.target_type,
-      cadence = excluded.cadence,
       amount = excluded.amount,
-      effective_start = excluded.effective_start,
-      is_active = excluded.is_active,
-      notes = excluded.notes,
-      updated_at = now();
-
-insert into public.reserves (id, user_id, name, reserve_type, amount, is_active, notes)
-values
-  ('71111111-1111-1111-1111-111111111111'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Food Reserve', 'manual', 150.00, true, 'Money reserved for the current week'),
-  ('71111111-1111-1111-1111-111111111112'::uuid, '11111111-1111-1111-1111-111111111111'::uuid, 'Emergency Buffer', 'savings_floor', 500.00, true, 'Protected cash floor')
-on conflict (id) do update
-  set name = excluded.name,
-      reserve_type = excluded.reserve_type,
-      amount = excluded.amount,
-      is_active = excluded.is_active,
-      notes = excluded.notes,
-      updated_at = now();
-
-insert into public.debts (id, user_id, name, creditor_name, debt_type, status, current_balance, minimum_payment, due_date, linked_account_id, last_payment_date, last_payment_amount, priority, notes)
-values (
-  '81111111-1111-1111-1111-111111111111'::uuid,
-  '11111111-1111-1111-1111-111111111111'::uuid,
-  'Capital One Credit Card',
-  'Capital One',
-  'credit_card',
-  'active',
-  640.12,
-  35.00,
-  current_date + 18,
-  '21111111-1111-1111-1111-111111111114'::uuid,
-  current_date - 8,
-  120.00,
-  1,
-  'Track the card balance and minimum payment in one place'
-)
-on conflict (id) do update
-  set name = excluded.name,
-      creditor_name = excluded.creditor_name,
-      debt_type = excluded.debt_type,
-      status = excluded.status,
-      current_balance = excluded.current_balance,
-      minimum_payment = excluded.minimum_payment,
-      due_date = excluded.due_date,
-      linked_account_id = excluded.linked_account_id,
-      last_payment_date = excluded.last_payment_date,
-      last_payment_amount = excluded.last_payment_amount,
-      priority = excluded.priority,
-      notes = excluded.notes,
-      updated_at = now();
-
-insert into public.obligations (id, user_id, name, obligation_type, status, amount, next_due_date, frequency, frequency_interval, account_id, category_id, merchant_id, last_paid_date, last_paid_amount, grace_days, is_required, notes)
-values
-  (
-    '91111111-1111-1111-1111-111111111111'::uuid,
-    '11111111-1111-1111-1111-111111111111'::uuid,
-    'Rent',
-    'rent',
-    'active',
-    1250.00,
-    current_date + 9,
-    'monthly',
-    1,
-    '21111111-1111-1111-1111-111111111111'::uuid,
-    '31111111-1111-1111-1111-111111111111'::uuid,
-    null,
-    current_date - 22,
-    1250.00,
-    3,
-    true,
-    'Primary monthly housing obligation'
-  ),
-  (
-    '91111111-1111-1111-1111-111111111112'::uuid,
-    '11111111-1111-1111-1111-111111111111'::uuid,
-    'Internet',
-    'utility',
-    'active',
-    84.00,
-    current_date + 5,
-    'monthly',
-    1,
-    '21111111-1111-1111-1111-111111111111'::uuid,
-    '31111111-1111-1111-1111-111111111112'::uuid,
-    '41111111-1111-1111-1111-111111111113'::uuid,
-    current_date - 27,
-    84.00,
-    1,
-    true,
-    'Internet and phone bill'
-  ),
-  (
-    '91111111-1111-1111-1111-111111111113'::uuid,
-    '11111111-1111-1111-1111-111111111111'::uuid,
-    'Phone',
-    'utility',
-    'active',
-    65.00,
-    current_date + 12,
-    'monthly',
-    1,
-    '21111111-1111-1111-1111-111111111111'::uuid,
-    '31111111-1111-1111-1111-111111111112'::uuid,
-    null,
-    current_date - 18,
-    65.00,
-    1,
-    true,
-    'Monthly phone bill'
-  )
-on conflict (id) do update
-  set name = excluded.name,
-      obligation_type = excluded.obligation_type,
-      status = excluded.status,
-      amount = excluded.amount,
-      next_due_date = excluded.next_due_date,
+      due_on = excluded.due_on,
       frequency = excluded.frequency,
-      frequency_interval = excluded.frequency_interval,
+      is_paid = excluded.is_paid,
+      is_recurring = excluded.is_recurring,
+      notes = excluded.notes,
+      updated_at = now();
+
+insert into public.debts (id, owner_id, name, balance, minimum_payment, due_on, status, notes)
+values
+  ('80000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Capital One Credit Card', 498.28, 10.00, current_date + 4, 'active', 'Do not add new spending to this card')
+on conflict (id) do update
+  set name = excluded.name,
+      balance = excluded.balance,
+      minimum_payment = excluded.minimum_payment,
+      due_on = excluded.due_on,
+      status = excluded.status,
+      notes = excluded.notes,
+      updated_at = now();
+
+insert into public.income_entries (id, owner_id, source_name, amount, status, expected_on, account_id, notes)
+values
+  ('60000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Photoshoot payment', 100.00, 'expected', current_date + 7, '20000000-0000-0000-0000-000000000001', 'Confirmed'),
+  ('60000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Tutoring paycheck', 390.00, 'expected', current_date + 14, '20000000-0000-0000-0000-000000000001', 'Confirmed')
+on conflict (id) do update
+  set source_name = excluded.source_name,
+      amount = excluded.amount,
+      status = excluded.status,
+      expected_on = excluded.expected_on,
+      account_id = excluded.account_id,
+      notes = excluded.notes,
+      updated_at = now();
+
+insert into public.reserves (id, owner_id, name, amount, kind, is_active, notes)
+values
+  ('70000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Savings floor', 100.00, 'manual', true, 'Money to leave alone')
+on conflict (id) do update
+  set name = excluded.name,
+      amount = excluded.amount,
+      kind = excluded.kind,
+      is_active = excluded.is_active,
+      notes = excluded.notes,
+      updated_at = now();
+
+insert into public.tasks (id, owner_id, title, status, due_on, linked_type, linked_id, notes)
+values
+  ('a0000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'File taxes', 'todo', current_date + 2, 'admin', null, 'Finish filing this week')
+on conflict (id) do update
+  set title = excluded.title,
+      status = excluded.status,
+      due_on = excluded.due_on,
+      linked_type = excluded.linked_type,
+      linked_id = excluded.linked_id,
+      notes = excluded.notes,
+      updated_at = now();
+
+insert into public.transactions (id, owner_id, kind, amount, account_id, category_id, merchant_id, income_source_id, occurred_on, notes, is_planned, is_cleared)
+values
+  ('t0000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'expense', 24.87, '20000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000001', null, current_date - 1, 'Utilities partial payment', false, true),
+  ('t0000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'income', 130.00, '20000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000004', null, '50000000-0000-0000-0000-000000000001', current_date - 5, 'Recent tutoring payout', false, true)
+on conflict (id) do update
+  set kind = excluded.kind,
+      amount = excluded.amount,
       account_id = excluded.account_id,
       category_id = excluded.category_id,
       merchant_id = excluded.merchant_id,
-      last_paid_date = excluded.last_paid_date,
-      last_paid_amount = excluded.last_paid_amount,
-      grace_days = excluded.grace_days,
-      is_required = excluded.is_required,
+      income_source_id = excluded.income_source_id,
+      occurred_on = excluded.occurred_on,
       notes = excluded.notes,
+      is_planned = excluded.is_planned,
+      is_cleared = excluded.is_cleared,
       updated_at = now();
 
-insert into public.tasks (id, user_id, title, description, status, priority, due_date, category_id, linked_obligation_id, linked_debt_id, notes)
+insert into public.roadmap_items (
+  id,
+  owner_id,
+  title,
+  description,
+  category,
+  status,
+  priority,
+  target_date,
+  timeframe_label,
+  progress_mode,
+  progress_value,
+  steps,
+  dependency_ids,
+  notes,
+  linked_strategy_goal_id,
+  strategy_backed
+)
 values
   (
-    'a1111111-1111-1111-1111-111111111111'::uuid,
-    '11111111-1111-1111-1111-111111111111'::uuid,
-    'Review upcoming bills',
-    'Check rent, internet, and card payment timing before the end of the week.',
-    'open',
-    2,
-    current_date + 2,
-    '31111111-1111-1111-1111-111111111118'::uuid,
-    '91111111-1111-1111-1111-111111111111'::uuid,
-    '81111111-1111-1111-1111-111111111111'::uuid,
-    'This should surface in the weekly review card'
-  ),
-  (
-    'a1111111-1111-1111-1111-111111111112'::uuid,
-    '11111111-1111-1111-1111-111111111111'::uuid,
-    'Confirm next paycheck date',
-    'Verify the employer payroll date and update the expected income entry if needed.',
-    'open',
-    1,
-    current_date + 3,
-    '31111111-1111-1111-1111-111111111119'::uuid,
-    null,
-    null,
-    'Useful for keeping available spend honest'
-  ),
-  (
-    'a1111111-1111-1111-1111-111111111113'::uuid,
-    '11111111-1111-1111-1111-111111111111'::uuid,
-    'File taxes folder',
-    'Gather tax docs and notes for the current filing cycle.',
-    'open',
-    1,
+    'r0000000-0000-0000-0000-000000000001',
+    '11111111-1111-1111-1111-111111111111',
+    'Catch up on utilities',
+    'Use the next income to reduce the overdue utilities balance first.',
+    'finances',
+    'active',
+    'critical',
     current_date + 14,
-    '31111111-1111-1111-1111-111111111118'::uuid,
-    null,
-    null,
-    'Non-financial but still high priority'
+    'Next two weeks',
+    'steps',
+    0,
+    '[{"id":"step-utilities-1","title":"Send first utilities payment","completed":false}]'::jsonb,
+    '[]'::jsonb,
+    'This should come before extra debt payoff.',
+    'goal-utilities-catchup',
+    true
   )
 on conflict (id) do update
   set title = excluded.title,
       description = excluded.description,
+      category = excluded.category,
       status = excluded.status,
       priority = excluded.priority,
-      due_date = excluded.due_date,
-      category_id = excluded.category_id,
-      linked_obligation_id = excluded.linked_obligation_id,
-      linked_debt_id = excluded.linked_debt_id,
+      target_date = excluded.target_date,
+      timeframe_label = excluded.timeframe_label,
+      progress_mode = excluded.progress_mode,
+      progress_value = excluded.progress_value,
+      steps = excluded.steps,
+      dependency_ids = excluded.dependency_ids,
       notes = excluded.notes,
+      linked_strategy_goal_id = excluded.linked_strategy_goal_id,
+      strategy_backed = excluded.strategy_backed,
       updated_at = now();
 
-insert into public.income_entries (id, user_id, income_source_id, account_id, category_id, expected_amount, received_amount, expected_date, received_date, status, description, notes)
-values (
-  'b1111111-1111-1111-1111-111111111111'::uuid,
-  '11111111-1111-1111-1111-111111111111'::uuid,
-  '51111111-1111-1111-1111-111111111111'::uuid,
-  '21111111-1111-1111-1111-111111111111'::uuid,
-  '31111111-1111-1111-1111-111111111119'::uuid,
-  2400.00,
-  0,
-  current_date + 5,
-  null,
-  'expected',
-  'Next paycheck',
-  'Expected income used by available spend calculations'
-)
-on conflict (id) do update
-  set income_source_id = excluded.income_source_id,
-      account_id = excluded.account_id,
-      category_id = excluded.category_id,
-      expected_amount = excluded.expected_amount,
-      received_amount = excluded.received_amount,
-      expected_date = excluded.expected_date,
-      received_date = excluded.received_date,
-      status = excluded.status,
-      description = excluded.description,
-      notes = excluded.notes,
-      updated_at = now();
-
-insert into public.transactions (id, user_id, account_id, category_id, merchant_id, income_source_id, obligation_id, debt_id, direction, status, amount, transaction_date, description, counterparty_name, notes)
+insert into public.strategy_documents (id, owner_id, version, name, is_active, document)
 values
   (
-    'c1111111-1111-1111-1111-111111111111'::uuid,
-    '11111111-1111-1111-1111-111111111111'::uuid,
-    '21111111-1111-1111-1111-111111111111'::uuid,
-    '31111111-1111-1111-1111-111111111113'::uuid,
-    '41111111-1111-1111-1111-111111111111'::uuid,
-    null,
-    null,
-    null,
-    'expense',
-    'posted',
-    72.48,
-    current_date - 1,
-    'Groceries',
-    'Walmart',
-    'Recent essentials trip'
-  ),
-  (
-    'c1111111-1111-1111-1111-111111111112'::uuid,
-    '11111111-1111-1111-1111-111111111111'::uuid,
-    '21111111-1111-1111-1111-111111111112'::uuid,
-    '31111111-1111-1111-1111-111111111114'::uuid,
-    '41111111-1111-1111-1111-111111111112'::uuid,
-    null,
-    null,
-    null,
-    'expense',
-    'posted',
-    38.12,
-    current_date - 2,
-    'Fuel',
-    'Shell',
-    'Gas stop before errands'
-  ),
-  (
-    'c1111111-1111-1111-1111-111111111113'::uuid,
-    '11111111-1111-1111-1111-111111111111'::uuid,
-    '21111111-1111-1111-1111-111111111111'::uuid,
-    '31111111-1111-1111-1111-111111111119'::uuid,
-    null,
-    '51111111-1111-1111-1111-111111111111'::uuid,
-    null,
-    null,
-    'income',
-    'posted',
-    2400.00,
-    current_date - 9,
-    'Payroll deposit',
-    'Employer Payroll',
-    'Most recent paycheck'
+    's0000000-0000-0000-0000-000000000001',
+    '11111111-1111-1111-1111-111111111111',
+    2,
+    'Next paycheck recovery plan',
+    true,
+    '{
+      "version": 2,
+      "name": "Next paycheck recovery plan",
+      "summary": "Use the next incoming money in a strict order: protect a small buffer, cover essentials, reduce utilities, and push down the credit card balance without adding new debt.",
+      "effectiveDate": "2026-03-24",
+      "currency": "USD",
+      "planningHorizonDays": 30,
+      "strategyMode": "cash_flow_first",
+      "goals": [
+        {
+          "id": "goal-utilities-catchup",
+          "title": "Catch up on utilities",
+          "category": "finances",
+          "status": "active",
+          "priority": "critical",
+          "targetDate": "2026-04-30"
+        }
+      ],
+      "cashFlowPlan": {
+        "defaultFlowOrder": ["minimum_required_payments", "weekly_essentials", "protected_buffer", "overdue_utilities", "credit_card_extra"],
+        "weeklyEssentialsCap": 25,
+        "noNewCreditCardSpending": true,
+        "bufferTarget": 100
+      },
+      "expectedIncome": [
+        {
+          "id": "income-photoshoot",
+          "label": "Photoshoot payment",
+          "amount": 100,
+          "timing": "next_week",
+          "certainty": "confirmed"
+        },
+        {
+          "id": "income-tutoring",
+          "label": "Tutoring paycheck",
+          "amount": 390,
+          "timing": "in_2_weeks",
+          "certainty": "confirmed"
+        }
+      ],
+      "nextIncomePlans": [
+        {
+          "id": "plan-paycheck",
+          "incomeId": "income-tutoring",
+          "label": "When the tutoring paycheck lands",
+          "amount": 390,
+          "allocations": [
+            { "id": "buffer", "label": "Emergency buffer", "amount": 50, "type": "buffer", "priority": 1 },
+            { "id": "utilities", "label": "Utilities catch-up payment", "amount": 170, "type": "obligation_payment", "priority": 2 },
+            { "id": "card", "label": "Capital One payment", "amount": 170, "type": "debt_payment", "priority": 3 }
+          ],
+          "recommendedStep": "Finish the first $100 buffer, then split the rest between utilities and Capital One."
+        }
+      ],
+      "debtPlan": [
+        {
+          "debtName": "Capital One Credit Card",
+          "currentBalance": 498.28,
+          "mode": "minimum_plus",
+          "minimumPayment": 10,
+          "minimumSource": "existing",
+          "extraPaymentRule": { "type": "follow_next_income_plan" },
+          "priority": "critical"
+        }
+      ],
+      "obligationPlan": [
+        {
+          "obligationName": "Utilities",
+          "currentBalance": 442.70,
+          "handling": "pay_over_time",
+          "priority": "critical"
+        }
+      ],
+      "guidance": {
+        "focusOrder": ["next_income_plan", "minimum_required_payments", "overdue_obligations", "critical_debt", "buffer", "admin_deadlines"],
+        "recommendedStepStyle": "next_planned_allocation",
+        "primaryUXMode": "next_payments_to_make"
+      }
+    }'::jsonb
   )
 on conflict (id) do update
-  set account_id = excluded.account_id,
-      category_id = excluded.category_id,
-      merchant_id = excluded.merchant_id,
-      income_source_id = excluded.income_source_id,
-      obligation_id = excluded.obligation_id,
-      debt_id = excluded.debt_id,
-      direction = excluded.direction,
-      status = excluded.status,
-      amount = excluded.amount,
-      transaction_date = excluded.transaction_date,
-      description = excluded.description,
-      counterparty_name = excluded.counterparty_name,
-      notes = excluded.notes,
+  set version = excluded.version,
+      name = excluded.name,
+      is_active = excluded.is_active,
+      document = excluded.document,
       updated_at = now();

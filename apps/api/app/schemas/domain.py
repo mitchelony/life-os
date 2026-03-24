@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -33,6 +33,98 @@ class OnboardingStateRead(TimestampedRead):
 class AppSettingRead(TimestampedRead):
     key: str
     value: str
+
+
+class SettingsBootstrapAccount(BaseModel):
+    name: str
+    institution: str = ""
+    type: AccountType
+    balance: str = "0"
+
+
+class SettingsBootstrapObligation(BaseModel):
+    name: str
+    amount: str = "0"
+    due_date: str
+    recurrence: Literal["one-time", "weekly", "biweekly", "monthly"] = "one-time"
+    linked_account: str | None = None
+
+
+class SettingsBootstrapDebt(BaseModel):
+    name: str
+    balance: str = "0"
+    minimum: str = "0"
+    due_date: str
+
+
+class SettingsBootstrapIncome(BaseModel):
+    source: str
+    expected_amount: str = "0"
+    due_date: str
+    recurrence: Literal["one-time", "weekly", "biweekly", "monthly"] = "one-time"
+    linked_account: str | None = None
+
+
+class SettingsBootstrapRoadmapStep(BaseModel):
+    id: str
+    title: str
+    completed: bool = False
+    due_date: str | None = None
+    notes: str | None = None
+
+
+class SettingsBootstrapRoadmapItem(BaseModel):
+    id: str
+    title: str
+    description: str = ""
+    category: Literal["finances", "school", "career", "admin", "health", "personal"] = "finances"
+    status: Literal["planned", "active", "blocked", "completed", "overdue"] = "planned"
+    priority: Literal["low", "medium", "high", "critical"] = "medium"
+    target_date: str | None = None
+    timeframe_label: str | None = None
+    progress_mode: Literal["steps", "percent"] = "steps"
+    progress_value: float = 0
+    steps: list[SettingsBootstrapRoadmapStep] = Field(default_factory=list)
+    notes: str | None = None
+    dependency_ids: list[str] = Field(default_factory=list)
+    linked_strategy_goal_id: str | None = None
+    strategy_backed: bool = False
+
+
+class SettingsBootstrapPayload(BaseModel):
+    display_name: str = "Life owner"
+    protected_buffer: str = "0"
+    essential_target: str = "0"
+    savings_floor: str = "0"
+    notes: str = ""
+    accounts: list[SettingsBootstrapAccount] = Field(default_factory=list)
+    obligations: list[SettingsBootstrapObligation] = Field(default_factory=list)
+    debts: list[SettingsBootstrapDebt] = Field(default_factory=list)
+    income: list[SettingsBootstrapIncome] = Field(default_factory=list)
+    roadmap_items: list[SettingsBootstrapRoadmapItem] = Field(default_factory=list)
+    strategy_document: dict[str, Any] | None = None
+
+
+class QuickAddRequest(BaseModel):
+    kind: Literal["expense", "income"]
+    amount: float
+    title: str = ""
+    merchant_or_source: str = ""
+    category: str = ""
+    account: str = ""
+    date: date
+    notes: str = ""
+    status: Literal["expected", "received"] = "received"
+    recurrence: Literal["one-time", "weekly", "biweekly", "monthly"] = "one-time"
+    save_as_obligation: bool = False
+    obligation_due_date: date | None = None
+
+
+class QuickAddResponse(BaseModel):
+    ok: bool = True
+    transaction_id: str | None = None
+    obligation_id: str | None = None
+    income_entry_id: str | None = None
 
 
 class AccountBase(BaseModel):
@@ -325,10 +417,35 @@ class DashboardSnapshot(BaseModel):
     debts: list[DebtRead] = Field(default_factory=list)
     tasks: list[TaskRead] = Field(default_factory=list)
     income_entries: list[IncomeEntryRead] = Field(default_factory=list)
+    transactions: list[TransactionRead] = Field(default_factory=list)
+    categories: list[CategoryRead] = Field(default_factory=list)
+    merchants: list[MerchantRead] = Field(default_factory=list)
+    income_sources: list[IncomeSourceRead] = Field(default_factory=list)
     reserves: list[ReserveRead] = Field(default_factory=list)
     settings: dict[str, str] = Field(default_factory=dict)
     protected_cash_buffer: float = 0
     essential_spend_target: float = 0
+
+
+class DashboardTransactionRead(BaseModel):
+    id: str
+    kind: TransactionKind
+    amount: float
+    occurred_on: date
+    account_name: str | None = None
+    category_name: str | None = None
+    counterparty_name: str | None = None
+    title: str | None = None
+    notes: str | None = None
+
+
+class DashboardDataSnapshot(BaseModel):
+    accounts: list[AccountRead] = Field(default_factory=list)
+    obligations: list[ObligationRead] = Field(default_factory=list)
+    debts: list[DebtRead] = Field(default_factory=list)
+    income_entries: list[IncomeEntryRead] = Field(default_factory=list)
+    transactions: list[DashboardTransactionRead] = Field(default_factory=list)
+    settings: dict[str, str] = Field(default_factory=dict)
 
 
 class DashboardSummary(BaseModel):
@@ -341,3 +458,4 @@ class DashboardSummary(BaseModel):
 
 class DashboardResponse(BaseModel):
     summary: DashboardSummary
+    snapshot: DashboardDataSnapshot

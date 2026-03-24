@@ -2,8 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { api, type BackendSetupPayload } from "@/lib/api";
 import { Check, ChevronLeft, ChevronRight, CirclePlus } from "lucide-react";
-import { onboardingKey, readStoredLifeOsSetup, saveStoredLifeOsSetup, type StoredLifeOsSetup } from "@/lib/local-state";
+import {
+  onboardingKey,
+  readStoredLifeOsSetup,
+  saveStoredLifeOsSetup,
+  storedSetupFromApiSetup,
+  storedSetupToBackendSetupPayload,
+  type StoredLifeOsSetup,
+} from "@/lib/local-state";
 import type { RecurrenceFrequency } from "@/lib/types";
 import { Badge, Button, InlineField, Input, Panel, Select, SectionHeading, Textarea } from "@/components/ui";
 
@@ -74,6 +82,22 @@ const defaultIncome: IncomeDraft[] = [
   { id: "seed-income-payroll", source: "Payroll deposit", expectedAmount: "2480", dueDate: "2026-03-27", recurrence: "biweekly" },
 ];
 
+
+function hasBootstrapData(payload: BackendSetupPayload) {
+  return (
+    payload.accounts.length > 0 ||
+    payload.obligations.length > 0 ||
+    payload.debts.length > 0 ||
+    payload.income.length > 0 ||
+    payload.roadmap_items.length > 0 ||
+    Boolean(payload.strategy_document) ||
+    payload.notes.trim().length > 0 ||
+    payload.protected_buffer !== "0" ||
+    payload.essential_target !== "0" ||
+    payload.savings_floor !== "0"
+  );
+}
+
 export function OnboardingFlow() {
   const router = useRouter();
   const [step, setStep] = useState<Step>(0);
@@ -92,18 +116,63 @@ export function OnboardingFlow() {
 
   useEffect(() => {
     const storedSetup = readStoredLifeOsSetup();
-    if (!storedSetup) return;
+    if (storedSetup) {
+      setStoredTransactions(storedSetup.transactions ?? []);
+      setName(storedSetup.displayName);
+      setProtectedBuffer(storedSetup.protectedBuffer);
+      setEssentialTarget(storedSetup.essentialTarget);
+      setSavingsFloor(storedSetup.savingsFloor);
+      setAccounts(storedSetup.accounts.length ? storedSetup.accounts : defaultAccounts);
+      setObligations(storedSetup.obligations.length ? storedSetup.obligations : defaultObligations);
+      setDebts(storedSetup.debts.length ? storedSetup.debts : defaultDebts);
+      setIncome(storedSetup.income.length ? storedSetup.income : defaultIncome);
+      setNotes(storedSetup.notes);
+    }
 
-    setStoredTransactions(storedSetup.transactions ?? []);
-    setName(storedSetup.displayName);
-    setProtectedBuffer(storedSetup.protectedBuffer);
-    setEssentialTarget(storedSetup.essentialTarget);
-    setSavingsFloor(storedSetup.savingsFloor);
-    setAccounts(storedSetup.accounts.length ? storedSetup.accounts : defaultAccounts);
-    setObligations(storedSetup.obligations.length ? storedSetup.obligations : defaultObligations);
-    setDebts(storedSetup.debts.length ? storedSetup.debts : defaultDebts);
-    setIncome(storedSetup.income.length ? storedSetup.income : defaultIncome);
-    setNotes(storedSetup.notes);
+    void api.getSetup().then((payload) => {
+      if (!hasBootstrapData(payload)) return;
+      const mapped = storedSetupFromApiSetup(payload, readStoredLifeOsSetup());
+      setStoredTransactions(mapped.transactions);
+      setName(mapped.displayName);
+      setProtectedBuffer(mapped.protectedBuffer);
+      setEssentialTarget(mapped.essentialTarget);
+      setSavingsFloor(mapped.savingsFloor);
+      setNotes(mapped.notes);
+      setAccounts(mapped.accounts.length ? mapped.accounts : defaultAccounts);
+      setObligations(
+        mapped.obligations.length
+          ? mapped.obligations.map((item) => ({
+              id: item.id,
+              name: item.name,
+              amount: item.amount,
+              dueDate: item.dueDate,
+              recurrence: item.recurrence,
+            }))
+          : defaultObligations,
+      );
+      setDebts(
+        mapped.debts.length
+          ? mapped.debts.map((item) => ({
+              id: item.id,
+              name: item.name,
+              balance: item.balance,
+              minimum: item.minimum,
+              dueDate: item.dueDate,
+            }))
+          : defaultDebts,
+      );
+      setIncome(
+        mapped.income.length
+          ? mapped.income.map((item) => ({
+              id: item.id,
+              source: item.source,
+              expectedAmount: item.expectedAmount,
+              dueDate: item.dueDate,
+              recurrence: item.recurrence,
+            }))
+          : defaultIncome,
+      );
+    });
   }, []);
 
   function addAccount() {
@@ -132,7 +201,8 @@ export function OnboardingFlow() {
   }
 
   function completeOnboarding() {
-    saveStoredLifeOsSetup({
+    const existing = readStoredLifeOsSetup();
+    const nextSetup: StoredLifeOsSetup = {
       displayName: name,
       protectedBuffer,
       essentialTarget,
@@ -143,15 +213,22 @@ export function OnboardingFlow() {
       debts,
       income,
       transactions: storedTransactions,
-      roadmapItems: [],
-      strategyDocument: null,
-    });
-    window.localStorage.setItem(onboardingKey, "true");
-    router.push("/dashboard");
+      roadmapItems: existing?.roadmapItems ?? [],
+      strategyDocument: existing?.strategyDocument ?? null,
+    };
+
+    void api
+      .saveSetup(storedSetupToBackendSetupPayload(nextSetup))
+      .then(() => api.completeOnboarding())
+      .finally(() => {
+        saveStoredLifeOsSetup(nextSetup);
+        window.localStorage.setItem(onboardingKey, "true");
+        router.push("/dashboard");
+      });
   }
 
   return (
-    <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
+    <div className="space-y-4 pb-[calc(8rem+env(safe-area-inset-bottom))] md:space-y-6 md:pb-6">
       <Panel>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -455,23 +532,27 @@ export function OnboardingFlow() {
         </Panel>
       ) : null}
 
-      <div className="sticky bottom-[calc(8rem+env(safe-area-inset-bottom))] z-20 rounded-[22px] border border-line bg-surface/96 p-3 shadow-soft backdrop-blur-xl md:static md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Button className="w-full sm:w-auto" variant="ghost" onClick={() => setStep((current) => Math.max(0, current - 1) as Step)} disabled={step === 0}>
-          <ChevronLeft className="h-4 w-4" /> Back
-        </Button>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          {step < 3 ? (
-            <Button className="w-full sm:w-auto" onClick={() => setStep((current) => Math.min(3, current + 1) as Step)}>
-              Next <ChevronRight className="h-4 w-4" />
-            </Button>
-          ) : null}
-          {step === 3 ? (
-            <Button className="w-full sm:w-auto" onClick={completeOnboarding}>
-              <Check className="h-4 w-4" /> Save setup
-            </Button>
-          ) : null}
+      <div className="rounded-[22px] border border-line bg-surface/96 p-3 shadow-[0_16px_40px_rgba(16,32,24,0.08)] backdrop-blur-xl md:static md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <div className="mb-3 flex items-center justify-between px-1 md:hidden">
+          <p className="text-[11px] uppercase tracking-[0.22em] text-muted">Step {step + 1} of 4</p>
+          <p className="text-sm font-medium text-ink">{completedPercent}% done</p>
         </div>
+        <div className="flex items-center gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Button className="h-11 shrink-0 px-4 sm:w-auto" variant="ghost" onClick={() => setStep((current) => Math.max(0, current - 1) as Step)} disabled={step === 0}>
+            <ChevronLeft className="h-4 w-4" /> Back
+          </Button>
+          <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:flex-none sm:items-center">
+            {step < 3 ? (
+              <Button className="h-11 w-full sm:w-auto" onClick={() => setStep((current) => Math.min(3, current + 1) as Step)}>
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+            ) : null}
+            {step === 3 ? (
+              <Button className="h-11 w-full sm:w-auto" onClick={completeOnboarding}>
+                <Check className="h-4 w-4" /> Save setup
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

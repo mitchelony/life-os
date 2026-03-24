@@ -16,8 +16,8 @@ This repository contains the full MVP codebase: a Next.js web app, a FastAPI bac
 Life OS is currently in MVP development.
 
 - Manual entry is the source of truth.
-- The web app is usable before full backend integration.
-- The backend and database foundations exist, but Supabase production auth and data wiring are still being completed.
+- The backend and web app now prefer API-backed persistence for the core MVP flows.
+- Supabase Postgres and Supabase Auth are now the intended local and hosted path.
 - The product is intentionally owner-only. There is no team or multi-user model.
 
 ## Repository Structure
@@ -32,16 +32,16 @@ supabase/     Migrations, seed data, and local Supabase setup
 
 Key references:
 
-- [Product requirements](/Users/MAC/Documents/GitHub/life-os/docs/PRD.md)
-- [Architecture notes](/Users/MAC/Documents/GitHub/life-os/docs/ARCHITECTURE.md)
-- [Contributor contract](/Users/MAC/Documents/GitHub/life-os/AGENTS.md)
+- [Product requirements](/Users/MAC/GitHub/life-os/docs/PRD.md)
+- [Architecture notes](/Users/MAC/GitHub/life-os/docs/ARCHITECTURE.md)
+- [Contributor contract](/Users/MAC/GitHub/life-os/AGENTS.md)
 
 ## Tech Stack
 
 - Frontend: Next.js App Router, React, TypeScript, Tailwind CSS, Framer Motion
 - Backend: FastAPI, Pydantic, SQLAlchemy
 - Database: Supabase Postgres
-- Local development: SQLite is still used for lightweight API development
+- Auth: Supabase email/password
 
 ## Prerequisites
 
@@ -85,24 +85,36 @@ pip install -U pip
 pip install -r apps/api/requirements-dev.txt
 ```
 
-### 4. Create local environment config
+### 4. Start local Supabase
+
+```bash
+supabase start
+supabase db reset
+```
+
+The local seed creates a single owner account:
+
+- email: `owner@life-os.local`
+- password: `life-os-local-dev`
+
+### 5. Create local environment config
 
 ```bash
 cp .env.example .env
 ```
 
-### 5. Install frontend dependencies
+### 6. Install frontend dependencies
 
 ```bash
 npm install
 ```
 
-### 6. Start the apps
+### 7. Start the apps
 
 In one terminal:
 
 ```bash
-cd /Users/MAC/Documents/GitHub/life-os
+cd /Users/MAC/GitHub/life-os
 source .venv/bin/activate
 npm run dev:api
 ```
@@ -110,7 +122,7 @@ npm run dev:api
 In another terminal:
 
 ```bash
-cd /Users/MAC/Documents/GitHub/life-os
+cd /Users/MAC/GitHub/life-os
 source ~/.nvm/nvm.sh
 nvm use 20
 npm run dev:web
@@ -152,20 +164,19 @@ The repo includes Supabase migrations and seed data for the long-term production
 
 For local database work:
 
-- see [supabase/README.md](/Users/MAC/Documents/GitHub/life-os/supabase/README.md)
-- use `supabase start` for a local stack
-- use `supabase db reset` to apply migrations and seed data
-
-The current backend can still run locally with SQLite for lightweight development.
+- see [supabase/README.md](/Users/MAC/GitHub/life-os/supabase/README.md)
+- use `supabase start` for the local stack
+- use `supabase db reset` to apply the canonical schema and seed the owner account
+- keep `DATABASE_URL` pointed at the local Supabase Postgres instance
 
 ## Security Notes
 
 This app handles sensitive financial information. Keep the following in mind:
 
 - Do not expose the development API outside your local machine.
-- Keep `.env`, `.venv`, SQLite files, and generated build output out of cloud-sync tools when possible.
+- Keep `.env`, `.venv`, Supabase local data, and generated build output out of cloud-sync tools when possible.
 - The browser should not be treated as a secure storage boundary.
-- Production auth is intended to move to owner-only Supabase auth. The current dev auth path is for local development only.
+- Supabase owner auth is the normal path. The dev-token fallback is local-only and should stay disabled unless you explicitly need it.
 
 ## Product Principles
 
@@ -180,7 +191,7 @@ This app handles sensitive financial information. Keep the following in mind:
 Before making major changes, read:
 
 - [AGENTS.md](/Users/MAC/Documents/GitHub/life-os/AGENTS.md)
-- [docs/PRD.md](/Users/MAC/Documents/GitHub/life-os/docs/PRD.md)
-- [docs/ARCHITECTURE.md](/Users/MAC/Documents/GitHub/life-os/docs/ARCHITECTURE.md)
+- [docs/PRD.md](/Users/MAC/GitHub/life-os/docs/PRD.md)
+- [docs/ARCHITECTURE.md](/Users/MAC/GitHub/life-os/docs/ARCHITECTURE.md)
 
 These documents define the product scope, architecture, and UX constraints for the MVP.
