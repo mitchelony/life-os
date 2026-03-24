@@ -8,12 +8,23 @@ export type RoadmapCategory = "finances" | "school" | "career" | "admin" | "heal
 export type RoadmapStatus = "planned" | "active" | "blocked" | "completed" | "overdue";
 export type RoadmapPriority = "low" | "medium" | "high" | "critical";
 export type StrategyAllocationType = "fixed" | "percent";
-export type StrategyDebtPaymentType = StrategyAllocationType | "fixed_total_target";
+export type StrategyDebtPaymentType = StrategyAllocationType | "fixed_total_target" | "follow_next_income_plan";
 export type DebtStrategyMode = "minimum_only" | "minimum_plus" | "target_payoff";
 export type ObligationHandlingMode = "pay_once" | "pay_over_time" | "externally_covered" | "file_this_week";
-export type StrategyFocusRule = "overdue" | "critical_debt" | "critical_obligation" | "buffer" | "goal_progress" | "admin_deadlines";
+export type StrategyFocusRule =
+  | "overdue"
+  | "critical_debt"
+  | "critical_obligation"
+  | "buffer"
+  | "goal_progress"
+  | "admin_deadlines"
+  | "next_income_plan"
+  | "minimum_required_payments"
+  | "overdue_obligations";
 export type StrategyExpectedIncomeTiming = "next_week" | "in_2_weeks" | "as_available" | `after_${string}`;
 export type StrategyIncomeCertainty = "confirmed" | "conditional";
+export type StrategyMode = "cash_flow_first";
+export type StrategyNextIncomeAllocationType = "buffer" | "debt_payment" | "obligation_payment";
 
 export type Account = {
   id: string;
@@ -53,6 +64,8 @@ export type Obligation = {
     priority?: RoadmapPriority;
     installmentAmount?: number;
     installmentCadence?: string;
+    nextPlannedPayment?: number;
+    nextPlanLabel?: string;
     notes?: string;
   };
 };
@@ -69,6 +82,7 @@ export type Debt = {
     mode: DebtStrategyMode;
     priority?: RoadmapPriority;
     recommendedExtraPayment?: number;
+    nextPlanLabel?: string;
     notes?: string;
   };
 };
@@ -140,6 +154,7 @@ export type StrategyGoal = {
   status: Exclude<RoadmapStatus, "overdue">;
   priority: RoadmapPriority;
   targetDate?: string;
+  targetAmount?: number;
   notes?: string;
 };
 
@@ -153,13 +168,15 @@ export type StrategyAllocationRule = {
 
 export type StrategyExtraPaymentRule = {
   type: StrategyDebtPaymentType;
-  value: number;
+  value?: number;
 };
 
 export type DebtActionRule = {
   debtName: string;
+  currentBalance?: number;
   mode: "minimum_only" | "minimum_plus" | "target_payoff";
   minimumSource: "existing" | "manual";
+  minimumPayment?: number;
   extraPaymentRule?: StrategyExtraPaymentRule;
   priority?: RoadmapPriority;
   notes?: string;
@@ -167,6 +184,7 @@ export type DebtActionRule = {
 
 export type ObligationActionRule = {
   obligationName: string;
+  currentBalance?: number;
   handling: ObligationHandlingMode;
   installment?: {
     amount: number;
@@ -184,9 +202,54 @@ export type StrategyExpectedIncomeItem = {
   certainty: StrategyIncomeCertainty;
 };
 
+export type StrategyNextIncomePlan = {
+  id: string;
+  incomeId: string;
+  label: string;
+  amount: number;
+  allocations: Array<{
+    id: string;
+    label: string;
+    amount: number;
+    type: StrategyNextIncomeAllocationType;
+    priority: number;
+  }>;
+  recommendedStep: string;
+};
+
+export type StrategyIncomeFlowAllocation = {
+  id: string;
+  label: string;
+  amount: number;
+  type: StrategyNextIncomeAllocationType;
+  priority: number;
+  dueDate: string;
+  certainty: StrategyIncomeCertainty;
+  incomeId: string;
+  incomeLabel: string;
+  planId: string;
+  planLabel: string;
+};
+
+export type StrategyIncomeFlowPlan = {
+  id: string;
+  incomeId: string;
+  label: string;
+  incomeLabel: string;
+  amount: number;
+  dueDate: string;
+  certainty: StrategyIncomeCertainty;
+  allocations: StrategyIncomeFlowAllocation[];
+  recommendedStep: string;
+  totalAllocated: number;
+  remainingAmount: number;
+  overAllocatedAmount: number;
+};
+
 export type StrategyGuidanceRule = {
   focusOrder: StrategyFocusRule[];
-  recommendedStepStyle: "first_incomplete_step";
+  recommendedStepStyle: "first_incomplete_step" | "next_planned_allocation";
+  primaryUXMode?: "next_payments_to_make";
 };
 
 export type StrategySpendingRules = {
@@ -195,18 +258,36 @@ export type StrategySpendingRules = {
   notes?: string;
 };
 
+export type StrategyCashFlowPlan = {
+  defaultFlowOrder: Array<
+    | "minimum_required_payments"
+    | "weekly_essentials"
+    | "protected_buffer"
+    | "overdue_utilities"
+    | "credit_card_extra"
+    | "admin_deadlines"
+  >;
+  weeklyEssentialsCap?: number;
+  noNewCreditCardSpending?: boolean;
+  bufferTarget?: number;
+};
+
 export type StrategyDocument = {
-  version: 1;
+  version: 1 | 2;
   name: string;
   summary: string;
   effectiveDate: string;
   currency: string;
   planningHorizonDays: number;
+  strategyMode?: StrategyMode;
   goals: StrategyGoal[];
-  incomePlan: {
+  incomePlan?: {
     allocations: StrategyAllocationRule[];
     expectedIncome?: StrategyExpectedIncomeItem[];
   };
+  expectedIncome?: StrategyExpectedIncomeItem[];
+  nextIncomePlans?: StrategyNextIncomePlan[];
+  cashFlowPlan?: StrategyCashFlowPlan;
   debtPlan: DebtActionRule[];
   obligationPlan: ObligationActionRule[];
   spendingRules?: StrategySpendingRules;
@@ -219,6 +300,8 @@ export type AdvisoryAllocation = {
   amount: number;
   type: "income_allocation" | "debt_extra_payment" | "obligation_installment";
   priority?: number;
+  sourcePlanId?: string;
+  sourcePlanLabel?: string;
 };
 
 export type RoadmapFocus = {
@@ -239,6 +322,12 @@ export type RoadmapSummary = {
   overallProgress: number;
   mostUrgentItem: RoadmapItem | null;
   recommendedNextStep: RoadmapFocus["nextStep"];
+};
+
+export type RoadmapPaycheckFlow = {
+  plans: StrategyIncomeFlowPlan[];
+  nextPlan: StrategyIncomeFlowPlan | null;
+  nextAllocation: StrategyIncomeFlowAllocation | null;
 };
 
 export type AvailableSpendBreakdown = {
@@ -283,6 +372,7 @@ export type DashboardSnapshot = {
     items: RoadmapItem[];
     summary: RoadmapSummary;
     focus: RoadmapFocus;
+    paycheckFlow: RoadmapPaycheckFlow;
     strategy: StrategyDocument | null;
   };
 };

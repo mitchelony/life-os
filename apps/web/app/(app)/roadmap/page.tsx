@@ -13,55 +13,76 @@ import type { RoadmapCategory, RoadmapItem, RoadmapPriority, RoadmapStatus, Road
 
 const strategyTemplate = JSON.stringify(
   {
-    version: 1,
-    name: "Debt reset plan",
-    summary: "Stabilize cash flow, protect essentials, and reduce high-interest debt first.",
-    effectiveDate: "2026-03-23",
+    version: 2,
+    name: "Next paycheck plan",
+    summary: "Decide what gets paid first when the next income lands.",
+    effectiveDate: "2026-03-24",
     currency: "USD",
     planningHorizonDays: 30,
+    strategyMode: "cash_flow_first",
     goals: [
       {
-        id: "goal-credit-card-reset",
-        title: "Bring Capital One under control",
+        id: "goal-buffer",
+        title: "Build first emergency buffer",
         category: "finances",
         status: "active",
-        priority: "critical",
-        targetDate: "2026-05-15",
-        notes: "Protect minimums first, then push extra cash here.",
+        priority: "high",
+        targetDate: "2026-04-15",
+        targetAmount: 100,
+        notes: "Protect the first $100 so small emergencies do not go back onto the card.",
       },
     ],
-    incomePlan: {
-      allocations: [
-        { id: "alloc-buffer", label: "Protected buffer", type: "fixed", value: 100, priority: 1 },
-        { id: "alloc-rent", label: "Rent reserve", type: "fixed", value: 600, priority: 2 },
-      ],
+    cashFlowPlan: {
+      defaultFlowOrder: ["minimum_required_payments", "weekly_essentials", "protected_buffer", "credit_card_extra"],
+      weeklyEssentialsCap: 25,
+      noNewCreditCardSpending: true,
+      bufferTarget: 100,
     },
+    expectedIncome: [
+      { id: "income-paycheck", label: "Tutoring paycheck", amount: 390, timing: "in_2_weeks", certainty: "confirmed" },
+    ],
+    nextIncomePlans: [
+      {
+        id: "plan-paycheck",
+        incomeId: "income-paycheck",
+        label: "When the tutoring paycheck lands",
+        amount: 390,
+        allocations: [
+          { id: "buffer-1", label: "Emergency buffer", amount: 50, type: "buffer", priority: 1 },
+          { id: "utilities-1", label: "Utilities catch-up payment", amount: 170, type: "obligation_payment", priority: 2 },
+          { id: "capital-one-1", label: "Capital One payment", amount: 170, type: "debt_payment", priority: 3 },
+        ],
+        recommendedStep: "Finish the first $100 buffer, then split the rest between utilities and Capital One.",
+      },
+    ],
     debtPlan: [
       {
         debtName: "Capital One Credit Card",
         mode: "minimum_plus",
+        minimumPayment: 10,
         minimumSource: "existing",
-        extraPaymentRule: { type: "fixed", value: 75 },
+        extraPaymentRule: { type: "follow_next_income_plan" },
         priority: "critical",
-        notes: "Pay minimum plus extra after the buffer is protected.",
+        notes: "Do not add new spending to this card.",
       },
     ],
     obligationPlan: [
       {
-        obligationName: "Tuition",
+        obligationName: "Utilities",
         handling: "pay_over_time",
-        installment: { amount: 200, cadence: "monthly" },
-        priority: "high",
+        priority: "critical",
+        notes: "Reduce this overdue balance using the next-income flow.",
       },
       {
-        obligationName: "Rent",
-        handling: "pay_once",
-        priority: "critical",
+        obligationName: "Taxes",
+        handling: "file_this_week",
+        priority: "high",
       },
     ],
     guidance: {
-      focusOrder: ["overdue", "critical_debt", "critical_obligation", "buffer", "goal_progress"],
-      recommendedStepStyle: "first_incomplete_step",
+      focusOrder: ["next_income_plan", "minimum_required_payments", "overdue_obligations", "critical_debt", "buffer", "admin_deadlines"],
+      recommendedStepStyle: "next_planned_allocation",
+      primaryUXMode: "next_payments_to_make",
     },
   },
   null,
@@ -283,33 +304,33 @@ export default function RoadmapPage() {
   }
 
   return (
-    <div className="space-y-6 pb-24 md:pb-6">
+    <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
       <Panel>
         <SectionHeading
           eyebrow="Roadmap"
-          title="Strategy, debt pressure, and goal progress"
-          description="Use one planning surface to decide what incoming income should protect, which obligations need staging, and which goal deserves the next push."
+          title="When the next paycheck hits, what gets paid first?"
+          description="Use Roadmap as a cash-flow plan first. The app should tell you the next income, the order of allocations, and which debt or obligation gets hit next."
         />
       </Panel>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <StatCard label="Active goals" value={dashboard.roadmap.summary.activeCount} detail="Currently in motion" />
         <StatCard label="Overdue" value={dashboard.roadmap.summary.overdueCount} detail="Needs immediate attention" />
         <StatCard label="Completed" value={dashboard.roadmap.summary.completedCount} detail="Finished cleanly" />
         <StatCard label="Debt / obligation pressure" value={dashboard.roadmap.summary.debtOrObligationCount} detail="Finance-linked roadmap items" />
         <StatCard label="Overall progress" value={`${dashboard.roadmap.summary.overallProgress}%`} detail="Across active goals" />
         <StatCard
-          label="Most urgent"
-          value={dashboard.roadmap.summary.mostUrgentItem?.title ?? "Nothing urgent"}
-          detail={dashboard.roadmap.summary.recommendedNextStep?.title ?? "Paste a strategy or add a goal"}
+          label="Next flow"
+          value={dashboard.roadmap.paycheckFlow.nextPlan?.label ?? "No next-income plan"}
+          detail={dashboard.roadmap.focus.nextStep?.title ?? "Paste a strategy or add a goal"}
         />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+      <section className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr] xl:gap-6">
         <Panel>
           <SectionHeading
             eyebrow="Focus"
-            title={dashboard.roadmap.focus.item?.title ?? "No roadmap focus yet"}
+            title={dashboard.roadmap.focus.nextStep?.title ?? "No roadmap focus yet"}
             description={dashboard.roadmap.focus.whyNow}
           />
           <div className="mt-5 rounded-[24px] border border-line bg-white/72 p-4">
@@ -322,34 +343,58 @@ export default function RoadmapPage() {
                 "The roadmap will combine deadlines, debt pressure, overdue obligations, and your chosen strategy to decide what should move first."}
             </p>
           </div>
-          <div className="mt-4 rounded-[24px] bg-accent-soft p-4">
-            <p className="text-[11px] uppercase tracking-[0.24em] text-accent">Current strategy effect</p>
-            <div className="mt-3 space-y-2 text-sm text-ink">
-              {dashboard.availableSpend.strategyAllocations.map((item) => (
-                <div key={item.id} className="flex items-center justify-between gap-4">
-                  <span>{item.label}</span>
-                  <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
-                </div>
-              ))}
-              {dashboard.availableSpend.strategyDebtExtraPayments.map((item) => (
-                <div key={item.id} className="flex items-center justify-between gap-4">
-                  <span>{item.label}</span>
-                  <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
-                </div>
-              ))}
-              {dashboard.availableSpend.strategyObligationInstallments.map((item) => (
-                <div key={item.id} className="flex items-center justify-between gap-4">
-                  <span>{item.label}</span>
-                  <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
-                </div>
-              ))}
-              {!dashboard.availableSpend.strategyAllocations.length &&
-              !dashboard.availableSpend.strategyDebtExtraPayments.length &&
-              !dashboard.availableSpend.strategyObligationInstallments.length ? (
-                <p className="text-sm text-muted">No strategy reserves are shaping the current horizon yet.</p>
+          {dashboard.roadmap.paycheckFlow.nextPlan ? (
+            <div className="mt-4 rounded-[24px] bg-accent-soft p-4">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-accent">Next income flow</p>
+              <p className="mt-2 text-lg font-semibold tracking-tight text-ink">{dashboard.roadmap.paycheckFlow.nextPlan.label}</p>
+              <p className="mt-1 text-sm text-muted">
+                {dashboard.roadmap.paycheckFlow.nextPlan.incomeLabel} • {formatMoney(dashboard.roadmap.paycheckFlow.nextPlan.amount)}
+              </p>
+              <div className="mt-4 space-y-2 text-sm text-ink">
+                {dashboard.roadmap.paycheckFlow.nextPlan.allocations.map((allocation) => (
+                  <div key={allocation.id} className="flex items-center justify-between gap-4 rounded-[18px] bg-white/70 px-3 py-2">
+                    <span>{allocation.label}</span>
+                    <span className="font-semibold tabular-nums">{formatMoney(allocation.amount)}</span>
+                  </div>
+                ))}
+              </div>
+              {dashboard.roadmap.paycheckFlow.nextPlan.overAllocatedAmount > 0 ? (
+                <p className="mt-3 text-sm text-[#7a2f2f]">
+                  This plan is over-allocated by {formatMoney(dashboard.roadmap.paycheckFlow.nextPlan.overAllocatedAmount)}.
+                </p>
               ) : null}
+              <p className="mt-3 text-sm leading-6 text-muted">{dashboard.roadmap.paycheckFlow.nextPlan.recommendedStep}</p>
             </div>
-          </div>
+          ) : (
+            <div className="mt-4 rounded-[24px] bg-accent-soft p-4">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-accent">Current strategy effect</p>
+              <div className="mt-3 space-y-2 text-sm text-ink">
+                {dashboard.availableSpend.strategyAllocations.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between gap-4">
+                    <span>{item.label}</span>
+                    <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
+                  </div>
+                ))}
+                {dashboard.availableSpend.strategyDebtExtraPayments.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between gap-4">
+                    <span>{item.label}</span>
+                    <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
+                  </div>
+                ))}
+                {dashboard.availableSpend.strategyObligationInstallments.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between gap-4">
+                    <span>{item.label}</span>
+                    <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
+                  </div>
+                ))}
+                {!dashboard.availableSpend.strategyAllocations.length &&
+                !dashboard.availableSpend.strategyDebtExtraPayments.length &&
+                !dashboard.availableSpend.strategyObligationInstallments.length ? (
+                  <p className="text-sm text-muted">No strategy reserves are shaping the current horizon yet.</p>
+                ) : null}
+              </div>
+            </div>
+          )}
         </Panel>
 
         <Panel>
@@ -363,7 +408,7 @@ export default function RoadmapPage() {
             <Textarea
               value={strategyInput}
               onChange={(event) => setStrategyInput(event.target.value)}
-              rows={18}
+              rows={14}
               className="font-mono text-[13px] leading-6"
             />
             {strategyErrors.length ? (
@@ -374,15 +419,15 @@ export default function RoadmapPage() {
               </div>
             ) : (
               <div className="rounded-[22px] border border-line bg-white/72 p-4 text-sm text-muted">
-                Strict JSON only. The strategy parser accepts richer planning fields like `incomePlan.expectedIncome`,
-                `spendingRules`, `fixed_total_target`, `externally_covered`, `file_this_week`, and `within_horizon`.
+                Strict JSON only. Prefer a cash-flow-first strategy that includes `expectedIncome`, `nextIncomePlans`,
+                `cashFlowPlan`, and a `recommendedStepStyle` of `next_planned_allocation`.
               </div>
             )}
           </div>
         </Panel>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[0.78fr_1.22fr]">
+      <section className="grid gap-4 xl:grid-cols-[0.78fr_1.22fr] xl:gap-6">
         <Panel>
           <SectionHeading eyebrow="Add goal" title="Track a major milestone" description="Keep this for meaningful goals, not tiny tasks." />
           <div className="mt-5 space-y-4">
@@ -520,7 +565,7 @@ export default function RoadmapPage() {
                   title={group === "active" ? "What is moving now" : group === "upcoming" ? "What comes next" : "What is already closed"}
                   description={
                     group === "active"
-                      ? "Urgency blends due pressure, debt and obligation strategy, priority, and remaining work."
+                      ? "Cash-flow plans, debt pressure, due dates, and remaining work all shape what rises to the top."
                       : group === "upcoming"
                         ? "Planned items stay visible without crowding the active focus."
                         : "Finished goals remain as a clean record of progress."
@@ -531,7 +576,7 @@ export default function RoadmapPage() {
                     items.map((item) => {
                       const expanded = expandedIds.includes(item.id);
                       return (
-                        <div key={item.id} className="rounded-[24px] border border-line bg-white/72 p-4">
+                        <div key={item.id} className="rounded-[20px] border border-line bg-white/72 p-4 md:rounded-[24px]">
                           <div className="flex flex-wrap items-start justify-between gap-4">
                             <div className="space-y-2">
                               <div className="flex flex-wrap items-center gap-2">

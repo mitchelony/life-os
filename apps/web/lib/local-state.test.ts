@@ -206,6 +206,239 @@ const realWorldStrategyJson = JSON.stringify(
   2,
 );
 
+const cashFlowStrategyJson = JSON.stringify(
+  {
+    version: 2,
+    name: "Next paycheck recovery plan",
+    summary: "Use the next incoming money in a strict order: protect a small buffer, cover essentials, reduce utilities, and push down the Capital One balance without adding new debt.",
+    effectiveDate: "2026-03-24",
+    currency: "USD",
+    planningHorizonDays: 30,
+    strategyMode: "cash_flow_first",
+    goals: [
+      {
+        id: "goal-buffer",
+        title: "Build first emergency buffer",
+        category: "finances",
+        status: "active",
+        priority: "high",
+        targetDate: "2026-04-15",
+        targetAmount: 100,
+        notes: "Protect the first $100 so small emergencies do not go back onto the credit card.",
+      },
+      {
+        id: "goal-utilities-catchup",
+        title: "Catch up on utilities",
+        category: "finances",
+        status: "active",
+        priority: "critical",
+        targetDate: "2026-04-30",
+        targetAmount: 442.7,
+        notes: "Utilities are owed through the roommate. Reduce the overdue balance quickly.",
+      },
+      {
+        id: "goal-credit-card-reset",
+        title: "Bring Capital One under control",
+        category: "finances",
+        status: "active",
+        priority: "critical",
+        targetDate: "2026-04-30",
+        targetAmount: 498.28,
+        notes: "Pay the minimum first, then direct extra cash here after buffer and utilities allocations.",
+      },
+      {
+        id: "goal-taxes",
+        title: "File taxes this week",
+        category: "admin",
+        status: "active",
+        priority: "high",
+        targetDate: "2026-03-31",
+        notes: "Finish filing this week so it does not become another loose end.",
+      },
+    ],
+    cashFlowPlan: {
+      defaultFlowOrder: [
+        "minimum_required_payments",
+        "weekly_essentials",
+        "protected_buffer",
+        "overdue_utilities",
+        "credit_card_extra",
+        "admin_deadlines",
+      ],
+      weeklyEssentialsCap: 25,
+      noNewCreditCardSpending: true,
+      bufferTarget: 100,
+    },
+    expectedIncome: [
+      {
+        id: "income-photoshoot",
+        label: "Photoshoot payment",
+        amount: 100,
+        timing: "next_week",
+        certainty: "confirmed",
+      },
+      {
+        id: "income-tutoring-paycheck",
+        label: "Tutoring paycheck",
+        amount: 390,
+        timing: "in_2_weeks",
+        certainty: "confirmed",
+      },
+      {
+        id: "income-final-tutoring-week",
+        label: "Final tutoring pay",
+        amount: 130,
+        timing: "after_2026-04-09",
+        certainty: "confirmed",
+      },
+      {
+        id: "income-dad-help",
+        label: "Possible help from dad",
+        amount: 100,
+        timing: "as_available",
+        certainty: "conditional",
+      },
+    ],
+    nextIncomePlans: [
+      {
+        id: "plan-photoshoot",
+        incomeId: "income-photoshoot",
+        label: "When photoshoot money lands",
+        amount: 100,
+        allocations: [
+          {
+            id: "plan-photoshoot-buffer",
+            label: "Emergency buffer",
+            amount: 50,
+            type: "buffer",
+            priority: 1,
+          },
+          {
+            id: "plan-photoshoot-credit-card",
+            label: "Capital One payment",
+            amount: 100,
+            type: "debt_payment",
+            priority: 2,
+          },
+        ],
+        recommendedStep: "Save $50 first, then send $100 to Capital One.",
+      },
+      {
+        id: "plan-tutoring-paycheck",
+        incomeId: "income-tutoring-paycheck",
+        label: "When the $390 tutoring paycheck lands",
+        amount: 390,
+        allocations: [
+          {
+            id: "plan-paycheck-buffer",
+            label: "Finish emergency buffer",
+            amount: 50,
+            type: "buffer",
+            priority: 1,
+          },
+          {
+            id: "plan-paycheck-utilities",
+            label: "Utilities catch-up payment",
+            amount: 170,
+            type: "obligation_payment",
+            priority: 2,
+          },
+          {
+            id: "plan-paycheck-credit-card",
+            label: "Capital One payment",
+            amount: 170,
+            type: "debt_payment",
+            priority: 3,
+          },
+        ],
+        recommendedStep: "Complete the $100 buffer, then split the rest evenly between utilities and Capital One.",
+      },
+      {
+        id: "plan-final-tutoring",
+        incomeId: "income-final-tutoring-week",
+        label: "When the final tutoring pay lands",
+        amount: 130,
+        allocations: [
+          {
+            id: "plan-final-utilities",
+            label: "Utilities catch-up payment",
+            amount: 100,
+            type: "obligation_payment",
+            priority: 1,
+          },
+          {
+            id: "plan-final-credit-card",
+            label: "Capital One payment",
+            amount: 30,
+            type: "debt_payment",
+            priority: 2,
+          },
+        ],
+        recommendedStep: "Push most of this check to utilities, then send the rest to Capital One.",
+      },
+      {
+        id: "plan-dad-help",
+        incomeId: "income-dad-help",
+        label: "If dad sends extra money",
+        amount: 100,
+        allocations: [
+          {
+            id: "plan-dad-credit-card",
+            label: "Capital One payment",
+            amount: 100,
+            type: "debt_payment",
+            priority: 1,
+          },
+        ],
+        recommendedStep: "Use this only as a debt push unless a true emergency comes up first.",
+      },
+    ],
+    debtPlan: [
+      {
+        debtName: "Capital One Credit Card",
+        currentBalance: 498.28,
+        mode: "minimum_plus",
+        minimumPayment: 10,
+        minimumSource: "existing",
+        extraPaymentRule: {
+          type: "follow_next_income_plan",
+        },
+        priority: "critical",
+        notes: "Do not add new spending to this card.",
+      },
+    ],
+    obligationPlan: [
+      {
+        obligationName: "Utilities",
+        currentBalance: 442.7,
+        handling: "pay_over_time",
+        priority: "critical",
+        notes: "Reduce this overdue balance using the next-income payment flow.",
+      },
+      {
+        obligationName: "Taxes",
+        handling: "file_this_week",
+        priority: "high",
+        notes: "Complete filing this week.",
+      },
+    ],
+    guidance: {
+      focusOrder: [
+        "next_income_plan",
+        "minimum_required_payments",
+        "overdue_obligations",
+        "critical_debt",
+        "buffer",
+        "admin_deadlines",
+      ],
+      recommendedStepStyle: "next_planned_allocation",
+      primaryUXMode: "next_payments_to_make",
+    },
+  },
+  null,
+  2,
+);
+
 describe("applyQuickAddToSetup", () => {
   it("can add a one-time upcoming obligation from quick add", () => {
     const draft: QuickAddDraft = {
@@ -330,11 +563,23 @@ describe("buildDashboardFromSetup", () => {
   it("accepts the richer reset-plan schema used by the roadmap strategy workspace", () => {
     const parsed = parseStrategyDocument(realWorldStrategyJson);
     expect(parsed.errors).toEqual([]);
-    expect(parsed.document?.incomePlan.expectedIncome).toHaveLength(4);
+    expect(parsed.document?.incomePlan?.expectedIncome).toHaveLength(4);
     expect(parsed.document?.debtPlan[0]?.extraPaymentRule?.type).toBe("fixed_total_target");
     expect(parsed.document?.obligationPlan[0]?.installment?.cadence).toBe("within_horizon");
     expect(parsed.document?.obligationPlan[1]?.handling).toBe("externally_covered");
     expect(parsed.document?.spendingRules?.weeklyEssentialsCap).toBe(25);
+  });
+
+  it("accepts the cash-flow-first strategy schema with next income plans", () => {
+    const parsed = parseStrategyDocument(cashFlowStrategyJson);
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.document?.version).toBe(2);
+    expect(parsed.document?.strategyMode).toBe("cash_flow_first");
+    expect(parsed.document?.cashFlowPlan?.defaultFlowOrder[0]).toBe("minimum_required_payments");
+    expect(parsed.document?.expectedIncome).toHaveLength(4);
+    expect(parsed.document?.nextIncomePlans?.[0]?.allocations[0]?.type).toBe("buffer");
+    expect(parsed.document?.debtPlan[0]?.extraPaymentRule?.type).toBe("follow_next_income_plan");
+    expect(parsed.document?.guidance.recommendedStepStyle).toBe("next_planned_allocation");
   });
 
   it("rejects invalid strategy json without overwriting the stored strategy", () => {
@@ -670,5 +915,43 @@ describe("buildDashboardFromSetup", () => {
 
     expect(snapshot.availableSpend.strategyAllocations.some((item) => item.label === "Protected buffer")).toBe(true);
     expect(snapshot.debts[0]?.strategy?.recommendedExtraPayment).toBe(340);
+  });
+
+  it("surfaces next-income flow as the primary guidance when the strategy is cash-flow-first", () => {
+    const setup = saveStrategyToSetup(
+      {
+        ...baseSetup,
+        income: [],
+        obligations: [
+          {
+            id: "obl-1",
+            name: "Utilities",
+            amount: "442.70",
+            dueDate: "2026-04-10",
+            recurrence: "one-time",
+          },
+        ],
+        debts: [
+          {
+            id: "debt-1",
+            name: "Capital One Credit Card",
+            balance: "498.28",
+            minimum: "10",
+            dueDate: "2026-04-08",
+          },
+        ],
+      },
+      cashFlowStrategyJson,
+    ).setup;
+
+    const snapshot = buildDashboardFromSetup(setup);
+
+    expect(snapshot.nextItem).toContain("Emergency buffer");
+    expect(snapshot.roadmap.focus.nextStep?.title).toContain("Emergency buffer");
+    expect(snapshot.topPriorities[0]?.title).toContain("Emergency buffer");
+    expect(snapshot.availableSpend.strategyAllocations.map((item) => item.label)).toContain("Emergency buffer");
+    expect(snapshot.availableSpend.strategyDebtExtraPayments.map((item) => item.label)).toContain("Capital One payment");
+    expect(snapshot.debts[0]?.strategy?.recommendedExtraPayment).toBe(100);
+    expect(snapshot.roadmap.items.some((item) => item.title.includes("photoshoot money"))).toBe(true);
   });
 });

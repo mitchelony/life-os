@@ -30,31 +30,31 @@ function recurrenceLabel(value: string) {
 
 export function DashboardScreen({ dashboard }: { dashboard: DashboardSnapshot }) {
   return (
-    <div className="space-y-6 pb-24 md:pb-6">
+    <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
       <motion.section
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="overflow-hidden rounded-[34px] border border-line bg-[linear-gradient(135deg,rgba(16,32,24,0.96),rgba(61,111,94,0.92))] p-6 text-bg shadow-soft md:p-8"
+        className="overflow-hidden rounded-[28px] border border-line bg-[linear-gradient(135deg,rgba(16,32,24,0.96),rgba(61,111,94,0.92))] p-5 text-bg shadow-soft md:rounded-[34px] md:p-8"
       >
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div>
             <Badge className="border-white/28 bg-[rgba(255,255,255,0.18)] text-white">Today</Badge>
-            <h1 className="mt-5 max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl">Your life is visible.</h1>
+            <h1 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl md:mt-5 md:text-5xl">Your life is visible.</h1>
             <p className="mt-4 max-w-xl text-sm leading-7 text-white/82">
               The dashboard keeps the next bill, the next income, and the next action in view so you can spend with
               less friction.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap">
               <Link
                 href="/quick-add"
-                className="inline-flex items-center justify-center rounded-full bg-[rgba(255,255,255,0.96)] px-4 py-2.5 text-sm font-semibold text-[#173126] transition duration-200 hover:-translate-y-0.5 hover:bg-white"
+                className="inline-flex items-center justify-center rounded-full bg-[rgba(255,255,255,0.96)] px-4 py-2.5 text-sm font-semibold text-[#173126] transition duration-200 hover:-translate-y-0.5 hover:bg-white sm:w-auto"
               >
                 Log money
               </Link>
               <Link
                 href="/tasks"
-                className="inline-flex items-center justify-center rounded-full border border-white/38 bg-[rgba(245,240,232,0.18)] px-4 py-2.5 text-sm font-medium text-white transition duration-200 hover:-translate-y-0.5 hover:bg-[rgba(255,255,255,0.24)]"
+                className="inline-flex items-center justify-center rounded-full border border-white/38 bg-[rgba(245,240,232,0.18)] px-4 py-2.5 text-sm font-medium text-white transition duration-200 hover:-translate-y-0.5 hover:bg-[rgba(255,255,255,0.24)] sm:w-auto"
               >
                 Review weekly actions
               </Link>
@@ -88,7 +88,7 @@ export function DashboardScreen({ dashboard }: { dashboard: DashboardSnapshot })
             </div>
             {dashboard.roadmap.focus.nextStep ? (
               <div className="rounded-[24px] border border-white/24 bg-[rgba(255,255,255,0.14)] p-4 backdrop-blur">
-                <p className="text-[11px] uppercase tracking-[0.24em] text-white/74">Roadmap focus</p>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-white/74">Next paycheck flow</p>
                 <p className="mt-2 text-sm font-medium leading-6 text-white">{dashboard.roadmap.focus.nextStep.title}</p>
                 <p className="mt-1 text-xs leading-5 text-white/78">{dashboard.roadmap.focus.whyNow}</p>
               </div>
@@ -97,7 +97,7 @@ export function DashboardScreen({ dashboard }: { dashboard: DashboardSnapshot })
         </div>
       </motion.section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total cash" value={formatMoney(dashboard.cashSummary.totalCash)} detail="All active accounts" />
         <StatCard label="Checking" value={formatMoney(dashboard.cashSummary.checking)} detail="Daily operating cash" />
         <StatCard label="Savings" value={formatMoney(dashboard.cashSummary.savings)} detail="Protected cash floor" />
@@ -109,7 +109,7 @@ export function DashboardScreen({ dashboard }: { dashboard: DashboardSnapshot })
           <SectionHeading
             eyebrow="Priority"
             title="Top actions"
-            description="The most important items this week are surfaced first so nothing urgent gets buried."
+            description="The next cash-flow moves, debt pressure, and due items are surfaced first so nothing urgent gets buried."
           />
           <div className="mt-5 space-y-3">
             {dashboard.topPriorities.map((task, index) => (

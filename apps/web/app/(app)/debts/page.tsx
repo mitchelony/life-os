@@ -16,7 +16,7 @@ export default function DebtsPage() {
   const dashboard = useLifeOsDashboard();
 
   return (
-    <div className="space-y-6 pb-24 md:pb-6">
+    <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
       <Panel>
         <SectionHeading
           eyebrow="Debts"
@@ -35,7 +35,7 @@ export default function DebtsPage() {
               </div>
               <Badge>{Math.round(item.payoffProgress * 100)}% paid</Badge>
             </div>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="mt-5 grid gap-3 sm:mt-6 sm:gap-4 sm:grid-cols-2">
               <Metric label="Balance" value={formatMoney(item.currentBalance)} />
               <Metric label="Minimum payment" value={formatMoney(item.minimumPayment)} />
             </div>
@@ -49,6 +49,9 @@ export default function DebtsPage() {
                   <p className="mt-3 text-sm font-medium text-ink">
                     Recommended extra payment: {formatMoney(item.strategy.recommendedExtraPayment)}
                   </p>
+                ) : null}
+                {item.strategy.nextPlanLabel ? (
+                  <p className="mt-2 text-sm text-muted">Next flow: {item.strategy.nextPlanLabel}</p>
                 ) : null}
                 {item.strategy.notes ? <p className="mt-2 text-sm text-muted">{item.strategy.notes}</p> : null}
               </div>

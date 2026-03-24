@@ -221,6 +221,11 @@ export const sampleDashboard = (() => {
         nextStep: null,
         whyNow: "Add a strategy in Roadmap to surface the right next move.",
       },
+      paycheckFlow: {
+        plans: [],
+        nextPlan: null,
+        nextAllocation: null,
+      },
       strategy: null,
     },
   };

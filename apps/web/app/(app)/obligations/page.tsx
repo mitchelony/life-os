@@ -20,7 +20,7 @@ export default function ObligationsPage() {
   const dashboard = useLifeOsDashboard();
 
   return (
-    <div className="space-y-6 pb-24 md:pb-6">
+    <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
       <Panel>
         <SectionHeading
           eyebrow="Obligations"
@@ -39,7 +39,7 @@ export default function ObligationsPage() {
               </div>
               <Badge>{item.status.replace("_", " ")}</Badge>
             </div>
-            <div className="mt-6 text-4xl font-semibold tracking-tight tabular-nums">{formatMoney(item.amount)}</div>
+            <div className="mt-5 text-3xl font-semibold tracking-tight tabular-nums md:mt-6 md:text-4xl">{formatMoney(item.amount)}</div>
             {item.linkedAccount ? <p className="mt-2 text-sm text-muted">Linked to {item.linkedAccount}</p> : null}
             {item.strategy ? (
               <div className="mt-4 rounded-[22px] border border-line bg-accent-soft p-4">
@@ -50,6 +50,12 @@ export default function ObligationsPage() {
                 {item.strategy.installmentAmount ? (
                   <p className="mt-3 text-sm font-medium text-ink">
                     Reserve {formatMoney(item.strategy.installmentAmount)} {item.strategy.installmentCadence ? `${item.strategy.installmentCadence}` : "this cycle"}.
+                  </p>
+                ) : null}
+                {item.strategy.nextPlannedPayment ? (
+                  <p className="mt-2 text-sm text-muted">
+                    Next planned payment: {formatMoney(item.strategy.nextPlannedPayment)}
+                    {item.strategy.nextPlanLabel ? ` from ${item.strategy.nextPlanLabel}` : ""}
                   </p>
                 ) : null}
                 {item.strategy.notes ? <p className="mt-2 text-sm text-muted">{item.strategy.notes}</p> : null}

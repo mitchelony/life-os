@@ -68,6 +68,9 @@ function normalizeDashboardResponse(payload: BackendDashboardResponse): Dashboar
       obligationsDueBeforeNextIncome: payload.summary.available_spend.obligations_due_before_next_income,
       debtMinimumsDueBeforeNextIncome: payload.summary.available_spend.minimum_debt_payments_due_before_next_income,
       essentialSpendRemaining: payload.summary.available_spend.essential_spend_target_remaining_until_next_income,
+      strategyAllocations: [],
+      strategyDebtExtraPayments: [],
+      strategyObligationInstallments: [],
       availableNow: payload.summary.available_spend.available_now ?? payload.summary.available_spend.available_spend ?? 0,
       availableThroughNextIncome:
         payload.summary.available_spend.available_through_next_income ??

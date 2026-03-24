@@ -8,12 +8,12 @@ export default function AccountsPage() {
   const dashboard = useLifeOsDashboard();
 
   return (
-    <div className="space-y-6 pb-24 md:pb-6">
+    <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
       <Panel>
         <SectionHeading eyebrow="Accounts" title="Cash and debt snapshot" description="Manual balances are enough for the MVP and keep the model simple." />
       </Panel>
 
-      <section className="grid gap-4 md:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
         <StatCard label="Liquid cash" value={formatMoney(dashboard.availableSpend.liquidCash)} />
         <StatCard label="Checking" value={formatMoney(dashboard.cashSummary.checking)} />
         <StatCard label="Savings" value={formatMoney(dashboard.cashSummary.savings)} />
@@ -31,7 +31,7 @@ export default function AccountsPage() {
               </div>
               <Badge>{account.type.replace("_", " ")}</Badge>
             </div>
-            <div className="mt-6 text-4xl font-semibold tracking-tight tabular-nums">{formatMoney(account.balance)}</div>
+            <div className="mt-5 text-3xl font-semibold tracking-tight tabular-nums md:mt-6 md:text-4xl">{formatMoney(account.balance)}</div>
             <p className="mt-2 text-sm text-muted">{account.active ? "Active" : "Inactive"}</p>
           </Panel>
         ))}

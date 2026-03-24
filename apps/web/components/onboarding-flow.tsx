@@ -143,18 +143,20 @@ export function OnboardingFlow() {
       debts,
       income,
       transactions: storedTransactions,
+      roadmapItems: [],
+      strategyDocument: null,
     });
     window.localStorage.setItem(onboardingKey, "true");
     router.push("/dashboard");
   }
 
   return (
-    <div className="space-y-6 pb-24 md:pb-6">
+    <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
       <Panel>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-[11px] uppercase tracking-[0.28em] text-muted">Setup</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Set the baseline once.</h1>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Set the baseline once.</h1>
           </div>
           <Badge>{completedPercent}% complete</Badge>
         </div>
@@ -188,7 +190,7 @@ export function OnboardingFlow() {
               helper="Optional"
               description="Any context that should shape how the app feels or what it prioritizes."
             >
-              <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} placeholder="Keep the dashboard calm and high-signal." />
+              <Textarea className="min-h-[8rem]" value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} placeholder="Keep the dashboard calm and high-signal." />
             </InlineField>
           </div>
         </Panel>
@@ -203,7 +205,7 @@ export function OnboardingFlow() {
           </p>
           <div className="space-y-3">
             {accounts.map((account, index) => (
-              <div key={account.id} className="grid gap-3 rounded-[24px] border border-line bg-white/70 p-4 md:grid-cols-[1.2fr_1fr_0.8fr_0.8fr]">
+              <div key={account.id} className="grid gap-3 rounded-[20px] border border-line bg-white/70 p-4 md:grid-cols-[1.2fr_1fr_0.8fr_0.8fr] md:rounded-[24px]">
                 <InlineField label="Account name" description="The label you want to recognize instantly.">
                   <Input
                     value={account.name}
@@ -270,7 +272,7 @@ export function OnboardingFlow() {
               <p className="text-sm font-medium text-ink">Recurring bills</p>
               <p className="text-xs leading-5 text-muted">Name the bill, add the amount due, and use the next due date you expect.</p>
               {obligations.map((item, index) => (
-                <div key={item.id} className="space-y-3 rounded-[24px] border border-line bg-white/70 p-4">
+                <div key={item.id} className="space-y-3 rounded-[20px] border border-line bg-white/70 p-4 md:rounded-[24px]">
                   <InlineField label="Bill name" description="The obligation that should appear on the dashboard.">
                     <Input
                       value={item.name}
@@ -328,7 +330,7 @@ export function OnboardingFlow() {
               <p className="text-sm font-medium text-ink">Debt minimums</p>
               <p className="text-xs leading-5 text-muted">Track the balance still owed, the minimum payment, and the next due date.</p>
               {debts.map((item, index) => (
-                <div key={item.id} className="space-y-3 rounded-[24px] border border-line bg-white/70 p-4">
+                <div key={item.id} className="space-y-3 rounded-[20px] border border-line bg-white/70 p-4 md:rounded-[24px]">
                   <InlineField label="Debt name" description="Card or loan name that should stay visible.">
                     <Input
                       value={item.name}
@@ -338,7 +340,7 @@ export function OnboardingFlow() {
                       placeholder="Capital One Credit Card"
                     />
                   </InlineField>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <InlineField label="Balance owed" description="Total amount still owed right now.">
                       <Input
                         type="number"
@@ -380,7 +382,7 @@ export function OnboardingFlow() {
               <p className="text-sm font-medium text-ink">Expected income</p>
               <p className="text-xs leading-5 text-muted">Enter the source you expect, how much should arrive, and the expected deposit date.</p>
               {income.map((item, index) => (
-                <div key={item.id} className="space-y-3 rounded-[24px] border border-line bg-white/70 p-4">
+                <div key={item.id} className="space-y-3 rounded-[20px] border border-line bg-white/70 p-4 md:rounded-[24px]">
                   <InlineField label="Income source" description="Employer, client, or source you expect money from.">
                     <Input
                       value={item.source}
@@ -454,21 +456,23 @@ export function OnboardingFlow() {
         </Panel>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="ghost" onClick={() => setStep((current) => Math.max(0, current - 1) as Step)} disabled={step === 0}>
+      <div className="sticky bottom-[calc(8rem+env(safe-area-inset-bottom))] z-20 rounded-[22px] border border-line bg-surface/96 p-3 shadow-soft backdrop-blur-xl md:static md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Button className="w-full sm:w-auto" variant="ghost" onClick={() => setStep((current) => Math.max(0, current - 1) as Step)} disabled={step === 0}>
           <ChevronLeft className="h-4 w-4" /> Back
         </Button>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {step < 3 ? (
-            <Button onClick={() => setStep((current) => Math.min(3, current + 1) as Step)}>
+            <Button className="w-full sm:w-auto" onClick={() => setStep((current) => Math.min(3, current + 1) as Step)}>
               Next <ChevronRight className="h-4 w-4" />
             </Button>
           ) : null}
           {step === 3 ? (
-            <Button onClick={completeOnboarding}>
+            <Button className="w-full sm:w-auto" onClick={completeOnboarding}>
               <Check className="h-4 w-4" /> Save setup
             </Button>
           ) : null}
+        </div>
         </div>
       </div>
     </div>
@@ -477,9 +481,9 @@ export function OnboardingFlow() {
 
 function SummaryCard({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="rounded-[24px] border border-line bg-white/70 p-4">
+    <div className="rounded-[20px] border border-line bg-white/70 p-4 md:rounded-[24px]">
       <p className="text-[11px] uppercase tracking-[0.24em] text-muted">{label}</p>
-      <div className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-ink">{value}</div>
+      <div className="mt-2 text-2xl font-semibold tracking-tight tabular-nums text-ink md:text-3xl">{value}</div>
       <p className="mt-1 text-xs text-muted">{detail}</p>
     </div>
   );

@@ -147,9 +147,9 @@ export function QuickAddFlow() {
   }
 
   return (
-    <div className="grid gap-6 pb-24 lg:grid-cols-[1.05fr_0.95fr] lg:pb-6">
+    <div className="grid gap-4 pb-24 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-6">
       <Panel className="space-y-6">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
             <SectionHeading
               eyebrow="Quick entry"
@@ -157,14 +157,14 @@ export function QuickAddFlow() {
               description="Start with the number. Then finish the record with the few details that matter."
             />
           </div>
-          <Badge>{kind}</Badge>
+          <Badge className="self-start">{kind}</Badge>
         </div>
 
         <Segment options={["expense", "income"]} value={kind} onChange={(value) => setKind(value as TransactionKind)} />
 
-        <div className="rounded-[32px] border border-line bg-[linear-gradient(180deg,rgba(255,255,255,0.85),rgba(255,255,255,0.62))] p-5">
+        <div className="rounded-[26px] border border-line bg-[linear-gradient(180deg,rgba(255,255,255,0.85),rgba(255,255,255,0.62))] p-4 md:rounded-[32px] md:p-5">
           <p className="text-[11px] uppercase tracking-[0.28em] text-muted">Amount</p>
-          <div className="mt-4 text-5xl font-semibold tracking-tight tabular-nums">{formatMoney(Number(amount || 0))}</div>
+          <div className="mt-4 text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">{formatMoney(Number(amount || 0))}</div>
           <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4">
             {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "Clear"].map((key) => (
               <button
@@ -177,7 +177,7 @@ export function QuickAddFlow() {
                     appendDigit(key);
                   }
                 }}
-                className="h-16 rounded-3xl border border-line bg-white/80 text-lg font-medium text-ink transition hover:-translate-y-0.5 hover:bg-white"
+                className="h-14 rounded-[22px] border border-line bg-white/80 text-base font-medium text-ink transition hover:-translate-y-0.5 hover:bg-white sm:h-16 sm:rounded-3xl sm:text-lg"
               >
                 {key}
               </button>
@@ -187,14 +187,14 @@ export function QuickAddFlow() {
             <button
               type="button"
               onClick={backspace}
-              className="flex-1 rounded-3xl border border-line bg-white/80 px-4 py-4 text-sm font-medium text-ink transition hover:-translate-y-0.5 hover:bg-white"
+              className="flex-1 rounded-[22px] border border-line bg-white/80 px-4 py-3.5 text-sm font-medium text-ink transition hover:-translate-y-0.5 hover:bg-white sm:rounded-3xl sm:py-4"
             >
               <Delete className="mx-auto h-4 w-4" />
             </button>
             <button
               type="button"
               onClick={handleSubmit}
-              className="flex-[2] rounded-3xl bg-ink px-4 py-4 text-bg transition hover:-translate-y-0.5 disabled:opacity-60"
+              className="flex-[2] rounded-[22px] bg-ink px-4 py-3.5 text-bg transition hover:-translate-y-0.5 disabled:opacity-60 sm:rounded-3xl sm:py-4"
               disabled={isPending}
             >
               <span className="inline-flex items-center gap-2">
@@ -205,13 +205,13 @@ export function QuickAddFlow() {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-2 sm:gap-3">
           {suggestions.map((suggestion) => (
             <button
               key={suggestion}
               type="button"
               onClick={() => applySuggestion(suggestion)}
-              className="rounded-[22px] border border-line bg-white/70 px-4 py-3 text-left text-sm font-medium text-ink transition hover:bg-white"
+              className="rounded-[18px] border border-line bg-white/70 px-4 py-3 text-left text-sm font-medium text-ink transition hover:bg-white sm:rounded-[22px]"
             >
               {suggestion}
             </button>
@@ -317,9 +317,9 @@ export function QuickAddFlow() {
           </InlineField>
         </div>
 
-        <div className="rounded-[24px] border border-line bg-accent-soft p-4">
+        <div className="rounded-[22px] border border-line bg-accent-soft p-4 md:rounded-[24px]">
           <p className="text-[11px] uppercase tracking-[0.24em] text-accent">Preview</p>
-          <div className="mt-3 flex items-center justify-between gap-4">
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div>
               <p className="text-sm font-medium text-ink">{title || "Untitled entry"}</p>
               <p className="mt-1 text-xs text-muted">
@@ -340,7 +340,7 @@ export function QuickAddFlow() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted">
             {submitted ? (
               <span className="inline-flex items-center gap-2 text-success">
@@ -351,7 +351,7 @@ export function QuickAddFlow() {
               "Saved locally until the backend is connected."
             )}
           </p>
-          <Button onClick={handleSubmit} disabled={isPending}>
+          <Button className="w-full sm:w-auto" onClick={handleSubmit} disabled={isPending}>
             {isPending ? "Saving..." : "Save entry"}
           </Button>
         </div>

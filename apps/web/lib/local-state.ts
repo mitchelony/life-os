@@ -19,6 +19,8 @@ import type {
   RoadmapStatus,
   RoadmapStep,
   StrategyDocument,
+  StrategyIncomeFlowAllocation,
+  StrategyIncomeFlowPlan,
   Task,
   Transaction,
 } from "@/lib/types";
@@ -235,6 +237,73 @@ function validateExpectedIncomeRule(rule: Record<string, unknown>, index: number
   return errors;
 }
 
+function validateExpectedIncomeRuleAtPath(rule: Record<string, unknown>, path: string) {
+  const errors: string[] = [];
+  if (typeof rule.id !== "string" || !rule.id.trim()) errors.push(`${path}.id is required`);
+  if (typeof rule.label !== "string" || !rule.label.trim()) errors.push(`${path}.label is required`);
+  if (typeof rule.amount !== "number") errors.push(`${path}.amount must be a number`);
+  if (typeof rule.timing !== "string" || !rule.timing.trim()) errors.push(`${path}.timing is required`);
+  if (!["confirmed", "conditional"].includes(rule.certainty as string)) errors.push(`${path}.certainty is invalid`);
+  return errors;
+}
+
+function validateNextIncomePlan(plan: Record<string, unknown>, index: number, expectedIncomeIds: Set<string>) {
+  const errors: string[] = [];
+  if (typeof plan.id !== "string" || !plan.id.trim()) errors.push(`nextIncomePlans[${index}].id is required`);
+  if (typeof plan.incomeId !== "string" || !plan.incomeId.trim()) errors.push(`nextIncomePlans[${index}].incomeId is required`);
+  if (typeof plan.label !== "string" || !plan.label.trim()) errors.push(`nextIncomePlans[${index}].label is required`);
+  if (typeof plan.amount !== "number") errors.push(`nextIncomePlans[${index}].amount must be a number`);
+  if (typeof plan.recommendedStep !== "string" || !plan.recommendedStep.trim()) {
+    errors.push(`nextIncomePlans[${index}].recommendedStep is required`);
+  }
+  if (typeof plan.incomeId === "string" && expectedIncomeIds.size && !expectedIncomeIds.has(plan.incomeId)) {
+    errors.push(`nextIncomePlans[${index}].incomeId must reference expectedIncome`);
+  }
+  if (!Array.isArray(plan.allocations)) {
+    errors.push(`nextIncomePlans[${index}].allocations must be an array`);
+  } else {
+    plan.allocations.forEach((allocation, allocationIndex) => {
+      const rule = allocation as Record<string, unknown>;
+      const path = `nextIncomePlans[${index}].allocations[${allocationIndex}]`;
+      if (typeof rule.id !== "string" || !rule.id.trim()) errors.push(`${path}.id is required`);
+      if (typeof rule.label !== "string" || !rule.label.trim()) errors.push(`${path}.label is required`);
+      if (typeof rule.amount !== "number") errors.push(`${path}.amount must be a number`);
+      if (!["buffer", "debt_payment", "obligation_payment"].includes(rule.type as string)) errors.push(`${path}.type is invalid`);
+      if (typeof rule.priority !== "number") errors.push(`${path}.priority must be a number`);
+    });
+  }
+  return errors;
+}
+
+function validateCashFlowPlan(plan: Record<string, unknown>) {
+  const errors: string[] = [];
+  const allowedRules = [
+    "minimum_required_payments",
+    "weekly_essentials",
+    "protected_buffer",
+    "overdue_utilities",
+    "credit_card_extra",
+    "admin_deadlines",
+  ];
+  if (!Array.isArray(plan.defaultFlowOrder)) {
+    errors.push("cashFlowPlan.defaultFlowOrder must be an array");
+  } else {
+    plan.defaultFlowOrder.forEach((rule, index) => {
+      if (!allowedRules.includes(rule as string)) errors.push(`cashFlowPlan.defaultFlowOrder[${index}] is invalid`);
+    });
+  }
+  if (plan.weeklyEssentialsCap !== undefined && typeof plan.weeklyEssentialsCap !== "number") {
+    errors.push("cashFlowPlan.weeklyEssentialsCap must be a number");
+  }
+  if (plan.noNewCreditCardSpending !== undefined && typeof plan.noNewCreditCardSpending !== "boolean") {
+    errors.push("cashFlowPlan.noNewCreditCardSpending must be a boolean");
+  }
+  if (plan.bufferTarget !== undefined && typeof plan.bufferTarget !== "number") {
+    errors.push("cashFlowPlan.bufferTarget must be a number");
+  }
+  return errors;
+}
+
 function validateDebtRule(rule: Record<string, unknown>, index: number) {
   const errors: string[] = [];
   if (typeof rule.debtName !== "string" || !rule.debtName.trim()) errors.push(`debtPlan[${index}].debtName is required`);
@@ -245,8 +314,12 @@ function validateDebtRule(rule: Record<string, unknown>, index: number) {
   }
   if (rule.extraPaymentRule !== undefined) {
     const extra = rule.extraPaymentRule as Record<string, unknown>;
-    if (!["fixed", "percent", "fixed_total_target"].includes(extra.type as string)) errors.push(`debtPlan[${index}].extraPaymentRule.type is invalid`);
-    if (typeof extra.value !== "number") errors.push(`debtPlan[${index}].extraPaymentRule.value must be a number`);
+    if (!["fixed", "percent", "fixed_total_target", "follow_next_income_plan"].includes(extra.type as string)) {
+      errors.push(`debtPlan[${index}].extraPaymentRule.type is invalid`);
+    }
+    if (extra.type !== "follow_next_income_plan" && typeof extra.value !== "number") {
+      errors.push(`debtPlan[${index}].extraPaymentRule.value must be a number`);
+    }
   }
   return errors;
 }
@@ -260,11 +333,14 @@ function validateObligationRule(rule: Record<string, unknown>, index: number) {
   }
   if (rule.handling === "pay_over_time") {
     const installment = rule.installment as Record<string, unknown> | undefined;
-    if (!installment || typeof installment !== "object") errors.push(`obligationPlan[${index}].installment is required`);
-    else {
+    if (installment !== undefined) {
+      if (typeof installment !== "object" || Array.isArray(installment)) {
+        errors.push(`obligationPlan[${index}].installment must be an object`);
+      } else {
       if (typeof installment.amount !== "number") errors.push(`obligationPlan[${index}].installment.amount must be a number`);
       if (!["one-time", "weekly", "biweekly", "monthly", "within_horizon"].includes(installment.cadence as string)) {
         errors.push(`obligationPlan[${index}].installment.cadence is invalid`);
+      }
       }
     }
   }
@@ -275,7 +351,7 @@ function validateStrategyDocumentValue(value: unknown): string[] {
   if (!value || typeof value !== "object" || Array.isArray(value)) return ["Strategy document must be a JSON object"];
   const document = value as Record<string, unknown>;
   const errors: string[] = [];
-  if (document.version !== 1) errors.push("version must be 1");
+  if (document.version !== 1 && document.version !== 2) errors.push("version must be 1 or 2");
   if (typeof document.name !== "string" || !document.name.trim()) errors.push("name is required");
   if (typeof document.summary !== "string" || !document.summary.trim()) errors.push("summary is required");
   if (typeof document.effectiveDate !== "string" || !document.effectiveDate.trim()) errors.push("effectiveDate is required");
@@ -290,25 +366,61 @@ function validateStrategyDocumentValue(value: unknown): string[] {
     });
   }
 
-  if (!document.incomePlan || typeof document.incomePlan !== "object" || Array.isArray(document.incomePlan)) {
+  const expectedIncomeIds = new Set<string>();
+  const hasIncomePlan = !!document.incomePlan && typeof document.incomePlan === "object" && !Array.isArray(document.incomePlan);
+  if (document.version === 1 && !hasIncomePlan) {
     errors.push("incomePlan is required");
-  } else {
+  }
+  if (hasIncomePlan) {
     const incomePlan = document.incomePlan as Record<string, unknown>;
-    if (!Array.isArray(incomePlan.allocations)) {
+    if (incomePlan.allocations !== undefined) {
+      if (!Array.isArray(incomePlan.allocations)) {
+        errors.push("incomePlan.allocations must be an array");
+      } else {
+        incomePlan.allocations.forEach((allocation, index) => {
+          errors.push(...validateStrategyAllocation(allocation as Record<string, unknown>, index));
+        });
+      }
+    } else if (document.version === 1) {
       errors.push("incomePlan.allocations must be an array");
-    } else {
-      incomePlan.allocations.forEach((allocation, index) => {
-        errors.push(...validateStrategyAllocation(allocation as Record<string, unknown>, index));
-      });
     }
     if (incomePlan.expectedIncome !== undefined) {
       if (!Array.isArray(incomePlan.expectedIncome)) {
         errors.push("incomePlan.expectedIncome must be an array");
       } else {
         incomePlan.expectedIncome.forEach((incomeRule, index) => {
-          errors.push(...validateExpectedIncomeRule(incomeRule as Record<string, unknown>, index));
+          const rule = incomeRule as Record<string, unknown>;
+          errors.push(...validateExpectedIncomeRule(rule, index));
+          if (typeof rule.id === "string" && rule.id.trim()) expectedIncomeIds.add(rule.id);
         });
       }
+    }
+  }
+  if (document.expectedIncome !== undefined) {
+    if (!Array.isArray(document.expectedIncome)) {
+      errors.push("expectedIncome must be an array");
+    } else {
+      document.expectedIncome.forEach((incomeRule, index) => {
+        const rule = incomeRule as Record<string, unknown>;
+        errors.push(...validateExpectedIncomeRuleAtPath(rule, `expectedIncome[${index}]`));
+        if (typeof rule.id === "string" && rule.id.trim()) expectedIncomeIds.add(rule.id);
+      });
+    }
+  }
+  if (document.nextIncomePlans !== undefined) {
+    if (!Array.isArray(document.nextIncomePlans)) {
+      errors.push("nextIncomePlans must be an array");
+    } else {
+      document.nextIncomePlans.forEach((plan, index) => {
+        errors.push(...validateNextIncomePlan(plan as Record<string, unknown>, index, expectedIncomeIds));
+      });
+    }
+  }
+  if (document.cashFlowPlan !== undefined) {
+    if (typeof document.cashFlowPlan !== "object" || Array.isArray(document.cashFlowPlan)) {
+      errors.push("cashFlowPlan must be an object");
+    } else {
+      errors.push(...validateCashFlowPlan(document.cashFlowPlan as Record<string, unknown>));
     }
   }
 
@@ -333,12 +445,17 @@ function validateStrategyDocumentValue(value: unknown): string[] {
     if (!Array.isArray(guidance.focusOrder)) errors.push("guidance.focusOrder must be an array");
     else {
       guidance.focusOrder.forEach((rule, index) => {
-        if (!["overdue", "critical_debt", "critical_obligation", "buffer", "goal_progress", "admin_deadlines"].includes(rule as string)) {
+        if (!["overdue", "critical_debt", "critical_obligation", "buffer", "goal_progress", "admin_deadlines", "next_income_plan", "minimum_required_payments", "overdue_obligations"].includes(rule as string)) {
           errors.push(`guidance.focusOrder[${index}] is invalid`);
         }
       });
     }
-    if (guidance.recommendedStepStyle !== "first_incomplete_step") errors.push("guidance.recommendedStepStyle must be first_incomplete_step");
+    if (!["first_incomplete_step", "next_planned_allocation"].includes(guidance.recommendedStepStyle as string)) {
+      errors.push("guidance.recommendedStepStyle is invalid");
+    }
+    if (guidance.primaryUXMode !== undefined && guidance.primaryUXMode !== "next_payments_to_make") {
+      errors.push("guidance.primaryUXMode is invalid");
+    }
   }
 
   if (document.spendingRules !== undefined) {
@@ -578,7 +695,7 @@ function getPlanningHorizon(upcomingIncome: IncomeItem[], obligations: Obligatio
 
   if (futureIncomeDates[0]) return futureIncomeDates[0];
 
-  const strategyIncomeDates = getStrategyExpectedIncomeDates(strategy)
+  const strategyIncomeDates = getStrategyExpectedIncomeDates(strategy ?? null)
     .filter((item) => new Date(item).getTime() >= new Date(todayIso).getTime());
 
   if (strategyIncomeDates[0]) return strategyIncomeDates[0];
@@ -635,10 +752,16 @@ function namesLooselyMatch(left: string, right: string) {
   );
 }
 
-function formatRuleAmount(rule: { type: "fixed" | "percent" | "fixed_total_target"; value: number }, incomeAmount: number, minimumAmount = 0) {
-  if (rule.type === "fixed") return money(rule.value);
-  if (rule.type === "fixed_total_target") return money(Math.max(rule.value - minimumAmount, 0));
-  return money((incomeAmount * rule.value) / 100);
+function getStrategyExpectedIncomeItems(strategy: StrategyDocument | null) {
+  if (!strategy) return [];
+  return strategy.expectedIncome?.length ? strategy.expectedIncome : strategy.incomePlan?.expectedIncome ?? [];
+}
+
+function formatRuleAmount(rule: { type: "fixed" | "percent" | "fixed_total_target" | "follow_next_income_plan"; value?: number }, incomeAmount: number, minimumAmount = 0) {
+  if (rule.type === "follow_next_income_plan") return 0;
+  if (rule.type === "fixed") return money(rule.value ?? 0);
+  if (rule.type === "fixed_total_target") return money(Math.max((rule.value ?? 0) - minimumAmount, 0));
+  return money((incomeAmount * (rule.value ?? 0)) / 100);
 }
 
 function resolveStrategyTimingToDate(timing: string, effectiveDate: string) {
@@ -665,21 +788,101 @@ function resolveStrategyTimingToDate(timing: string, effectiveDate: string) {
 }
 
 function getStrategyExpectedIncomeTotal(strategy: StrategyDocument | null, horizonDate: string) {
-  if (!strategy?.incomePlan.expectedIncome?.length) return 0;
+  const expectedIncome = getStrategyExpectedIncomeItems(strategy);
+  if (!expectedIncome.length) return 0;
+  const effectiveDate = strategy?.effectiveDate ?? startOfTodayIso();
   return money(
-    strategy.incomePlan.expectedIncome
+    expectedIncome
       .filter((item) => item.certainty === "confirmed")
-      .filter((item) => resolveStrategyTimingToDate(item.timing, strategy.effectiveDate).getTime() <= new Date(horizonDate).getTime())
+      .filter((item) => resolveStrategyTimingToDate(item.timing, effectiveDate).getTime() <= new Date(horizonDate).getTime())
       .reduce((sum, item) => sum + item.amount, 0),
   );
 }
 
 function getStrategyExpectedIncomeDates(strategy: StrategyDocument | null) {
-  if (!strategy?.incomePlan.expectedIncome?.length) return [];
-  return strategy.incomePlan.expectedIncome
+  const expectedIncome = getStrategyExpectedIncomeItems(strategy);
+  if (!expectedIncome.length) return [];
+  const effectiveDate = strategy?.effectiveDate ?? startOfTodayIso();
+  return expectedIncome
     .filter((item) => item.certainty === "confirmed")
-    .map((item) => resolveStrategyTimingToDate(item.timing, strategy.effectiveDate).toISOString())
+    .map((item) => resolveStrategyTimingToDate(item.timing, effectiveDate).toISOString())
     .sort((left, right) => new Date(left).getTime() - new Date(right).getTime());
+}
+
+function buildStrategyIncomeFlowPlans(strategy: StrategyDocument | null): StrategyIncomeFlowPlan[] {
+  if (!strategy?.nextIncomePlans?.length) return [];
+  const expectedIncomeById = new Map(
+    getStrategyExpectedIncomeItems(strategy).map((item) => [item.id, item]),
+  );
+  return strategy.nextIncomePlans
+    .map((plan) => {
+      const income = expectedIncomeById.get(plan.incomeId);
+      const dueDate = income ? resolveStrategyTimingToDate(income.timing, strategy.effectiveDate).toISOString() : strategy.effectiveDate;
+      const certainty = income?.certainty ?? "conditional";
+      const allocations = plan.allocations
+        .slice()
+        .sort((left, right) => left.priority - right.priority)
+        .map<StrategyIncomeFlowAllocation>((allocation) => ({
+          ...allocation,
+          dueDate,
+          certainty,
+          incomeId: plan.incomeId,
+          incomeLabel: income?.label ?? plan.label,
+          planId: plan.id,
+          planLabel: plan.label,
+        }));
+      const totalAllocated = money(allocations.reduce((sum, allocation) => sum + allocation.amount, 0));
+      return {
+        id: plan.id,
+        incomeId: plan.incomeId,
+        label: plan.label,
+        incomeLabel: income?.label ?? plan.label,
+        amount: plan.amount,
+        dueDate,
+        certainty,
+        allocations,
+        recommendedStep: plan.recommendedStep,
+        totalAllocated,
+        remainingAmount: money(plan.amount - totalAllocated),
+        overAllocatedAmount: money(Math.max(totalAllocated - plan.amount, 0)),
+      };
+    })
+    .sort((left, right) => {
+      const certaintyOrder = { confirmed: 0, conditional: 1 };
+      if (certaintyOrder[left.certainty] !== certaintyOrder[right.certainty]) {
+        return certaintyOrder[left.certainty] - certaintyOrder[right.certainty];
+      }
+      return new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime();
+    });
+}
+
+function buildPaycheckFlowSummary(strategy: StrategyDocument | null) {
+  const plans = buildStrategyIncomeFlowPlans(strategy);
+  const nextPlan = plans[0] ?? null;
+  const nextAllocation = nextPlan?.allocations[0] ?? null;
+  return {
+    plans,
+    nextPlan,
+    nextAllocation,
+  };
+}
+
+function findNextDebtPaymentFromIncomePlans(
+  debtName: string,
+  paycheckFlow: ReturnType<typeof buildPaycheckFlowSummary>,
+) {
+  return paycheckFlow.plans
+    .flatMap((plan) => plan.allocations)
+    .find((allocation) => allocation.type === "debt_payment" && namesLooselyMatch(allocation.label, debtName));
+}
+
+function findNextObligationPaymentFromIncomePlans(
+  obligationName: string,
+  paycheckFlow: ReturnType<typeof buildPaycheckFlowSummary>,
+) {
+  return paycheckFlow.plans
+    .flatMap((plan) => plan.allocations)
+    .find((allocation) => allocation.type === "obligation_payment" && namesLooselyMatch(allocation.label, obligationName));
 }
 
 function priorityWeight(priority: RoadmapPriority) {
@@ -706,7 +909,7 @@ function synthesizeStrategySteps(
   strategy: StrategyDocument,
 ): RoadmapStep[] {
   const steps: RoadmapStep[] = [];
-  strategy.incomePlan.allocations.forEach((allocation, index) => {
+  strategy.incomePlan?.allocations?.forEach((allocation, index) => {
     if (allocation.label.toLowerCase().includes("buffer") && namesLooselyMatch(goal.title, "buffer")) {
       steps.push({
         id: `${goal.id}-allocation-step-${index}`,
@@ -722,8 +925,57 @@ function synthesizeStrategySteps(
       });
     }
   });
+  strategy.nextIncomePlans?.forEach((plan, planIndex) => {
+    plan.allocations
+      .slice()
+      .sort((left, right) => left.priority - right.priority)
+      .forEach((allocation, allocationIndex) => {
+        const pathId = `${goal.id}-plan-${planIndex}-allocation-${allocationIndex}`;
+        if (allocation.type === "buffer" && namesLooselyMatch(goal.title, "buffer")) {
+          steps.push({
+            id: pathId,
+            title: `When ${plan.label.toLowerCase()}, protect ${allocation.label.toLowerCase()} with $${allocation.amount.toFixed(2)}`,
+            completed: false,
+          });
+        }
+        if (allocation.type === "debt_payment" && debts.some((debt) => namesLooselyMatch(allocation.label, debt.name)) && goal.category === "finances") {
+          if (debts.some((debt) => namesLooselyMatch(goal.title, debt.name) && namesLooselyMatch(allocation.label, debt.name))) {
+            steps.push({
+              id: pathId,
+              title: `When ${plan.label.toLowerCase()}, send $${allocation.amount.toFixed(2)} to ${allocation.label}`,
+              completed: false,
+            });
+          }
+        }
+        if (allocation.type === "obligation_payment" && obligations.some((obligation) => namesLooselyMatch(allocation.label, obligation.name)) && goal.category === "finances") {
+          if (obligations.some((obligation) => namesLooselyMatch(goal.title, obligation.name) && namesLooselyMatch(allocation.label, obligation.name))) {
+            steps.push({
+              id: pathId,
+              title: `When ${plan.label.toLowerCase()}, reserve $${allocation.amount.toFixed(2)} for ${allocation.label}`,
+              completed: false,
+            });
+          }
+        }
+      });
+  });
   strategy.debtPlan.forEach((rule, index) => {
     if (!namesLooselyMatch(goal.title, rule.debtName) && strategy.goals.length > 1) return;
+    if (rule.mode === "minimum_plus" && rule.extraPaymentRule?.type === "follow_next_income_plan") {
+      const matchingPlan = strategy.nextIncomePlans
+        ?.flatMap((plan) =>
+          plan.allocations
+            .filter((allocation) => allocation.type === "debt_payment" && namesLooselyMatch(allocation.label, rule.debtName))
+            .map((allocation) => ({ plan, allocation })),
+        )[0];
+      if (matchingPlan) {
+        steps.push({
+          id: `${goal.id}-debt-step-${index}`,
+          title: `When ${matchingPlan.plan.label.toLowerCase()}, send $${matchingPlan.allocation.amount.toFixed(2)} to ${rule.debtName}`,
+          completed: false,
+        });
+        return;
+      }
+    }
     if (rule.mode === "minimum_plus" && rule.extraPaymentRule) {
       const matchingDebt = debts.find((debt) => namesLooselyMatch(debt.name, rule.debtName));
       const amount = formatRuleAmount(rule.extraPaymentRule, 0, matchingDebt?.minimumPayment ?? 0);
@@ -752,6 +1004,22 @@ function synthesizeStrategySteps(
   strategy.obligationPlan.forEach((rule, index) => {
     if (!namesLooselyMatch(goal.title, rule.obligationName) && strategy.goals.length > 1) return;
     const matchingObligation = obligations.find((item) => namesLooselyMatch(item.name, rule.obligationName));
+    if (rule.handling === "pay_over_time" && !rule.installment) {
+      const matchingPlan = strategy.nextIncomePlans
+        ?.flatMap((plan) =>
+          plan.allocations
+            .filter((allocation) => allocation.type === "obligation_payment" && namesLooselyMatch(allocation.label, rule.obligationName))
+            .map((allocation) => ({ plan, allocation })),
+        )[0];
+      if (matchingPlan) {
+        steps.push({
+          id: `${goal.id}-obligation-step-${index}`,
+          title: `When ${matchingPlan.plan.label.toLowerCase()}, reserve $${matchingPlan.allocation.amount.toFixed(2)} for ${rule.obligationName}`,
+          completed: false,
+        });
+        return;
+      }
+    }
     if (rule.handling === "pay_over_time" && rule.installment) {
       steps.push({
         id: `${goal.id}-obligation-step-${index}`,
@@ -799,7 +1067,7 @@ function synthesizeStrategySteps(
 
 function buildStrategyRoadmapItems(strategy: StrategyDocument | null, debts: Debt[], obligations: Obligation[]): RoadmapItem[] {
   if (!strategy) return [];
-  return strategy.goals.map((goal, index) => {
+  const goalItems = strategy.goals.map((goal, index) => {
     const steps = synthesizeStrategySteps(goal, debts, obligations, strategy);
     return normalizeRoadmapItem(
       {
@@ -822,6 +1090,38 @@ function buildStrategyRoadmapItems(strategy: StrategyDocument | null, debts: Deb
       index,
     );
   });
+
+  const flowItems =
+    strategy.guidance.primaryUXMode === "next_payments_to_make"
+      ? buildStrategyIncomeFlowPlans(strategy).map((plan, index) =>
+          normalizeRoadmapItem(
+            {
+              id: `strategy-flow-${plan.id}`,
+              title: plan.label,
+              description: `When ${plan.incomeLabel.toLowerCase()} lands, this is the payment order.`,
+              category: "finances",
+              status: index === 0 && plan.certainty === "confirmed" ? "active" : "planned",
+              priority: index === 0 ? "critical" : "high",
+              targetDate: plan.dueDate,
+              timeframeLabel: "",
+              progressMode: "steps",
+              progressValue: 0,
+              steps: plan.allocations.map((allocation) => ({
+                id: allocation.id,
+                title: `${allocation.label} • $${money(allocation.amount).toFixed(2)}`,
+                completed: false,
+              })),
+              notes: plan.recommendedStep,
+              dependencyIds: [],
+              strategyBacked: true,
+              derivedNextStep: plan.allocations[0] ? `${plan.allocations[0].label} • $${money(plan.allocations[0].amount).toFixed(2)}` : plan.recommendedStep,
+            },
+            strategy.goals.length + index,
+          ),
+        )
+      : [];
+
+  return [...flowItems, ...goalItems];
 }
 
 function mergeRoadmapItems(manualItems: RoadmapItem[], strategyItems: RoadmapItem[]) {
@@ -848,37 +1148,53 @@ function mergeRoadmapItems(manualItems: RoadmapItem[], strategyItems: RoadmapIte
   return [...mergedManual, ...remainingStrategyItems];
 }
 
-function applyStrategyToDebts(debts: Debt[], strategy: StrategyDocument | null, reliableIncome: number) {
+function applyStrategyToDebts(
+  debts: Debt[],
+  strategy: StrategyDocument | null,
+  reliableIncome: number,
+  paycheckFlow: ReturnType<typeof buildPaycheckFlowSummary>,
+) {
   if (!strategy) return debts;
   return debts.map((debt) => {
     const matchingRule = strategy.debtPlan.find((rule) => namesLooselyMatch(rule.debtName, debt.name));
     if (!matchingRule) return debt;
+    const nextPlannedPayment = findNextDebtPaymentFromIncomePlans(debt.name, paycheckFlow);
     return {
       ...debt,
       strategy: {
         mode: matchingRule.mode,
         priority: matchingRule.priority,
-        recommendedExtraPayment: matchingRule.extraPaymentRule
-          ? formatRuleAmount(matchingRule.extraPaymentRule, reliableIncome, debt.minimumPayment)
-          : undefined,
+        recommendedExtraPayment: matchingRule.extraPaymentRule?.type === "follow_next_income_plan"
+          ? nextPlannedPayment?.amount
+          : matchingRule.extraPaymentRule
+            ? formatRuleAmount(matchingRule.extraPaymentRule, reliableIncome, debt.minimumPayment)
+            : undefined,
+        nextPlanLabel: nextPlannedPayment?.planLabel,
         notes: matchingRule.notes,
       },
     };
   });
 }
 
-function applyStrategyToObligations(obligations: Obligation[], strategy: StrategyDocument | null) {
+function applyStrategyToObligations(
+  obligations: Obligation[],
+  strategy: StrategyDocument | null,
+  paycheckFlow: ReturnType<typeof buildPaycheckFlowSummary>,
+) {
   if (!strategy) return obligations;
   return obligations.map((obligation) => {
     const matchingRule = strategy.obligationPlan.find((rule) => namesLooselyMatch(rule.obligationName, obligation.name));
     if (!matchingRule) return obligation;
+    const nextPlannedPayment = findNextObligationPaymentFromIncomePlans(obligation.name, paycheckFlow);
     return {
       ...obligation,
       strategy: {
         handling: matchingRule.handling,
         priority: matchingRule.priority,
-        installmentAmount: matchingRule.installment?.amount,
+        installmentAmount: matchingRule.installment?.amount ?? nextPlannedPayment?.amount,
         installmentCadence: matchingRule.installment?.cadence,
+        nextPlannedPayment: nextPlannedPayment?.amount,
+        nextPlanLabel: nextPlannedPayment?.planLabel,
         notes: matchingRule.notes,
       },
     };
@@ -888,10 +1204,24 @@ function applyStrategyToObligations(obligations: Obligation[], strategy: Strateg
 function buildStrategyAllocationRows(
   strategy: StrategyDocument | null,
   advisoryIncomeBeforeNextIncome: number,
+  paycheckFlow: ReturnType<typeof buildPaycheckFlowSummary>,
 ): AdvisoryAllocation[] {
   if (!strategy || advisoryIncomeBeforeNextIncome <= 0) return [];
-  return strategy.incomePlan.allocations
-    .slice()
+  if (paycheckFlow.nextPlan) {
+    return paycheckFlow.nextPlan.allocations
+      .filter((allocation) => allocation.type === "buffer")
+      .map((allocation) => ({
+        id: allocation.id,
+        label: allocation.label,
+        amount: money(allocation.amount),
+        type: "income_allocation" as const,
+        priority: allocation.priority,
+        sourcePlanId: paycheckFlow.nextPlan?.id,
+        sourcePlanLabel: paycheckFlow.nextPlan?.label,
+      }));
+  }
+  return strategy.incomePlan?.allocations
+    ?.slice()
     .sort((left, right) => left.priority - right.priority)
     .map((allocation) => ({
       id: allocation.id,
@@ -899,7 +1229,7 @@ function buildStrategyAllocationRows(
       amount: formatRuleAmount(allocation, advisoryIncomeBeforeNextIncome),
       type: "income_allocation" as const,
       priority: allocation.priority,
-    }));
+    })) ?? [];
 }
 
 function buildStrategyDebtExtraRows(
@@ -907,11 +1237,25 @@ function buildStrategyDebtExtraRows(
   debts: Debt[],
   nextIncomeDate: string,
   reliableIncomeBeforeNextIncome: number,
+  paycheckFlow: ReturnType<typeof buildPaycheckFlowSummary>,
 ): AdvisoryAllocation[] {
   if (!strategy || reliableIncomeBeforeNextIncome <= 0) return [];
+  if (paycheckFlow.nextPlan) {
+    return paycheckFlow.nextPlan.allocations
+      .filter((allocation) => allocation.type === "debt_payment")
+      .map((allocation) => ({
+        id: allocation.id,
+        label: allocation.label,
+        amount: money(allocation.amount),
+        type: "debt_extra_payment" as const,
+        priority: allocation.priority,
+        sourcePlanId: paycheckFlow.nextPlan?.id,
+        sourcePlanLabel: paycheckFlow.nextPlan?.label,
+      }));
+  }
   return strategy.debtPlan
     .filter((rule) => rule.extraPaymentRule)
-    .map((rule) => {
+    .map<AdvisoryAllocation | null>((rule) => {
       const matchingDebt = debts.find((debt) => namesLooselyMatch(debt.name, rule.debtName));
       if (!matchingDebt) return null;
       if (new Date(matchingDebt.dueDate).getTime() > new Date(nextIncomeDate).getTime()) return null;
@@ -929,10 +1273,24 @@ function buildStrategyObligationInstallmentRows(
   strategy: StrategyDocument | null,
   obligations: Obligation[],
   nextIncomeDate: string,
+  paycheckFlow: ReturnType<typeof buildPaycheckFlowSummary>,
 ): AdvisoryAllocation[] {
   if (!strategy) return [];
+  if (paycheckFlow.nextPlan) {
+    return paycheckFlow.nextPlan.allocations
+      .filter((allocation) => allocation.type === "obligation_payment")
+      .map((allocation) => ({
+        id: allocation.id,
+        label: allocation.label,
+        amount: money(allocation.amount),
+        type: "obligation_installment" as const,
+        priority: allocation.priority,
+        sourcePlanId: paycheckFlow.nextPlan?.id,
+        sourcePlanLabel: paycheckFlow.nextPlan?.label,
+      }));
+  }
   return strategy.obligationPlan
-    .map((rule) => {
+    .map<AdvisoryAllocation | null>((rule) => {
       if (rule.handling !== "pay_over_time" || !rule.installment) return null;
       const matchingObligation = obligations.find((obligation) => namesLooselyMatch(obligation.name, rule.obligationName));
       if (!matchingObligation) return null;
@@ -1048,7 +1406,28 @@ function buildRoadmapSummary(items: RoadmapItem[]) {
   };
 }
 
-function buildRoadmapFocus(items: RoadmapItem[], summary: ReturnType<typeof buildRoadmapSummary>) {
+function buildRoadmapFocus(
+  items: RoadmapItem[],
+  summary: ReturnType<typeof buildRoadmapSummary>,
+  paycheckFlow: ReturnType<typeof buildPaycheckFlowSummary>,
+  strategy: StrategyDocument | null,
+) {
+  if (strategy?.guidance.recommendedStepStyle === "next_planned_allocation" && paycheckFlow.nextAllocation) {
+    return {
+      item: summary.mostUrgentItem,
+      nextStep: {
+        itemId: paycheckFlow.nextPlan?.id ?? summary.mostUrgentItem?.id ?? "paycheck-flow",
+        title: `${paycheckFlow.nextAllocation.label} • $${money(paycheckFlow.nextAllocation.amount).toFixed(2)}`,
+        reason: paycheckFlow.nextPlan
+          ? `${paycheckFlow.nextPlan.label} is the next planned cash event, so this allocation should move first.`
+          : "This is the next planned allocation in the strategy.",
+      },
+      whyNow:
+        paycheckFlow.nextPlan?.recommendedStep ??
+        summary.mostUrgentItem?.reason ??
+        "Add a goal or paste a strategy to start getting guided next steps.",
+    };
+  }
   return {
     item: summary.mostUrgentItem,
     nextStep: summary.recommendedNextStep,
@@ -1056,7 +1435,23 @@ function buildRoadmapFocus(items: RoadmapItem[], summary: ReturnType<typeof buil
   };
 }
 
-function buildTopPriorities(obligations: Obligation[], debts: Debt[], income: IncomeItem[], roadmapItems: RoadmapItem[]): Task[] {
+function buildTopPriorities(
+  obligations: Obligation[],
+  debts: Debt[],
+  income: IncomeItem[],
+  roadmapItems: RoadmapItem[],
+  paycheckFlow: ReturnType<typeof buildPaycheckFlowSummary>,
+): Task[] {
+  const paycheckTasks = paycheckFlow.nextPlan
+    ? paycheckFlow.nextPlan.allocations.map((allocation) => ({
+        id: `plan-${allocation.id}`,
+        title: `${allocation.label} • $${money(allocation.amount).toFixed(2)}`,
+        dueDate: allocation.dueDate,
+        priority: allocation.priority === 1 ? "urgent" as const : allocation.priority === 2 ? "high" as const : "normal" as const,
+        linkedTo: "Paycheck flow",
+        completed: false,
+      }))
+    : [];
   const roadmapTasks = roadmapItems
     .filter((item) => item.status !== "completed")
     .slice()
@@ -1097,7 +1492,7 @@ function buildTopPriorities(obligations: Obligation[], debts: Debt[], income: In
   }));
 
   const seenTitles = new Set<string>();
-  return [...roadmapTasks, ...obligationTasks, ...debtTasks, ...incomeTasks]
+  return [...paycheckTasks, ...roadmapTasks, ...obligationTasks, ...debtTasks, ...incomeTasks]
     .filter((task) => {
       const key = `${task.title}-${task.linkedTo}`;
       if (seenTitles.has(key)) return false;
@@ -1109,7 +1504,7 @@ function buildTopPriorities(obligations: Obligation[], debts: Debt[], income: In
       if (priorityOrder[left.priority] !== priorityOrder[right.priority]) {
         return priorityOrder[left.priority] - priorityOrder[right.priority];
       }
-      const surfaceOrder = { Roadmap: 0, Debt: 1, Obligation: 2, Income: 3 };
+      const surfaceOrder = { "Paycheck flow": 0, Roadmap: 1, Debt: 2, Obligation: 3, Income: 4 };
       const leftSurface = surfaceOrder[(left.linkedTo ?? "Income") as keyof typeof surfaceOrder] ?? 4;
       const rightSurface = surfaceOrder[(right.linkedTo ?? "Income") as keyof typeof surfaceOrder] ?? 4;
       if (leftSurface !== rightSurface) {
@@ -1209,8 +1604,9 @@ export function buildDashboardFromSetup(setup: StoredLifeOsSetup | null): Dashbo
   );
   const strategyExpectedIncomeEstimate = getStrategyExpectedIncomeTotal(normalizedSetup.strategyDocument, baseNextIncomeDate);
   const advisoryIncomeEstimate = recordedIncomeEstimate || strategyExpectedIncomeEstimate;
-  const debts = applyStrategyToDebts(mapDebts(normalizedSetup.debts), normalizedSetup.strategyDocument, advisoryIncomeEstimate);
-  const obligations = applyStrategyToObligations(mapObligations(normalizedSetup.obligations, accounts), normalizedSetup.strategyDocument);
+  const paycheckFlow = buildPaycheckFlowSummary(normalizedSetup.strategyDocument);
+  const debts = applyStrategyToDebts(mapDebts(normalizedSetup.debts), normalizedSetup.strategyDocument, advisoryIncomeEstimate, paycheckFlow);
+  const obligations = applyStrategyToObligations(mapObligations(normalizedSetup.obligations, accounts), normalizedSetup.strategyDocument, paycheckFlow);
   const nextIncomeDate = getPlanningHorizon(upcomingIncome, obligations, debts, normalizedSetup.strategyDocument);
   const baseAvailableSpend = computeAvailableSpend({
     accounts,
@@ -1223,17 +1619,19 @@ export function buildDashboardFromSetup(setup: StoredLifeOsSetup | null): Dashbo
     nextIncomeDate,
   });
   const strategyIncomeBeforeNextIncome = baseAvailableSpend.reliableIncomeBeforeNextIncome || getStrategyExpectedIncomeTotal(normalizedSetup.strategyDocument, nextIncomeDate);
-  const strategyAllocations = buildStrategyAllocationRows(normalizedSetup.strategyDocument, strategyIncomeBeforeNextIncome);
+  const strategyAllocations = buildStrategyAllocationRows(normalizedSetup.strategyDocument, strategyIncomeBeforeNextIncome, paycheckFlow);
   const strategyDebtExtraPayments = buildStrategyDebtExtraRows(
     normalizedSetup.strategyDocument,
     debts,
     nextIncomeDate,
     strategyIncomeBeforeNextIncome,
+    paycheckFlow,
   );
   const strategyObligationInstallments = buildStrategyObligationInstallmentRows(
     normalizedSetup.strategyDocument,
     obligations,
     nextIncomeDate,
+    paycheckFlow,
   );
   const strategyPressure = money(
     [...strategyAllocations, ...strategyDebtExtraPayments, ...strategyObligationInstallments].reduce(
@@ -1256,15 +1654,15 @@ export function buildDashboardFromSetup(setup: StoredLifeOsSetup | null): Dashbo
     .map((item) => deriveRoadmapItemState(item, roadmapItemsById, obligations, debts))
     .sort((left, right) => (right.urgencyScore ?? 0) - (left.urgencyScore ?? 0));
   const roadmapSummary = buildRoadmapSummary(roadmapItems);
-  const roadmapFocus = buildRoadmapFocus(roadmapItems, roadmapSummary);
-  const topPriorities = buildTopPriorities(obligations, debts, upcomingIncome, roadmapItems);
+  const roadmapFocus = buildRoadmapFocus(roadmapItems, roadmapSummary, paycheckFlow, normalizedSetup.strategyDocument);
+  const topPriorities = buildTopPriorities(obligations, debts, upcomingIncome, roadmapItems, paycheckFlow);
 
   return {
     ...sampleDashboard,
     generatedAt: new Date().toISOString(),
     today: new Date().toISOString(),
-    nextItem: roadmapFocus.nextStep?.title ?? topPriorities[0]?.title ?? "Finish setup in Settings",
-    afterThat: topPriorities[1]?.title ?? "Add your next bill",
+    nextItem: roadmapFocus.nextStep?.title ?? paycheckFlow.nextAllocation?.label ?? topPriorities[0]?.title ?? "Finish setup in Settings",
+    afterThat: paycheckFlow.nextPlan?.allocations[1] ? `${paycheckFlow.nextPlan.allocations[1].label} • $${money(paycheckFlow.nextPlan.allocations[1].amount).toFixed(2)}` : topPriorities[1]?.title ?? "Add your next bill",
     availableSpend,
     cashSummary: {
       totalCash: getTotalCash(accounts),
@@ -1287,6 +1685,7 @@ export function buildDashboardFromSetup(setup: StoredLifeOsSetup | null): Dashbo
       items: roadmapItems,
       summary: roadmapSummary,
       focus: roadmapFocus,
+      paycheckFlow,
       strategy: normalizedSetup.strategyDocument,
     },
   };

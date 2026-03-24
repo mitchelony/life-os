@@ -21,7 +21,7 @@ export function Panel({ children, className }: BaseProps) {
   return (
     <section
       className={cn(
-        "rounded-[28px] border border-line bg-surface p-5 shadow-soft backdrop-blur-xl",
+        "rounded-[24px] border border-line bg-surface p-4 shadow-soft backdrop-blur-xl md:rounded-[28px] md:p-5",
         className,
       )}
     >
@@ -42,13 +42,13 @@ export function SectionHeading({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex items-end justify-between gap-4">
+    <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end sm:gap-4">
       <div className="space-y-1">
-        {eyebrow ? <p className="text-[11px] uppercase tracking-[0.28em] text-muted">{eyebrow}</p> : null}
-        <h2 className="text-lg font-semibold tracking-tight text-ink">{title}</h2>
+        {eyebrow ? <p className="text-[10px] uppercase tracking-[0.24em] text-muted md:text-[11px] md:tracking-[0.28em]">{eyebrow}</p> : null}
+        <h2 className="text-base font-semibold tracking-tight text-ink md:text-lg">{title}</h2>
         {description ? <p className="max-w-2xl text-sm leading-6 text-muted">{description}</p> : null}
       </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
+      {action ? <div className="w-full shrink-0 sm:w-auto">{action}</div> : null}
     </div>
   );
 }
@@ -75,7 +75,7 @@ export function Button({
     <button
       type={type}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition duration-200 ease-out",
+        "inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition duration-200 ease-out active:scale-[0.99]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
         buttonStyles[variant],
         className,
@@ -129,7 +129,7 @@ export function Badge({ children, className }: BaseProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border border-line bg-white/88 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.22em] text-muted",
+        "inline-flex items-center gap-1 rounded-full border border-line bg-white/88 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-muted md:px-3 md:text-[11px] md:tracking-[0.22em]",
         className,
       )}
     >
@@ -150,9 +150,9 @@ export function StatCard({
   className?: string;
 }) {
   return (
-    <div className={cn("rounded-[24px] border border-line bg-white/70 p-4", className)}>
-      <p className="text-[11px] uppercase tracking-[0.24em] text-muted">{label}</p>
-      <div className="mt-2 text-2xl font-semibold tracking-tight text-ink tabular-nums">{value}</div>
+    <div className={cn("rounded-[22px] border border-line bg-white/70 p-4 md:rounded-[24px]", className)}>
+      <p className="text-[10px] uppercase tracking-[0.2em] text-muted md:text-[11px] md:tracking-[0.24em]">{label}</p>
+      <div className="mt-2 text-xl font-semibold tracking-tight text-ink tabular-nums md:text-2xl">{value}</div>
       {detail ? <div className="mt-1 text-xs leading-5 text-muted">{detail}</div> : null}
     </div>
   );
@@ -191,7 +191,7 @@ export function Segment({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="inline-flex rounded-full border border-line bg-white/70 p-1">
+    <div className="inline-flex flex-wrap rounded-[20px] border border-line bg-white/70 p-1">
       {options.map((option) => {
         const active = option === value;
         return (
@@ -200,7 +200,7 @@ export function Segment({
             type="button"
             onClick={() => onChange(option)}
             className={cn(
-              "rounded-full px-4 py-2 text-sm transition",
+              "rounded-full px-3 py-2 text-sm transition md:px-4",
               active ? "bg-ink text-bg shadow-sm" : "text-muted hover:text-ink",
             )}
           >

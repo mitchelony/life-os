@@ -15,9 +15,9 @@ export default function TasksPage() {
   const dashboard = useLifeOsDashboard();
 
   return (
-    <div className="space-y-6 pb-24 md:pb-6">
+    <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
       <Panel>
-        <SectionHeading eyebrow="Tasks" title="What matters this week" description="Non-financial and linked life admin stay in one calm list." />
+        <SectionHeading eyebrow="Tasks" title="What matters this week" description="Next-paycheck moves, financial pressure, and linked life admin stay in one calm list." />
       </Panel>
       {dashboard.roadmap.focus.nextStep ? (
         <Panel>
