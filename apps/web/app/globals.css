@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bg: #f3ede4;
+  --surface: rgba(255, 255, 255, 0.84);
+  --ink: #102018;
+  --muted: #4f5c57;
+  --line: rgba(16, 32, 24, 0.14);
+  --accent: #3d6f5e;
+  --accent-soft: rgba(61, 111, 94, 0.24);
+  --danger: #a34c3c;
+  --success: #2f6b52;
+  --warning: #9d6a23;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(61, 111, 94, 0.15), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(163, 76, 60, 0.07), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(243, 237, 228, 0.98));
+  font-family: var(--font-sans), sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: rgba(61, 111, 94, 0.22);
+}
+
+.life-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.life-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(16, 32, 24, 0.12);
+  border-radius: 999px;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
