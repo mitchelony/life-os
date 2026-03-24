@@ -41,6 +41,20 @@ export default function ObligationsPage() {
             </div>
             <div className="mt-6 text-4xl font-semibold tracking-tight tabular-nums">{formatMoney(item.amount)}</div>
             {item.linkedAccount ? <p className="mt-2 text-sm text-muted">Linked to {item.linkedAccount}</p> : null}
+            {item.strategy ? (
+              <div className="mt-4 rounded-[22px] border border-line bg-accent-soft p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="border-transparent bg-white/90 text-accent">{item.strategy.handling.replace("_", " ")}</Badge>
+                  {item.strategy.priority ? <Badge className="border-transparent bg-white/90 text-accent">{item.strategy.priority}</Badge> : null}
+                </div>
+                {item.strategy.installmentAmount ? (
+                  <p className="mt-3 text-sm font-medium text-ink">
+                    Reserve {formatMoney(item.strategy.installmentAmount)} {item.strategy.installmentCadence ? `${item.strategy.installmentCadence}` : "this cycle"}.
+                  </p>
+                ) : null}
+                {item.strategy.notes ? <p className="mt-2 text-sm text-muted">{item.strategy.notes}</p> : null}
+              </div>
+            ) : null}
           </Panel>
         ))}
       </section>

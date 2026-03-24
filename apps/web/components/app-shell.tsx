@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpRight, BadgeDollarSign, Banknote, BellRing, CalendarCheck2, LayoutDashboard, Settings2, SquarePen } from "lucide-react";
+import { ArrowUpRight, BadgeDollarSign, Banknote, BellRing, CalendarCheck2, LayoutDashboard, Map, Settings2, SquarePen } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn, Button } from "@/components/ui";
 import { formatMoney, formatSignedMoney } from "@/lib/finance";
@@ -14,6 +14,7 @@ const navItems = [
   { href: "/accounts", label: "Accounts", icon: Banknote },
   { href: "/obligations", label: "Obligations", icon: CalendarCheck2 },
   { href: "/debts", label: "Debts", icon: BadgeDollarSign },
+  { href: "/roadmap", label: "Roadmap", icon: Map },
   { href: "/tasks", label: "Tasks", icon: BellRing },
   { href: "/settings", label: "Settings", icon: Settings2 },
 ];
@@ -69,6 +70,12 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
           <p className="mt-3 text-xs leading-5 text-muted">
             Through next income: <span className="font-semibold tabular-nums text-ink">{formatMoney(dashboard.availableSpend.availableThroughNextIncome)}</span>
           </p>
+          {dashboard.roadmap.focus.nextStep ? (
+            <div className="mt-4 rounded-2xl bg-accent-soft p-3">
+              <p className="text-[10px] uppercase tracking-[0.24em] text-accent">Roadmap focus</p>
+              <p className="mt-1 text-sm font-medium text-ink">{dashboard.roadmap.focus.nextStep.title}</p>
+            </div>
+          ) : null}
           <Button className="mt-4 w-full" onClick={() => router.refresh()}>
             Refresh snapshot
           </Button>

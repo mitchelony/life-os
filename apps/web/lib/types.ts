@@ -8,9 +8,12 @@ export type RoadmapCategory = "finances" | "school" | "career" | "admin" | "heal
 export type RoadmapStatus = "planned" | "active" | "blocked" | "completed" | "overdue";
 export type RoadmapPriority = "low" | "medium" | "high" | "critical";
 export type StrategyAllocationType = "fixed" | "percent";
+export type StrategyDebtPaymentType = StrategyAllocationType | "fixed_total_target";
 export type DebtStrategyMode = "minimum_only" | "minimum_plus" | "target_payoff";
-export type ObligationHandlingMode = "pay_once" | "pay_over_time";
-export type StrategyFocusRule = "overdue" | "critical_debt" | "critical_obligation" | "buffer" | "goal_progress";
+export type ObligationHandlingMode = "pay_once" | "pay_over_time" | "externally_covered" | "file_this_week";
+export type StrategyFocusRule = "overdue" | "critical_debt" | "critical_obligation" | "buffer" | "goal_progress" | "admin_deadlines";
+export type StrategyExpectedIncomeTiming = "next_week" | "in_2_weeks" | "as_available" | `after_${string}`;
+export type StrategyIncomeCertainty = "confirmed" | "conditional";
 
 export type Account = {
   id: string;
@@ -149,7 +152,7 @@ export type StrategyAllocationRule = {
 };
 
 export type StrategyExtraPaymentRule = {
-  type: StrategyAllocationType;
+  type: StrategyDebtPaymentType;
   value: number;
 };
 
@@ -167,15 +170,29 @@ export type ObligationActionRule = {
   handling: ObligationHandlingMode;
   installment?: {
     amount: number;
-    cadence: RecurrenceFrequency | "monthly";
+    cadence: RecurrenceFrequency | "monthly" | "within_horizon";
   };
   priority?: RoadmapPriority;
   notes?: string;
 };
 
+export type StrategyExpectedIncomeItem = {
+  id: string;
+  label: string;
+  amount: number;
+  timing: StrategyExpectedIncomeTiming;
+  certainty: StrategyIncomeCertainty;
+};
+
 export type StrategyGuidanceRule = {
   focusOrder: StrategyFocusRule[];
   recommendedStepStyle: "first_incomplete_step";
+};
+
+export type StrategySpendingRules = {
+  weeklyEssentialsCap?: number;
+  noNewCreditCardSpending?: boolean;
+  notes?: string;
 };
 
 export type StrategyDocument = {
@@ -188,9 +205,11 @@ export type StrategyDocument = {
   goals: StrategyGoal[];
   incomePlan: {
     allocations: StrategyAllocationRule[];
+    expectedIncome?: StrategyExpectedIncomeItem[];
   };
   debtPlan: DebtActionRule[];
   obligationPlan: ObligationActionRule[];
+  spendingRules?: StrategySpendingRules;
   guidance: StrategyGuidanceRule;
 };
 

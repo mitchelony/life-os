@@ -86,6 +86,13 @@ export function DashboardScreen({ dashboard }: { dashboard: DashboardSnapshot })
                 <p className="mt-2 text-sm font-medium leading-6 text-white">{dashboard.afterThat}</p>
               </div>
             </div>
+            {dashboard.roadmap.focus.nextStep ? (
+              <div className="rounded-[24px] border border-white/24 bg-[rgba(255,255,255,0.14)] p-4 backdrop-blur">
+                <p className="text-[11px] uppercase tracking-[0.24em] text-white/74">Roadmap focus</p>
+                <p className="mt-2 text-sm font-medium leading-6 text-white">{dashboard.roadmap.focus.nextStep.title}</p>
+                <p className="mt-1 text-xs leading-5 text-white/78">{dashboard.roadmap.focus.whyNow}</p>
+              </div>
+            ) : null}
           </div>
         </div>
       </motion.section>
@@ -157,6 +164,15 @@ export function DashboardScreen({ dashboard }: { dashboard: DashboardSnapshot })
                 label="Reliable income before next income"
                 value={`+ ${formatMoney(dashboard.availableSpend.reliableIncomeBeforeNextIncome)}`}
               />
+              {dashboard.availableSpend.strategyAllocations.map((item) => (
+                <BreakdownRow key={item.id} label={item.label} value={`− ${formatMoney(item.amount)}`} />
+              ))}
+              {dashboard.availableSpend.strategyDebtExtraPayments.map((item) => (
+                <BreakdownRow key={item.id} label={item.label} value={`− ${formatMoney(item.amount)}`} />
+              ))}
+              {dashboard.availableSpend.strategyObligationInstallments.map((item) => (
+                <BreakdownRow key={item.id} label={item.label} value={`− ${formatMoney(item.amount)}`} />
+              ))}
               <div className="flex items-center justify-between border-t border-line pt-2 text-sm font-semibold">
                 <span>Available now</span>
                 <span>{formatSignedMoney(dashboard.availableSpend.availableNow)}</span>
@@ -229,6 +245,13 @@ export function DashboardScreen({ dashboard }: { dashboard: DashboardSnapshot })
                 <p className="mt-1 text-sm text-muted">
                   {dueLabel(obligation.dueDate)} {obligation.recurrence !== "one-time" ? `• ${recurrenceLabel(obligation.recurrence)}` : ""}
                 </p>
+                {obligation.strategy ? (
+                  <p className="mt-1 text-xs leading-5 text-muted">
+                    {obligation.strategy.handling === "pay_over_time"
+                      ? `Strategy: pay over time${obligation.strategy.installmentAmount ? ` • reserve ${formatMoney(obligation.strategy.installmentAmount)}` : ""}`
+                      : "Strategy: pay once"}
+                  </p>
+                ) : null}
               </div>
               <Sparkles className="h-4 w-4 text-accent" />
             </div>

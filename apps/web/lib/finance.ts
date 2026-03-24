@@ -109,6 +109,9 @@ export function computeAvailableSpend(input: {
     obligationsDueBeforeNextIncome,
     debtMinimumsDueBeforeNextIncome,
     essentialSpendRemaining,
+    strategyAllocations: [],
+    strategyDebtExtraPayments: [],
+    strategyObligationInstallments: [],
     availableNow,
     availableThroughNextIncome: money(availableNow + reliableIncomeBeforeNextIncome),
   };

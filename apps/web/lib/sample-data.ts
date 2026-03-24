@@ -205,6 +205,24 @@ export const sampleDashboard = (() => {
     merchants,
     sources,
     recentTransactions,
+    roadmap: {
+      items: [],
+      summary: {
+        activeCount: 0,
+        overdueCount: 0,
+        completedCount: 0,
+        debtOrObligationCount: 0,
+        overallProgress: 0,
+        mostUrgentItem: null,
+        recommendedNextStep: null,
+      },
+      focus: {
+        item: null,
+        nextStep: null,
+        whyNow: "Add a strategy in Roadmap to surface the right next move.",
+      },
+      strategy: null,
+    },
   };
 
   return snapshot;

@@ -90,6 +90,122 @@ const strategyJson = JSON.stringify(
   2,
 );
 
+const realWorldStrategyJson = JSON.stringify(
+  {
+    version: 1,
+    name: "Financial reset plan",
+    summary: "Protect a small emergency buffer, reduce the overdue utilities balance, and bring the Capital One card under control without adding new debt.",
+    effectiveDate: "2026-03-24",
+    currency: "USD",
+    planningHorizonDays: 30,
+    goals: [
+      {
+        id: "goal-buffer",
+        title: "Build first emergency buffer",
+        category: "finances",
+        status: "active",
+        priority: "high",
+        targetDate: "2026-04-15",
+        notes: "Protect the first $100 so small emergencies do not go back onto the credit card.",
+      },
+      {
+        id: "goal-utilities-catchup",
+        title: "Catch up on utilities balance",
+        category: "finances",
+        status: "active",
+        priority: "critical",
+        targetDate: "2026-04-30",
+        notes: "Utilities are owed through the roommate.",
+      },
+      {
+        id: "goal-credit-card-reset",
+        title: "Bring Capital One under control",
+        category: "finances",
+        status: "active",
+        priority: "critical",
+        targetDate: "2026-04-30",
+        notes: "Pay at least the minimum on time, then push extra cash here.",
+      },
+      {
+        id: "goal-taxes",
+        title: "File taxes this week",
+        category: "admin",
+        status: "active",
+        priority: "high",
+        targetDate: "2026-03-31",
+        notes: "Complete tax filing this week.",
+      },
+    ],
+    incomePlan: {
+      allocations: [
+        { id: "alloc-buffer", label: "Protected buffer", type: "fixed", value: 100, priority: 1 },
+        { id: "alloc-utilities", label: "Utilities catch-up", type: "fixed", value: 270, priority: 2 },
+        { id: "alloc-credit-card", label: "Capital One payoff push", type: "fixed", value: 350, priority: 3 },
+      ],
+      expectedIncome: [
+        { id: "income-photoshoot", label: "Photoshoot payment", amount: 100, timing: "next_week", certainty: "confirmed" },
+        { id: "income-tutoring-paycheck", label: "Tutoring paycheck", amount: 390, timing: "in_2_weeks", certainty: "confirmed" },
+        { id: "income-final-tutoring-week", label: "Final tutoring pay", amount: 130, timing: "after_2026-04-09", certainty: "confirmed" },
+        { id: "income-dad-help", label: "Possible help from dad", amount: 100, timing: "as_available", certainty: "conditional" },
+      ],
+    },
+    debtPlan: [
+      {
+        debtName: "Capital One Credit Card",
+        mode: "minimum_plus",
+        minimumSource: "existing",
+        extraPaymentRule: {
+          type: "fixed_total_target",
+          value: 350,
+        },
+        priority: "critical",
+        notes: "Do not add new spending to this card.",
+      },
+    ],
+    obligationPlan: [
+      {
+        obligationName: "Utilities",
+        handling: "pay_over_time",
+        installment: {
+          amount: 270,
+          cadence: "within_horizon",
+        },
+        priority: "critical",
+        notes: "Reduce the overdue balance within this horizon.",
+      },
+      {
+        obligationName: "Rent",
+        handling: "externally_covered",
+        priority: "low",
+        notes: "Currently covered by dad.",
+      },
+      {
+        obligationName: "Tuition",
+        handling: "externally_covered",
+        priority: "low",
+        notes: "Currently covered by dad.",
+      },
+      {
+        obligationName: "Taxes",
+        handling: "file_this_week",
+        priority: "high",
+        notes: "File this week.",
+      },
+    ],
+    spendingRules: {
+      weeklyEssentialsCap: 25,
+      noNewCreditCardSpending: true,
+      notes: "Use $20 to $30 per week for food and essentials.",
+    },
+    guidance: {
+      focusOrder: ["overdue", "critical_debt", "critical_obligation", "buffer", "admin_deadlines", "goal_progress"],
+      recommendedStepStyle: "first_incomplete_step",
+    },
+  },
+  null,
+  2,
+);
+
 describe("applyQuickAddToSetup", () => {
   it("can add a one-time upcoming obligation from quick add", () => {
     const draft: QuickAddDraft = {
@@ -211,11 +327,21 @@ describe("buildDashboardFromSetup", () => {
     expect(saved.setup.strategyDocument?.debtPlan[0]?.mode).toBe("minimum_plus");
   });
 
+  it("accepts the richer reset-plan schema used by the roadmap strategy workspace", () => {
+    const parsed = parseStrategyDocument(realWorldStrategyJson);
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.document?.incomePlan.expectedIncome).toHaveLength(4);
+    expect(parsed.document?.debtPlan[0]?.extraPaymentRule?.type).toBe("fixed_total_target");
+    expect(parsed.document?.obligationPlan[0]?.installment?.cadence).toBe("within_horizon");
+    expect(parsed.document?.obligationPlan[1]?.handling).toBe("externally_covered");
+    expect(parsed.document?.spendingRules?.weeklyEssentialsCap).toBe(25);
+  });
+
   it("rejects invalid strategy json without overwriting the stored strategy", () => {
     const seeded = saveStrategyToSetup(baseSetup, strategyJson).setup;
     const invalid = saveStrategyToSetup(seeded, JSON.stringify({ version: 1, name: "Broken plan" }));
 
-    expect(invalid.errors[0]).toContain("goals");
+    expect(invalid.errors.some((error) => error.includes("goals"))).toBe(true);
     expect(invalid.setup.strategyDocument?.name).toBe("Debt reset plan");
   });
 
@@ -511,5 +637,38 @@ describe("buildDashboardFromSetup", () => {
     expect(snapshot.roadmap.summary.mostUrgentItem?.title).toBe("Bring Capital One under control");
     expect(snapshot.roadmap.focus.nextStep?.title).toContain("Capital One");
     expect(snapshot.topPriorities[0]?.title).toContain("Capital One");
+  });
+
+  it("uses confirmed strategy expected income as an advisory fallback horizon", () => {
+    const setup = saveStrategyToSetup(
+      {
+        ...baseSetup,
+        income: [],
+        obligations: [
+          {
+            id: "obl-1",
+            name: "Utilities",
+            amount: "442.70",
+            dueDate: "2026-04-10",
+            recurrence: "one-time",
+          },
+        ],
+        debts: [
+          {
+            id: "debt-1",
+            name: "Capital One Credit Card",
+            balance: "498.28",
+            minimum: "10",
+            dueDate: "2026-04-08",
+          },
+        ],
+      },
+      realWorldStrategyJson,
+    ).setup;
+
+    const snapshot = buildDashboardFromSetup(setup);
+
+    expect(snapshot.availableSpend.strategyAllocations.some((item) => item.label === "Protected buffer")).toBe(true);
+    expect(snapshot.debts[0]?.strategy?.recommendedExtraPayment).toBe(340);
   });
 });

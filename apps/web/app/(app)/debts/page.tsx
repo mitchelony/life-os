@@ -39,6 +39,20 @@ export default function DebtsPage() {
               <Metric label="Balance" value={formatMoney(item.currentBalance)} />
               <Metric label="Minimum payment" value={formatMoney(item.minimumPayment)} />
             </div>
+            {item.strategy ? (
+              <div className="mt-4 rounded-[22px] border border-line bg-accent-soft p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="border-transparent bg-white/90 text-accent">{item.strategy.mode.replace("_", " ")}</Badge>
+                  {item.strategy.priority ? <Badge className="border-transparent bg-white/90 text-accent">{item.strategy.priority}</Badge> : null}
+                </div>
+                {item.strategy.recommendedExtraPayment ? (
+                  <p className="mt-3 text-sm font-medium text-ink">
+                    Recommended extra payment: {formatMoney(item.strategy.recommendedExtraPayment)}
+                  </p>
+                ) : null}
+                {item.strategy.notes ? <p className="mt-2 text-sm text-muted">{item.strategy.notes}</p> : null}
+              </div>
+            ) : null}
             <div className="mt-5 h-2 overflow-hidden rounded-full bg-black/6">
               <div className="h-full rounded-full bg-accent" style={{ width: `${Math.round(item.payoffProgress * 100)}%` }} />
             </div>

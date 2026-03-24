@@ -19,6 +19,15 @@ export default function TasksPage() {
       <Panel>
         <SectionHeading eyebrow="Tasks" title="What matters this week" description="Non-financial and linked life admin stay in one calm list." />
       </Panel>
+      {dashboard.roadmap.focus.nextStep ? (
+        <Panel>
+          <SectionHeading
+            eyebrow="Guidance"
+            title={dashboard.roadmap.focus.nextStep.title}
+            description={dashboard.roadmap.focus.whyNow}
+          />
+        </Panel>
+      ) : null}
       <section className="space-y-4">
         {dashboard.topPriorities.map((task) => (
           <Panel key={task.id}>
