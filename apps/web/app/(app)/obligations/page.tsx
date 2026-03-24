@@ -25,7 +25,7 @@ export default function ObligationsPage() {
         <SectionHeading
           eyebrow="Obligations"
           title="Bills and required payments"
-          description="Recurring and one-time bills are shown in due-date order so the next thing is obvious."
+          description="Your bills are listed by due date so you can see what needs to be paid first."
         />
       </Panel>
       <section className="grid gap-4 lg:grid-cols-2">

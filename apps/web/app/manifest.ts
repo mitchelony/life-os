@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Life OS",
     short_name: "Life OS",
-    description: "A personal operating system for finances, tasks, and life admin.",
+    description: "A simple app for your money, bills, and tasks.",
     start_url: "/",
     display: "standalone",
     background_color: "#f3ede4",

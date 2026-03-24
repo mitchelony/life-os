@@ -10,7 +10,7 @@ const manrope = Manrope({
 
 export const metadata: Metadata = {
   title: "Life OS",
-  description: "A calm personal operating system for life, money, and next actions.",
+  description: "A simple place to keep track of your money, bills, and next steps.",
   applicationName: "Life OS",
   manifest: "/manifest.webmanifest",
 };

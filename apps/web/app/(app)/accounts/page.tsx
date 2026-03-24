@@ -10,7 +10,7 @@ export default function AccountsPage() {
   return (
     <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
       <Panel>
-        <SectionHeading eyebrow="Accounts" title="Cash and debt snapshot" description="Manual balances are enough for the MVP and keep the model simple." />
+        <SectionHeading eyebrow="Accounts" title="Cash and debt snapshot" description="Just enter the balances yourself for now." />
       </Panel>
 
       <section className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">

@@ -10,7 +10,7 @@ export default function SettingsPage() {
         <SectionHeading
           eyebrow="Settings"
           title="Setup, guardrails, and app preferences"
-          description="Your baseline setup lives here so there is one place to maintain the numbers that drive the dashboard."
+          description="This is where you update the numbers and settings the app uses."
         />
       </Panel>
       <OnboardingFlow />

@@ -19,9 +19,38 @@ export const navItems: AppNavItem[] = [
   { href: "/settings", label: "Settings", mobileLabel: "Settings", icon: Settings2 },
 ];
 
+export const mobilePrimaryNavHrefs = ["/dashboard", "/quick-add", "/roadmap", "/tasks"] as const;
+export const pullToRefreshThreshold = 88;
+export const pullToRefreshMaxDistance = 132;
+
+export function getMobilePrimaryNavItems(items = navItems) {
+  return items.filter((item) => mobilePrimaryNavHrefs.includes(item.href as (typeof mobilePrimaryNavHrefs)[number]));
+}
+
+export function getMobileSecondaryNavItems(items = navItems) {
+  return items.filter((item) => !mobilePrimaryNavHrefs.includes(item.href as (typeof mobilePrimaryNavHrefs)[number]));
+}
+
+export function isMobileSecondaryRoute(pathname: string, items = navItems) {
+  const activeItem = getActiveNavItem(pathname, items);
+  return !mobilePrimaryNavHrefs.includes(activeItem.href as (typeof mobilePrimaryNavHrefs)[number]);
+}
+
 export function getActiveNavItem(pathname: string, items = navItems) {
   const activePath = pathname === "/" ? "/dashboard" : pathname;
   return items.find((item) => item.href === activePath) ?? items[0];
+}
+
+export function getPullToRefreshDistance(startY: number, currentY: number, maxDistance = pullToRefreshMaxDistance) {
+  return Math.max(0, Math.min(maxDistance, currentY - startY));
+}
+
+export function getPullToRefreshProgress(distance: number, threshold = pullToRefreshThreshold) {
+  return Math.max(0, Math.min(1, distance / threshold));
+}
+
+export function shouldTriggerPullToRefresh(distance: number, threshold = pullToRefreshThreshold) {
+  return distance >= threshold;
 }
 
 export function chunkMobileNavItems(items: AppNavItem[], rowSize = 4) {

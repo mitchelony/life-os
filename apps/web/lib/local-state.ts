@@ -1308,14 +1308,14 @@ function buildStrategyObligationInstallmentRows(
 function computeUrgencyReason(item: RoadmapItem, obligations: Obligation[], debts: Debt[]) {
   const matchingDebt = debts.find((debt) => namesLooselyMatch(debt.name, item.title));
   const matchingObligation = obligations.find((obligation) => namesLooselyMatch(obligation.name, item.title));
-  if (matchingObligation?.status === "overdue") return "It is linked to an overdue obligation.";
+  if (matchingObligation?.status === "overdue") return "This is tied to a late bill.";
   if (matchingDebt && new Date(matchingDebt.dueDate).getTime() <= new Date(startOfTodayIso()).getTime() + 2 * 24 * 60 * 60 * 1000) {
-    return "Its linked debt minimum is due very soon.";
+    return "The minimum payment is due very soon.";
   }
-  if (item.status === "blocked") return "It is blocked, so the dependency needs attention first.";
-  if (item.priority === "critical") return "It is marked critical in the current strategy.";
-  if (computeRoadmapProgress(item) >= 75) return "It is close enough to completion to finish cleanly.";
-  return "It is the strongest active roadmap item right now.";
+  if (item.status === "blocked") return "Something else needs to be finished first.";
+  if (item.priority === "critical") return "This is marked as very important.";
+  if (computeRoadmapProgress(item) >= 75) return "You are close to finishing this.";
+  return "This is the most important active item right now.";
 }
 
 function computeUrgencyScore(item: RoadmapItem, obligations: Obligation[], debts: Debt[]) {
@@ -1439,33 +1439,7 @@ function buildTopPriorities(
   obligations: Obligation[],
   debts: Debt[],
   income: IncomeItem[],
-  roadmapItems: RoadmapItem[],
-  paycheckFlow: ReturnType<typeof buildPaycheckFlowSummary>,
 ): Task[] {
-  const paycheckTasks = paycheckFlow.nextPlan
-    ? paycheckFlow.nextPlan.allocations.map((allocation) => ({
-        id: `plan-${allocation.id}`,
-        title: `${allocation.label} • $${money(allocation.amount).toFixed(2)}`,
-        dueDate: allocation.dueDate,
-        priority: allocation.priority === 1 ? "urgent" as const : allocation.priority === 2 ? "high" as const : "normal" as const,
-        linkedTo: "Paycheck flow",
-        completed: false,
-      }))
-    : [];
-  const roadmapTasks = roadmapItems
-    .filter((item) => item.status !== "completed")
-    .slice()
-    .sort((left, right) => (right.urgencyScore ?? 0) - (left.urgencyScore ?? 0))
-    .slice(0, 2)
-    .map((item) => ({
-      id: `roadmap-${item.id}`,
-      title: item.derivedNextStep ?? item.title,
-      dueDate: item.targetDate ?? startOfTodayIso(),
-      priority: item.priority === "critical" ? "urgent" as const : item.priority === "high" ? "high" as const : "normal" as const,
-      linkedTo: "Roadmap",
-      completed: false,
-    }));
-
   const obligationTasks = obligations.map((item) => ({
     id: `obligation-${item.id}`,
     title: item.name,
@@ -1492,7 +1466,7 @@ function buildTopPriorities(
   }));
 
   const seenTitles = new Set<string>();
-  return [...paycheckTasks, ...roadmapTasks, ...obligationTasks, ...debtTasks, ...incomeTasks]
+  return [...obligationTasks, ...debtTasks, ...incomeTasks]
     .filter((task) => {
       const key = `${task.title}-${task.linkedTo}`;
       if (seenTitles.has(key)) return false;
@@ -1504,9 +1478,9 @@ function buildTopPriorities(
       if (priorityOrder[left.priority] !== priorityOrder[right.priority]) {
         return priorityOrder[left.priority] - priorityOrder[right.priority];
       }
-      const surfaceOrder = { "Paycheck flow": 0, Roadmap: 1, Debt: 2, Obligation: 3, Income: 4 };
-      const leftSurface = surfaceOrder[(left.linkedTo ?? "Income") as keyof typeof surfaceOrder] ?? 4;
-      const rightSurface = surfaceOrder[(right.linkedTo ?? "Income") as keyof typeof surfaceOrder] ?? 4;
+      const surfaceOrder = { Debt: 0, Obligation: 1, Income: 2 };
+      const leftSurface = surfaceOrder[(left.linkedTo ?? "Income") as keyof typeof surfaceOrder] ?? 2;
+      const rightSurface = surfaceOrder[(right.linkedTo ?? "Income") as keyof typeof surfaceOrder] ?? 2;
       if (leftSurface !== rightSurface) {
         return leftSurface - rightSurface;
       }
@@ -1655,7 +1629,7 @@ export function buildDashboardFromSetup(setup: StoredLifeOsSetup | null): Dashbo
     .sort((left, right) => (right.urgencyScore ?? 0) - (left.urgencyScore ?? 0));
   const roadmapSummary = buildRoadmapSummary(roadmapItems);
   const roadmapFocus = buildRoadmapFocus(roadmapItems, roadmapSummary, paycheckFlow, normalizedSetup.strategyDocument);
-  const topPriorities = buildTopPriorities(obligations, debts, upcomingIncome, roadmapItems, paycheckFlow);
+  const topPriorities = buildTopPriorities(obligations, debts, upcomingIncome);
 
   return {
     ...sampleDashboard,

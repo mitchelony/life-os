@@ -21,7 +21,7 @@ export default function DebtsPage() {
         <SectionHeading
           eyebrow="Debts"
           title="Minimums and payoff pressure"
-          description="Keep the next minimum payment visible without turning the app into a debt spreadsheet."
+          description="See what you owe and what payment is coming up next."
         />
       </Panel>
       <section className="grid gap-4 lg:grid-cols-2">

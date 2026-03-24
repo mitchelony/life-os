@@ -1,7 +1,8 @@
 "use client";
 
+import { ChevronDown, ChevronUp, Plus, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Badge, Button, cn, InlineField, Input, Panel, SectionHeading, Select, StatCard, Textarea } from "@/components/ui";
+import { Badge, Button, cn, InlineField, Input, Panel, SectionHeading, Segment, Select, Textarea } from "@/components/ui";
 import { formatMoney } from "@/lib/finance";
 import {
   buildDashboardFromSetup,
@@ -15,7 +16,7 @@ const strategyTemplate = JSON.stringify(
   {
     version: 2,
     name: "Next paycheck plan",
-    summary: "Decide what gets paid first when the next income lands.",
+    summary: "Make a clear plan for what gets paid first when money comes in.",
     effectiveDate: "2026-03-24",
     currency: "USD",
     planningHorizonDays: 30,
@@ -118,6 +119,7 @@ const statusOptions = ["all", "planned", "active", "blocked", "completed", "over
 const priorityOptions = ["all", "low", "medium", "high", "critical"] as const;
 const timeframeOptions = ["all", "next_7_days", "next_30_days", "no_date"] as const;
 const sortModes = ["most_urgent", "nearest_deadline", "highest_priority", "most_progress", "least_progress"] as const;
+const mobileViews = ["Focus", "Goals", "Strategy"] as const;
 
 function roadmapItemToStored(item: RoadmapItem): RoadmapItem {
   return {
@@ -181,6 +183,15 @@ export default function RoadmapPage() {
   const [sortMode, setSortMode] = useState<(typeof sortModes)[number]>("most_urgent");
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [activeOnly, setActiveOnly] = useState(false);
+  const [mobileView, setMobileView] = useState<(typeof mobileViews)[number]>("Focus");
+  const [showStrategyEditor, setShowStrategyEditor] = useState(false);
+  const [showGoalComposer, setShowGoalComposer] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<"active" | "upcoming" | "completed", boolean>>({
+    active: false,
+    upcoming: true,
+    completed: true,
+  });
 
   useEffect(() => {
     if (!hydrated) return;
@@ -266,6 +277,8 @@ export default function RoadmapPage() {
     };
     upsertRoadmapItem(nextItem);
     setGoalForm(emptyGoalForm);
+    setShowGoalComposer(false);
+    setMobileView("Goals");
   }
 
   function handleStrategySave() {
@@ -273,6 +286,7 @@ export default function RoadmapPage() {
     setStrategyErrors(result.errors);
     if (result.errors.length) return;
     save(result.setup);
+    setShowStrategyEditor(false);
   }
 
   function handleStepToggle(item: RoadmapItem, stepId: string) {
@@ -293,11 +307,18 @@ export default function RoadmapPage() {
     setExpandedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   }
 
+  function toggleGroup(group: "active" | "upcoming" | "completed") {
+    setCollapsedGroups((current) => ({
+      ...current,
+      [group]: !current[group],
+    }));
+  }
+
   if (!hydrated) {
     return (
       <div className="space-y-6 pb-24 md:pb-6">
         <Panel>
-          <SectionHeading eyebrow="Roadmap" title="Loading your plan" description="Pulling your strategy and active goals into one view." />
+          <SectionHeading eyebrow="Roadmap" title="Loading your plan" description="Getting your plan and goals ready." />
         </Panel>
       </div>
     );
@@ -309,385 +330,526 @@ export default function RoadmapPage() {
         <SectionHeading
           eyebrow="Roadmap"
           title="When the next paycheck hits, what gets paid first?"
-          description="Use Roadmap as a cash-flow plan first. The app should tell you the next income, the order of allocations, and which debt or obligation gets hit next."
+          description="Use this page to see what should get paid first and what to do next."
         />
+        <div className="mt-4 hidden gap-3 md:grid md:grid-cols-4">
+          <CompactRoadmapStat label="Active goals" value={dashboard.roadmap.summary.activeCount} detail="In progress" />
+          <CompactRoadmapStat label="Overdue" value={dashboard.roadmap.summary.overdueCount} detail="Needs attention" />
+          <CompactRoadmapStat label="Progress" value={`${dashboard.roadmap.summary.overallProgress}%`} detail="Across active goals" />
+          <CompactRoadmapStat
+            label="Next income plan"
+            value={dashboard.roadmap.paycheckFlow.nextPlan ? "Ready" : "None"}
+            detail={dashboard.roadmap.paycheckFlow.nextPlan?.incomeLabel ?? "Add a plan"}
+          />
+        </div>
       </Panel>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-        <StatCard label="Active goals" value={dashboard.roadmap.summary.activeCount} detail="Currently in motion" />
-        <StatCard label="Overdue" value={dashboard.roadmap.summary.overdueCount} detail="Needs immediate attention" />
-        <StatCard label="Completed" value={dashboard.roadmap.summary.completedCount} detail="Finished cleanly" />
-        <StatCard label="Debt / obligation pressure" value={dashboard.roadmap.summary.debtOrObligationCount} detail="Finance-linked roadmap items" />
-        <StatCard label="Overall progress" value={`${dashboard.roadmap.summary.overallProgress}%`} detail="Across active goals" />
-        <StatCard
-          label="Next flow"
-          value={dashboard.roadmap.paycheckFlow.nextPlan?.label ?? "No next-income plan"}
-          detail={dashboard.roadmap.focus.nextStep?.title ?? "Paste a strategy or add a goal"}
-        />
-      </section>
+      <div className="sticky top-2 z-20 md:hidden">
+        <div className="rounded-[22px] border border-line bg-[rgba(255,255,255,0.94)] p-2 shadow-soft backdrop-blur-xl">
+          <Segment options={[...mobileViews]} value={mobileView} onChange={(value) => setMobileView(value as (typeof mobileViews)[number])} />
+        </div>
+      </div>
 
-      <section className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr] xl:gap-6">
-        <Panel>
-          <SectionHeading
-            eyebrow="Focus"
-            title={dashboard.roadmap.focus.nextStep?.title ?? "No roadmap focus yet"}
-            description={dashboard.roadmap.focus.whyNow}
+      <Panel className={cn("md:hidden", mobileView !== "Focus" && "hidden")}>
+        <div className="grid grid-cols-2 gap-3">
+          <CompactRoadmapStat label="Active" value={dashboard.roadmap.summary.activeCount} />
+          <CompactRoadmapStat label="Overdue" value={dashboard.roadmap.summary.overdueCount} />
+          <CompactRoadmapStat label="Progress" value={`${dashboard.roadmap.summary.overallProgress}%`} />
+          <CompactRoadmapStat
+            label="Next flow"
+            value={dashboard.roadmap.paycheckFlow.nextPlan ? "Ready" : "None"}
+            detail={dashboard.roadmap.paycheckFlow.nextPlan?.incomeLabel ?? "Paste a strategy"}
           />
-          <div className="mt-5 rounded-[24px] border border-line bg-white/72 p-4">
-            <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Best next step</p>
-            <p className="mt-2 text-lg font-semibold tracking-tight text-ink">
-              {dashboard.roadmap.focus.nextStep?.title ?? "Paste a strategy or add your first major goal."}
-            </p>
-            <p className="mt-2 text-sm leading-6 text-muted">
-              {dashboard.roadmap.focus.nextStep?.reason ??
-                "The roadmap will combine deadlines, debt pressure, overdue obligations, and your chosen strategy to decide what should move first."}
-            </p>
-          </div>
-          {dashboard.roadmap.paycheckFlow.nextPlan ? (
-            <div className="mt-4 rounded-[24px] bg-accent-soft p-4">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-accent">Next income flow</p>
-              <p className="mt-2 text-lg font-semibold tracking-tight text-ink">{dashboard.roadmap.paycheckFlow.nextPlan.label}</p>
-              <p className="mt-1 text-sm text-muted">
-                {dashboard.roadmap.paycheckFlow.nextPlan.incomeLabel} • {formatMoney(dashboard.roadmap.paycheckFlow.nextPlan.amount)}
-              </p>
-              <div className="mt-4 space-y-2 text-sm text-ink">
-                {dashboard.roadmap.paycheckFlow.nextPlan.allocations.map((allocation) => (
-                  <div key={allocation.id} className="flex items-center justify-between gap-4 rounded-[18px] bg-white/70 px-3 py-2">
-                    <span>{allocation.label}</span>
-                    <span className="font-semibold tabular-nums">{formatMoney(allocation.amount)}</span>
-                  </div>
-                ))}
-              </div>
-              {dashboard.roadmap.paycheckFlow.nextPlan.overAllocatedAmount > 0 ? (
-                <p className="mt-3 text-sm text-[#7a2f2f]">
-                  This plan is over-allocated by {formatMoney(dashboard.roadmap.paycheckFlow.nextPlan.overAllocatedAmount)}.
-                </p>
-              ) : null}
-              <p className="mt-3 text-sm leading-6 text-muted">{dashboard.roadmap.paycheckFlow.nextPlan.recommendedStep}</p>
-            </div>
-          ) : (
-            <div className="mt-4 rounded-[24px] bg-accent-soft p-4">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-accent">Current strategy effect</p>
-              <div className="mt-3 space-y-2 text-sm text-ink">
-                {dashboard.availableSpend.strategyAllocations.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-4">
-                    <span>{item.label}</span>
-                    <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
-                  </div>
-                ))}
-                {dashboard.availableSpend.strategyDebtExtraPayments.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-4">
-                    <span>{item.label}</span>
-                    <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
-                  </div>
-                ))}
-                {dashboard.availableSpend.strategyObligationInstallments.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-4">
-                    <span>{item.label}</span>
-                    <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
-                  </div>
-                ))}
-                {!dashboard.availableSpend.strategyAllocations.length &&
-                !dashboard.availableSpend.strategyDebtExtraPayments.length &&
-                !dashboard.availableSpend.strategyObligationInstallments.length ? (
-                  <p className="text-sm text-muted">No strategy reserves are shaping the current horizon yet.</p>
-                ) : null}
-              </div>
-            </div>
-          )}
-        </Panel>
+        </div>
+      </Panel>
 
-        <Panel>
-          <SectionHeading
-            eyebrow="Strategy input"
-            title="Paste the current plan"
-            description="Use strict JSON only. The strategy stays advisory and shapes guidance, not the ledger itself."
-            action={<Button onClick={handleStrategySave}>Save strategy</Button>}
-          />
-          <div className="mt-5 space-y-3">
-            <Textarea
-              value={strategyInput}
-              onChange={(event) => setStrategyInput(event.target.value)}
-              rows={14}
-              className="font-mono text-[13px] leading-6"
+      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr] xl:gap-6">
+        <div className={cn("space-y-4 md:space-y-6 xl:sticky xl:top-4 xl:self-start", mobileView !== "Focus" && "hidden md:block")}>
+          <Panel>
+            <SectionHeading
+              eyebrow="Focus"
+              title={dashboard.roadmap.focus.nextStep?.title ?? "No roadmap focus yet"}
+              description={dashboard.roadmap.focus.whyNow}
             />
-            {strategyErrors.length ? (
-              <div className="rounded-[22px] border border-[#d8b4b4] bg-[#fff5f5] p-4 text-sm text-[#7a2f2f]">
-                {strategyErrors.map((error) => (
-                  <p key={error}>{error}</p>
-                ))}
+            <div className="mt-4 rounded-[22px] border border-line bg-white/72 p-4">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Best next step</p>
+              <p className="mt-2 text-base font-semibold tracking-tight text-ink">
+                {dashboard.roadmap.focus.nextStep?.title ?? "Paste a strategy or add your first major goal."}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-muted">
+                {dashboard.roadmap.focus.nextStep?.reason ??
+                  "Roadmap looks at what is overdue, what is due soon, and your plan to choose what comes first."}
+              </p>
+            </div>
+
+            {dashboard.roadmap.paycheckFlow.nextPlan ? (
+              <div className="mt-4 rounded-[22px] bg-accent-soft p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-accent">Next income flow</p>
+                    <p className="mt-2 text-base font-semibold tracking-tight text-ink">{dashboard.roadmap.paycheckFlow.nextPlan.label}</p>
+                    <p className="mt-1 text-sm text-muted">
+                      {dashboard.roadmap.paycheckFlow.nextPlan.incomeLabel} • {formatMoney(dashboard.roadmap.paycheckFlow.nextPlan.amount)}
+                    </p>
+                  </div>
+                  <Badge className="border-transparent bg-white/70 text-accent">
+                    {dashboard.roadmap.paycheckFlow.nextPlan.allocations.length} moves
+                  </Badge>
+                </div>
+                <div className="mt-4 space-y-2">
+                  {dashboard.roadmap.paycheckFlow.nextPlan.allocations.slice(0, 3).map((allocation) => (
+                    <div key={allocation.id} className="flex items-center justify-between gap-4 rounded-[16px] bg-white/70 px-3 py-2.5 text-sm">
+                      <span>{allocation.label}</span>
+                      <span className="font-semibold tabular-nums">{formatMoney(allocation.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+                {dashboard.roadmap.paycheckFlow.nextPlan.allocations.length > 3 ? (
+                  <p className="mt-3 text-xs text-muted">
+                    + {dashboard.roadmap.paycheckFlow.nextPlan.allocations.length - 3} more planned allocations
+                  </p>
+                ) : null}
+                {dashboard.roadmap.paycheckFlow.nextPlan.overAllocatedAmount > 0 ? (
+                  <p className="mt-3 text-sm text-[#7a2f2f]">
+                    This plan is over-allocated by {formatMoney(dashboard.roadmap.paycheckFlow.nextPlan.overAllocatedAmount)}.
+                  </p>
+                ) : null}
+                <p className="mt-3 text-sm leading-6 text-muted">{dashboard.roadmap.paycheckFlow.nextPlan.recommendedStep}</p>
               </div>
             ) : (
-              <div className="rounded-[22px] border border-line bg-white/72 p-4 text-sm text-muted">
-                Strict JSON only. Prefer a cash-flow-first strategy that includes `expectedIncome`, `nextIncomePlans`,
-                `cashFlowPlan`, and a `recommendedStepStyle` of `next_planned_allocation`.
+              <div className="mt-4 rounded-[22px] bg-accent-soft p-4">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-accent">Current strategy effect</p>
+                <div className="mt-3 space-y-2 text-sm text-ink">
+                  {dashboard.availableSpend.strategyAllocations.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-4">
+                      <span>{item.label}</span>
+                      <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
+                    </div>
+                  ))}
+                  {dashboard.availableSpend.strategyDebtExtraPayments.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-4">
+                      <span>{item.label}</span>
+                      <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
+                    </div>
+                  ))}
+                  {dashboard.availableSpend.strategyObligationInstallments.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-4">
+                      <span>{item.label}</span>
+                      <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
+                    </div>
+                  ))}
+                  {!dashboard.availableSpend.strategyAllocations.length &&
+                  !dashboard.availableSpend.strategyDebtExtraPayments.length &&
+                  !dashboard.availableSpend.strategyObligationInstallments.length ? (
+                    <p className="text-sm text-muted">Your plan is not affecting this time period yet.</p>
+                  ) : null}
+                </div>
               </div>
             )}
-          </div>
-        </Panel>
-      </section>
+          </Panel>
 
-      <section className="grid gap-4 xl:grid-cols-[0.78fr_1.22fr] xl:gap-6">
-        <Panel>
-          <SectionHeading eyebrow="Add goal" title="Track a major milestone" description="Keep this for meaningful goals, not tiny tasks." />
-          <div className="mt-5 space-y-4">
-            <InlineField label="Title">
-              <Input value={goalForm.title} onChange={(event) => setGoalForm((current) => ({ ...current, title: event.target.value }))} placeholder="Erase the credit card backlog" />
-            </InlineField>
-            <InlineField label="Description">
-              <Textarea
-                rows={3}
-                value={goalForm.description}
-                onChange={(event) => setGoalForm((current) => ({ ...current, description: event.target.value }))}
-                placeholder="Why this matters and what done looks like."
-              />
-            </InlineField>
-            <div className="grid gap-4 md:grid-cols-2">
-              <InlineField label="Category">
-                <Select value={goalForm.category} onChange={(event) => setGoalForm((current) => ({ ...current, category: event.target.value as RoadmapCategory }))}>
-                  {categoryOptions.filter((option) => option !== "all").map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </Select>
-              </InlineField>
-              <InlineField label="Priority">
-                <Select value={goalForm.priority} onChange={(event) => setGoalForm((current) => ({ ...current, priority: event.target.value as RoadmapPriority }))}>
-                  {priorityOptions.filter((option) => option !== "all").map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </Select>
-              </InlineField>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <InlineField label="Status">
-                <Select value={goalForm.status} onChange={(event) => setGoalForm((current) => ({ ...current, status: event.target.value as RoadmapStatus }))}>
-                  {statusOptions.filter((option) => option !== "all").map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </Select>
-              </InlineField>
-              <InlineField label="Target date">
-                <Input type="date" value={goalForm.targetDate} onChange={(event) => setGoalForm((current) => ({ ...current, targetDate: event.target.value }))} />
-              </InlineField>
-            </div>
-            <InlineField label="Timeframe label" description="Optional: use this when the goal is oriented around a season or phase instead of a hard deadline.">
-              <Input value={goalForm.timeframeLabel} onChange={(event) => setGoalForm((current) => ({ ...current, timeframeLabel: event.target.value }))} placeholder="Spring semester" />
-            </InlineField>
-            <InlineField label="Substeps" description="One actionable checkpoint per line. The first unfinished line becomes the suggested next move.">
-              <Textarea
-                rows={5}
-                value={goalForm.stepsText}
-                onChange={(event) => setGoalForm((current) => ({ ...current, stepsText: event.target.value }))}
-                placeholder={"Pay rent on time\nReserve 200 for tuition installment\nSend extra to Capital One"}
-              />
-            </InlineField>
-            <InlineField label="Notes">
-              <Textarea rows={3} value={goalForm.notes} onChange={(event) => setGoalForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Anything that changes how you want the roadmap to guide this goal." />
-            </InlineField>
-            <Button className="w-full" onClick={saveManualGoal}>
-              Add goal
-            </Button>
-          </div>
-        </Panel>
-
-        <div className="space-y-6">
-          <Panel>
-            <SectionHeading eyebrow="Filters" title="Keep the view focused" description="Use simple slices so the roadmap answers what matters now instead of showing everything at once." />
-            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <InlineField label="Status">
-                <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as (typeof statusOptions)[number])}>
-                  {statusOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option.replace("_", " ")}
-                    </option>
-                  ))}
-                </Select>
-              </InlineField>
-              <InlineField label="Priority">
-                <Select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value as (typeof priorityOptions)[number])}>
-                  {priorityOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </Select>
-              </InlineField>
-              <InlineField label="Category">
-                <Select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as (typeof categoryOptions)[number])}>
-                  {categoryOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </Select>
-              </InlineField>
-              <InlineField label="Timeframe">
-                <Select value={timeframeFilter} onChange={(event) => setTimeframeFilter(event.target.value as (typeof timeframeOptions)[number])}>
-                  {timeframeOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option.replaceAll("_", " ")}
-                    </option>
-                  ))}
-                </Select>
-              </InlineField>
-              <InlineField label="Sort">
-                <Select value={sortMode} onChange={(event) => setSortMode(event.target.value as (typeof sortModes)[number])}>
-                  {sortModes.map((option) => (
-                    <option key={option} value={option}>
-                      {option.replaceAll("_", " ")}
-                    </option>
-                  ))}
-                </Select>
-              </InlineField>
-              <div className="flex items-end gap-2">
-                <Button variant={overdueOnly ? "secondary" : "ghost"} className="flex-1" onClick={() => setOverdueOnly((value) => !value)}>
-                  Overdue only
+          <Panel className="hidden md:block">
+            <SectionHeading
+              eyebrow="Plan source"
+              title={setup.strategyDocument?.name ?? "No saved plan yet"}
+              description={setup.strategyDocument?.summary ?? "Paste a simple JSON plan so Roadmap knows what to pay first."}
+              action={
+                <Button variant="soft" onClick={() => setShowStrategyEditor((value) => !value)}>
+                  {showStrategyEditor ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  {showStrategyEditor ? "Hide editor" : "Edit strategy"}
                 </Button>
-                <Button variant={activeOnly ? "secondary" : "ghost"} className="flex-1" onClick={() => setActiveOnly((value) => !value)}>
-                  Active only
+              }
+            />
+            {showStrategyEditor ? (
+              <div className="mt-5 space-y-3">
+                <Textarea
+                  value={strategyInput}
+                  onChange={(event) => setStrategyInput(event.target.value)}
+                  rows={16}
+                  className="font-mono text-[13px] leading-6"
+                />
+                {strategyErrors.length ? (
+                  <div className="rounded-[22px] border border-[#d8b4b4] bg-[#fff5f5] p-4 text-sm text-[#7a2f2f]">
+                    {strategyErrors.map((error) => (
+                      <p key={error}>{error}</p>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-[22px] border border-line bg-white/72 p-4 text-sm text-muted">
+                    Use JSON only. It helps to include expected income, income plans, and a payment order.
+                  </div>
+                )}
+                <Button className="w-full" onClick={handleStrategySave}>
+                  Save strategy
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <CompactRoadmapStat label="Goals" value={setup.strategyDocument?.goals.length ?? 0} />
+                  <CompactRoadmapStat label="Income plans" value={setup.strategyDocument?.nextIncomePlans?.length ?? 0} />
+                </div>
+                <div className="rounded-[18px] bg-accent-soft p-4">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-accent">How this helps</p>
+                  <p className="mt-2 text-sm leading-6 text-ink">
+                    This plan tells the app what to put first when money comes in. It does not change your saved balances or entries.
+                  </p>
+                </div>
+              </div>
+            )}
+          </Panel>
+        </div>
+
+        <div className={cn("space-y-4 md:space-y-6", mobileView !== "Goals" && "hidden md:block")}>
+          <Panel>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <SectionHeading
+                eyebrow="Goals"
+                title="The roadmap itself"
+                description="Keep big goals here, but keep the page focused on the next step."
+              />
+              <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                <Button variant="ghost" className="flex-1 sm:flex-none" onClick={() => setShowFilters((value) => !value)}>
+                  <SlidersHorizontal className="h-4 w-4" />
+                  {showFilters ? "Hide filters" : "View options"}
+                </Button>
+                <Button variant="soft" className="flex-1 sm:flex-none" onClick={() => setShowGoalComposer((value) => !value)}>
+                  <Plus className="h-4 w-4" />
+                  {showGoalComposer ? "Hide goal form" : "Add goal"}
                 </Button>
               </div>
             </div>
+
+            {showFilters ? (
+              <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <InlineField label="Status">
+                  <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as (typeof statusOptions)[number])}>
+                    {statusOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option.replace("_", " ")}
+                      </option>
+                    ))}
+                  </Select>
+                </InlineField>
+                <InlineField label="Priority">
+                  <Select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value as (typeof priorityOptions)[number])}>
+                    {priorityOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Select>
+                </InlineField>
+                <InlineField label="Category">
+                  <Select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as (typeof categoryOptions)[number])}>
+                    {categoryOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Select>
+                </InlineField>
+                <InlineField label="Timeframe">
+                  <Select value={timeframeFilter} onChange={(event) => setTimeframeFilter(event.target.value as (typeof timeframeOptions)[number])}>
+                    {timeframeOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option.replaceAll("_", " ")}
+                      </option>
+                    ))}
+                  </Select>
+                </InlineField>
+                <InlineField label="Sort">
+                  <Select value={sortMode} onChange={(event) => setSortMode(event.target.value as (typeof sortModes)[number])}>
+                    {sortModes.map((option) => (
+                      <option key={option} value={option}>
+                        {option.replaceAll("_", " ")}
+                      </option>
+                    ))}
+                  </Select>
+                </InlineField>
+                <div className="flex items-end gap-2">
+                  <Button variant={overdueOnly ? "secondary" : "ghost"} className="flex-1" onClick={() => setOverdueOnly((value) => !value)}>
+                    Overdue only
+                  </Button>
+                  <Button variant={activeOnly ? "secondary" : "ghost"} className="flex-1" onClick={() => setActiveOnly((value) => !value)}>
+                    Active only
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Badge>{grouped.active.length} active</Badge>
+                <Badge>{grouped.upcoming.length} upcoming</Badge>
+                <Badge>{grouped.completed.length} completed</Badge>
+                {overdueOnly ? <Badge className="border-transparent bg-accent-soft text-accent">Overdue only</Badge> : null}
+                {activeOnly ? <Badge className="border-transparent bg-accent-soft text-accent">Active only</Badge> : null}
+              </div>
+            )}
+
+            {showGoalComposer ? (
+              <div className="mt-5 border-t border-line pt-5">
+                <SectionHeading eyebrow="Add goal" title="Add a big goal" description="Use this for bigger goals, not tiny tasks." />
+                <div className="mt-5 space-y-4">
+                  <InlineField label="Title">
+                    <Input value={goalForm.title} onChange={(event) => setGoalForm((current) => ({ ...current, title: event.target.value }))} placeholder="Erase the credit card backlog" />
+                  </InlineField>
+                  <InlineField label="Description">
+                    <Textarea
+                      rows={3}
+                      value={goalForm.description}
+                      onChange={(event) => setGoalForm((current) => ({ ...current, description: event.target.value }))}
+                      placeholder="Why this matters and what it looks like when it is done."
+                    />
+                  </InlineField>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <InlineField label="Category">
+                      <Select value={goalForm.category} onChange={(event) => setGoalForm((current) => ({ ...current, category: event.target.value as RoadmapCategory }))}>
+                        {categoryOptions.filter((option) => option !== "all").map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </Select>
+                    </InlineField>
+                    <InlineField label="Priority">
+                      <Select value={goalForm.priority} onChange={(event) => setGoalForm((current) => ({ ...current, priority: event.target.value as RoadmapPriority }))}>
+                        {priorityOptions.filter((option) => option !== "all").map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </Select>
+                    </InlineField>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <InlineField label="Status">
+                      <Select value={goalForm.status} onChange={(event) => setGoalForm((current) => ({ ...current, status: event.target.value as RoadmapStatus }))}>
+                        {statusOptions.filter((option) => option !== "all").map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </Select>
+                    </InlineField>
+                    <InlineField label="Target date">
+                      <Input type="date" value={goalForm.targetDate} onChange={(event) => setGoalForm((current) => ({ ...current, targetDate: event.target.value }))} />
+                    </InlineField>
+                  </div>
+                  <InlineField label="Timeframe label" description="Optional: use this if you have a rough time period instead of a set date.">
+                    <Input value={goalForm.timeframeLabel} onChange={(event) => setGoalForm((current) => ({ ...current, timeframeLabel: event.target.value }))} placeholder="Spring semester" />
+                  </InlineField>
+                  <InlineField label="Substeps" description="Put one step on each line. The first unfinished step becomes the next move.">
+                    <Textarea
+                      rows={5}
+                      value={goalForm.stepsText}
+                      onChange={(event) => setGoalForm((current) => ({ ...current, stepsText: event.target.value }))}
+                      placeholder={"Pay rent on time\nReserve 200 for tuition installment\nSend extra to Capital One"}
+                    />
+                  </InlineField>
+                  <InlineField label="Notes">
+                    <Textarea rows={3} value={goalForm.notes} onChange={(event) => setGoalForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Anything else that matters for this goal." />
+                  </InlineField>
+                  <Button className="w-full" onClick={saveManualGoal}>
+                    Add goal
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </Panel>
 
           {(["active", "upcoming", "completed"] as const).map((group) => {
             const items = grouped[group];
             return (
               <Panel key={group}>
-                <SectionHeading
-                  eyebrow={group === "active" ? "Active goals" : group === "upcoming" ? "Upcoming goals" : "Completed goals"}
-                  title={group === "active" ? "What is moving now" : group === "upcoming" ? "What comes next" : "What is already closed"}
-                  description={
-                    group === "active"
-                      ? "Cash-flow plans, debt pressure, due dates, and remaining work all shape what rises to the top."
-                      : group === "upcoming"
-                        ? "Planned items stay visible without crowding the active focus."
-                        : "Finished goals remain as a clean record of progress."
-                  }
-                />
-                <div className="mt-5 space-y-3">
-                  {items.length ? (
-                    items.map((item) => {
-                      const expanded = expandedIds.includes(item.id);
-                      return (
-                        <div key={item.id} className="rounded-[20px] border border-line bg-white/72 p-4 md:rounded-[24px]">
-                          <div className="flex flex-wrap items-start justify-between gap-4">
-                            <div className="space-y-2">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Badge>{item.status}</Badge>
-                                <Badge>{item.priority}</Badge>
-                                <Badge>{item.category}</Badge>
-                                {item.strategyBacked ? <Badge className="border-transparent bg-accent-soft text-accent">Strategy</Badge> : null}
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group)}
+                  className="flex w-full items-center justify-between gap-3 text-left"
+                >
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.24em] text-muted">
+                      {group === "active" ? "Active goals" : group === "upcoming" ? "Upcoming goals" : "Completed goals"}
+                    </p>
+                    <h2 className="mt-1 text-base font-semibold tracking-tight text-ink">
+                      {group === "active" ? "What is moving now" : group === "upcoming" ? "What comes next" : "What is already closed"}
+                    </h2>
+                    <p className="mt-1 text-sm text-muted">{items.length} items</p>
+                  </div>
+                  {collapsedGroups[group] ? <ChevronDown className="h-5 w-5 text-muted" /> : <ChevronUp className="h-5 w-5 text-muted" />}
+                </button>
+
+                {!collapsedGroups[group] ? (
+                  <div className="mt-5 space-y-3">
+                    {items.length ? (
+                      items.map((item) => {
+                        const expanded = expandedIds.includes(item.id);
+                        return (
+                          <div key={item.id} className="rounded-[18px] border border-line bg-white/72 p-3.5 md:rounded-[22px] md:p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <Badge>{item.status}</Badge>
+                                  <Badge className="hidden sm:inline-flex">{item.priority}</Badge>
+                                  <Badge className="hidden sm:inline-flex">{item.category}</Badge>
+                                  {item.strategyBacked ? <Badge className="border-transparent bg-accent-soft text-accent">Strategy</Badge> : null}
+                                </div>
+                                <h3 className="mt-3 text-base font-semibold tracking-tight text-ink md:text-lg">{item.title}</h3>
+                                <p className="mt-1 text-sm leading-6 text-muted">{item.description || item.reason || "No details yet."}</p>
                               </div>
-                              <div>
-                                <h3 className="text-lg font-semibold tracking-tight text-ink">{item.title}</h3>
-                                <p className="mt-1 text-sm leading-6 text-muted">{item.description || item.reason || "No description yet."}</p>
+                              <div className="rounded-[18px] bg-accent-soft px-3 py-2 text-right">
+                                <p className="text-[10px] uppercase tracking-[0.2em] text-accent">{item.targetDate ? "Target" : "Timeframe"}</p>
+                                <p className="mt-1 text-sm font-medium text-ink">{item.targetDate ? formatDueLabel(item.targetDate) : item.timeframeLabel || "No target date"}</p>
+                                <div className="mt-2 text-xl font-semibold tracking-tight text-ink">{item.progressValue}%</div>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-[11px] uppercase tracking-[0.24em] text-muted">{item.targetDate ? "Target" : "Timeframe"}</p>
-                              <p className="mt-2 text-sm font-medium text-ink">{item.targetDate ? formatDueLabel(item.targetDate) : item.timeframeLabel || "No target date"}</p>
-                              <div className="mt-3 text-2xl font-semibold tracking-tight text-ink">{item.progressValue}%</div>
+                            <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/6">
+                              <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${item.progressValue}%` }} />
                             </div>
-                          </div>
-                          <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/6">
-                            <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${item.progressValue}%` }} />
-                          </div>
-                          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                            <div className="text-sm text-muted">
-                              Next move: <span className="font-medium text-ink">{item.derivedNextStep ?? item.title}</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {!item.strategyBacked ? (
-                                <Button variant="ghost" onClick={() => removeRoadmapItem(item)}>
-                                  Remove
-                                </Button>
-                              ) : null}
-                              <Button variant="soft" onClick={() => toggleExpanded(item.id)}>
-                                {expanded ? "Hide details" : "Show details"}
-                              </Button>
-                            </div>
-                          </div>
-                          {expanded ? (
-                            <div className="mt-5 grid gap-4 xl:grid-cols-[0.75fr_0.25fr]">
-                              <div className="space-y-3">
-                                {item.steps.length ? (
-                                  item.steps.map((step) => (
-                                    <button
-                                      key={step.id}
-                                      type="button"
-                                      onClick={() => handleStepToggle(item, step.id)}
-                                      className={cn(
-                                        "flex w-full items-start gap-3 rounded-[18px] border border-line px-4 py-3 text-left transition",
-                                        step.completed ? "bg-accent-soft text-muted" : "bg-white/80 text-ink hover:bg-white",
-                                      )}
-                                    >
-                                      <span className={cn("mt-0.5 h-4 w-4 rounded-full border", step.completed ? "border-accent bg-accent" : "border-line")} />
-                                      <div>
-                                        <p className={cn("text-sm font-medium", step.completed ? "line-through text-muted" : "text-ink")}>{step.title}</p>
-                                        {step.notes ? <p className="mt-1 text-xs text-muted">{step.notes}</p> : null}
-                                      </div>
-                                    </button>
-                                  ))
-                                ) : (
-                                  <div className="rounded-[18px] border border-dashed border-line bg-white/60 p-4 text-sm text-muted">
-                                    No substeps yet. The goal itself is the next move.
-                                  </div>
-                                )}
-                                {item.notes ? (
-                                  <div className="rounded-[18px] bg-accent-soft p-4 text-sm leading-6 text-ink">{item.notes}</div>
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                              <div className="text-sm text-muted">
+                                Next move: <span className="font-medium text-ink">{item.derivedNextStep ?? item.title}</span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {!item.strategyBacked ? (
+                                  <Button variant="ghost" onClick={() => removeRoadmapItem(item)}>
+                                    Remove
+                                  </Button>
                                 ) : null}
-                              </div>
-                              <div className="space-y-3">
-                                <InlineField label="Status">
-                                  <Select
-                                    value={item.status}
-                                    onChange={(event) => handleItemFieldUpdate(item, { status: event.target.value as RoadmapStatus })}
-                                  >
-                                    {statusOptions.filter((option) => option !== "all").map((option) => (
-                                      <option key={option} value={option}>
-                                        {option}
-                                      </option>
-                                    ))}
-                                  </Select>
-                                </InlineField>
-                                <InlineField label="Priority">
-                                  <Select
-                                    value={item.priority}
-                                    onChange={(event) => handleItemFieldUpdate(item, { priority: event.target.value as RoadmapPriority })}
-                                  >
-                                    {priorityOptions.filter((option) => option !== "all").map((option) => (
-                                      <option key={option} value={option}>
-                                        {option}
-                                      </option>
-                                    ))}
-                                  </Select>
-                                </InlineField>
+                                <Button variant="soft" onClick={() => toggleExpanded(item.id)}>
+                                  {expanded ? "Hide details" : "Show details"}
+                                </Button>
                               </div>
                             </div>
-                          ) : null}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="rounded-[24px] border border-dashed border-line bg-white/56 p-5 text-sm leading-6 text-muted">
-                      {dashboard.roadmap.items.length
-                        ? "No items match the current filters."
-                        : "No roadmap items yet. Add a major goal or paste a strategy to turn this section into a progress map instead of a loose todo list."}
-                    </div>
-                  )}
-                </div>
+                            {expanded ? (
+                              <div className="mt-5 grid gap-4 xl:grid-cols-[0.75fr_0.25fr]">
+                                <div className="space-y-3">
+                                  {item.steps.length ? (
+                                    item.steps.map((step) => (
+                                      <button
+                                        key={step.id}
+                                        type="button"
+                                        onClick={() => handleStepToggle(item, step.id)}
+                                        className={cn(
+                                          "flex w-full items-start gap-3 rounded-[18px] border border-line px-4 py-3 text-left transition",
+                                          step.completed ? "bg-accent-soft text-muted" : "bg-white/80 text-ink hover:bg-white",
+                                        )}
+                                      >
+                                        <span className={cn("mt-0.5 h-4 w-4 rounded-full border", step.completed ? "border-accent bg-accent" : "border-line")} />
+                                        <div>
+                                          <p className={cn("text-sm font-medium", step.completed ? "line-through text-muted" : "text-ink")}>{step.title}</p>
+                                          {step.notes ? <p className="mt-1 text-xs text-muted">{step.notes}</p> : null}
+                                        </div>
+                                      </button>
+                                    ))
+                                  ) : (
+                                    <div className="rounded-[18px] border border-dashed border-line bg-white/60 p-4 text-sm text-muted">
+                                      No steps yet. The goal itself is the next move.
+                                    </div>
+                                  )}
+                                  {item.notes ? (
+                                    <div className="rounded-[18px] bg-accent-soft p-4 text-sm leading-6 text-ink">{item.notes}</div>
+                                  ) : null}
+                                </div>
+                                <div className="space-y-3">
+                                  <InlineField label="Status">
+                                    <Select
+                                      value={item.status}
+                                      onChange={(event) => handleItemFieldUpdate(item, { status: event.target.value as RoadmapStatus })}
+                                    >
+                                      {statusOptions.filter((option) => option !== "all").map((option) => (
+                                        <option key={option} value={option}>
+                                          {option}
+                                        </option>
+                                      ))}
+                                    </Select>
+                                  </InlineField>
+                                  <InlineField label="Priority">
+                                    <Select
+                                      value={item.priority}
+                                      onChange={(event) => handleItemFieldUpdate(item, { priority: event.target.value as RoadmapPriority })}
+                                    >
+                                      {priorityOptions.filter((option) => option !== "all").map((option) => (
+                                        <option key={option} value={option}>
+                                          {option}
+                                        </option>
+                                      ))}
+                                    </Select>
+                                  </InlineField>
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="rounded-[24px] border border-dashed border-line bg-white/56 p-5 text-sm leading-6 text-muted">
+                        {dashboard.roadmap.items.length
+                          ? "No items match the current filters."
+                          : "No roadmap items yet. Add a big goal or paste a plan to get started."}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </Panel>
             );
           })}
         </div>
-      </section>
+
+        <div className={cn("space-y-4 md:hidden", mobileView !== "Strategy" && "hidden")}>
+          <Panel>
+            <SectionHeading
+              eyebrow="Strategy"
+              title={setup.strategyDocument?.name ?? "Paste the current plan"}
+              description={setup.strategyDocument?.summary ?? "Use JSON only. This plan changes the guidance, not your saved money records."}
+              action={
+                <Button variant="soft" onClick={() => setShowStrategyEditor((value) => !value)}>
+                  {showStrategyEditor ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  {showStrategyEditor ? "Hide editor" : "Edit JSON"}
+                </Button>
+              }
+            />
+            {showStrategyEditor ? (
+              <div className="mt-5 space-y-3">
+                <Textarea
+                  value={strategyInput}
+                  onChange={(event) => setStrategyInput(event.target.value)}
+                  rows={14}
+                  className="font-mono text-[13px] leading-6"
+                />
+                {strategyErrors.length ? (
+                  <div className="rounded-[22px] border border-[#d8b4b4] bg-[#fff5f5] p-4 text-sm text-[#7a2f2f]">
+                    {strategyErrors.map((error) => (
+                      <p key={error}>{error}</p>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-[22px] border border-line bg-white/72 p-4 text-sm text-muted">
+                    Use JSON only. It helps to include expected income, income plans, and a payment order.
+                  </div>
+                )}
+                <Button className="w-full" onClick={handleStrategySave}>
+                  Save strategy
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <CompactRoadmapStat label="Goals" value={setup.strategyDocument?.goals.length ?? 0} />
+                <CompactRoadmapStat label="Income plans" value={setup.strategyDocument?.nextIncomePlans?.length ?? 0} />
+              </div>
+            )}
+          </Panel>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CompactRoadmapStat({ label, value, detail }: { label: string; value: string | number; detail?: string }) {
+  return (
+    <div className="rounded-[18px] border border-line bg-white/72 p-3.5">
+      <p className="text-[10px] uppercase tracking-[0.2em] text-muted">{label}</p>
+      <div className="mt-2 text-lg font-semibold tracking-tight text-ink">{value}</div>
+      {detail ? <p className="mt-1 text-xs leading-5 text-muted">{detail}</p> : null}
     </div>
   );
 }

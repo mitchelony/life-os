@@ -23,10 +23,10 @@ export function HomeGate() {
           <div className="p-6 sm:p-10">
             <Badge>Life OS</Badge>
             <h1 className="mt-5 max-w-2xl text-4xl font-semibold tracking-tight text-ink sm:text-5xl">
-              A calm personal operating system for money, tasks, and next actions.
+              A simple place to stay on top of money and life stuff.
             </h1>
             <p className="mt-4 max-w-xl text-base leading-7 text-muted">
-              You should know what is next, what follows, and what is safe to spend without opening a spreadsheet.
+              See what is due next, what comes after that, and how much you can safely spend.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <button
@@ -54,7 +54,7 @@ export function HomeGate() {
               <div className="mt-3 text-4xl font-semibold tracking-tight tabular-nums">
                 {formatMoney(sampleDashboard.availableSpend.availableThroughNextIncome)}
               </div>
-              <p className="mt-2 text-sm leading-6 text-muted">Safe to spend through the next income once bills and guardrails are covered.</p>
+              <p className="mt-2 text-sm leading-6 text-muted">What you can spend after your bills and protected money are covered.</p>
               <p className="mt-2 text-xs leading-5 text-muted">
                 Available now:{" "}
                 <span className="font-semibold tabular-nums text-ink">{formatMoney(sampleDashboard.availableSpend.availableNow)}</span>

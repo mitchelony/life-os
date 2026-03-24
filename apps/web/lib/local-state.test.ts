@@ -948,10 +948,46 @@ describe("buildDashboardFromSetup", () => {
 
     expect(snapshot.nextItem).toContain("Emergency buffer");
     expect(snapshot.roadmap.focus.nextStep?.title).toContain("Emergency buffer");
-    expect(snapshot.topPriorities[0]?.title).toContain("Emergency buffer");
+    expect(snapshot.topPriorities[0]?.linkedTo).toBe("Debt");
     expect(snapshot.availableSpend.strategyAllocations.map((item) => item.label)).toContain("Emergency buffer");
     expect(snapshot.availableSpend.strategyDebtExtraPayments.map((item) => item.label)).toContain("Capital One payment");
     expect(snapshot.debts[0]?.strategy?.recommendedExtraPayment).toBe(100);
     expect(snapshot.roadmap.items.some((item) => item.title.includes("photoshoot money"))).toBe(true);
+  });
+
+  it("does not repeat roadmap or paycheck-flow items in top actions", () => {
+    const setup = saveStrategyToSetup(
+      {
+        ...baseSetup,
+        income: [],
+        obligations: [
+          {
+            id: "obl-1",
+            name: "Utilities",
+            amount: "442.70",
+            dueDate: "2026-04-10",
+            recurrence: "one-time",
+          },
+        ],
+        debts: [
+          {
+            id: "debt-1",
+            name: "Capital One Credit Card",
+            balance: "498.28",
+            minimum: "10",
+            dueDate: "2026-04-08",
+          },
+        ],
+      },
+      cashFlowStrategyJson,
+    ).setup;
+
+    const snapshot = buildDashboardFromSetup(setup);
+
+    expect(snapshot.roadmap.focus.nextStep?.title).toContain("Emergency buffer");
+    expect(snapshot.topPriorities.some((task) => task.linkedTo === "Roadmap")).toBe(false);
+    expect(snapshot.topPriorities.some((task) => task.linkedTo === "Paycheck flow")).toBe(false);
+    expect(snapshot.topPriorities.some((task) => task.linkedTo === "Debt")).toBe(true);
+    expect(snapshot.topPriorities.some((task) => task.linkedTo === "Obligation")).toBe(true);
   });
 });

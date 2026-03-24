@@ -154,7 +154,7 @@ export function QuickAddFlow() {
             <SectionHeading
               eyebrow="Quick entry"
               title="Amount first, details second"
-              description="Start with the number. Then finish the record with the few details that matter."
+              description="Start with the amount, then fill in the basics."
             />
           </div>
           <Badge className="self-start">{kind}</Badge>
@@ -223,7 +223,7 @@ export function QuickAddFlow() {
         <SectionHeading
           eyebrow="Details"
           title="Finish the record"
-          description="Choose the minimum detail set required for a clean ledger entry."
+          description="Add just enough detail so you know what this was later."
         />
 
         <div className="grid gap-4">
@@ -276,7 +276,7 @@ export function QuickAddFlow() {
           {kind === "expense" ? (
             <InlineField
               label="Save as upcoming obligation"
-              description="Turn this into a tracked bill or one-time required payment that should stay visible on the dashboard."
+              description="Save this as a bill or payment you still need to handle."
             >
               <Segment options={["no", "yes"]} value={saveAsObligation || recurrence !== "one-time" ? "yes" : "no"} onChange={(value) => setSaveAsObligation(value === "yes")} />
             </InlineField>
@@ -286,8 +286,8 @@ export function QuickAddFlow() {
             label={kind === "expense" ? "Expense cadence" : "Income cadence"}
             description={
               kind === "expense"
-                ? "Leave this as one time for normal logging, or choose a cadence to also save it as a recurring expense."
-                : "Choose a cadence if this deposit should stay on your recurring income plan."
+                ? "Leave this as one time for normal logging, or pick how often it repeats."
+                : "Pick how often this money comes in if you want to keep it in your plan."
             }
           >
             <Select value={recurrence} onChange={(event) => setRecurrence(event.target.value as RecurrenceFrequency)}>
@@ -306,7 +306,7 @@ export function QuickAddFlow() {
           {kind === "expense" && (saveAsObligation || recurrence !== "one-time") ? (
             <InlineField
               label="Upcoming obligation due date"
-              description="Use the date this bill or required payment should show up in your upcoming obligations."
+              description="Pick the day you want this payment to show up as due."
             >
               <Input type="date" value={obligationDueDate} onChange={(event) => setObligationDueDate(event.target.value)} />
             </InlineField>
@@ -348,7 +348,7 @@ export function QuickAddFlow() {
                 {submitted}
               </span>
             ) : (
-              "Saved locally until the backend is connected."
+              "Saved on this device for now."
             )}
           </p>
           <Button className="w-full sm:w-auto" onClick={handleSubmit} disabled={isPending}>

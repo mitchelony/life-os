@@ -170,27 +170,27 @@ export function OnboardingFlow() {
           <SectionHeading
             eyebrow="Preferences"
             title="Identity, buffer, and guardrails"
-            description="Start with the numbers that shape the safe-spend calculation."
+            description="Start with the basic numbers the app will use."
           />
           <div className="grid gap-4 md:grid-cols-2">
-            <InlineField label="Display name" description="The name used in your private app shell and future reminders.">
+            <InlineField label="Display name" description="The name you want to see in the app.">
               <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Mitchel" />
             </InlineField>
-            <InlineField label="Protected cash buffer" description="Cash you do not want the app to treat as casually spendable.">
+            <InlineField label="Protected cash buffer" description="Money you do not want to spend.">
               <Input type="number" value={protectedBuffer} onChange={(event) => setProtectedBuffer(event.target.value)} placeholder="100" />
             </InlineField>
-            <InlineField label="Essential weekly target" description="How much should remain available for food, transport, and core essentials.">
+            <InlineField label="Essential weekly target" description="How much money you want left for food, gas, and basics each week.">
               <Input type="number" value={essentialTarget} onChange={(event) => setEssentialTarget(event.target.value)} placeholder="310" />
             </InlineField>
-            <InlineField label="Savings floor" description="A reserve the dashboard should keep protected in the spend calculation.">
+            <InlineField label="Savings floor" description="Savings you want the app to leave alone.">
               <Input type="number" value={savingsFloor} onChange={(event) => setSavingsFloor(event.target.value)} placeholder="100" />
             </InlineField>
             <InlineField
               label="Notes"
               helper="Optional"
-              description="Any context that should shape how the app feels or what it prioritizes."
+              description="Anything you want the app to keep in mind."
             >
-              <Textarea className="min-h-[8rem]" value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} placeholder="Keep the dashboard calm and high-signal." />
+              <Textarea className="min-h-[8rem]" value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} placeholder="Keep things simple and easy to follow." />
             </InlineField>
           </div>
         </Panel>
@@ -198,15 +198,14 @@ export function OnboardingFlow() {
 
       {step === 1 ? (
         <Panel className="space-y-5">
-          <SectionHeading eyebrow="Accounts" title="Enter the balances you already know" description="Manual accounts are enough for the MVP." />
+          <SectionHeading eyebrow="Accounts" title="Add the balances you already know" description="Just type them in by hand for now." />
           <p className="text-sm leading-6 text-muted">
-            Use the account name you recognize, the institution it belongs to, the type that best matches how money moves,
-            and the current balance or amount owed.
+            Add the account name, where it is, the type, and the balance you see right now.
           </p>
           <div className="space-y-3">
             {accounts.map((account, index) => (
               <div key={account.id} className="grid gap-3 rounded-[20px] border border-line bg-white/70 p-4 md:grid-cols-[1.2fr_1fr_0.8fr_0.8fr] md:rounded-[24px]">
-                <InlineField label="Account name" description="The label you want to recognize instantly.">
+                <InlineField label="Account name" description="The name you know it by.">
                   <Input
                     value={account.name}
                     onChange={(event) =>
@@ -215,7 +214,7 @@ export function OnboardingFlow() {
                     placeholder="Wells Fargo Checking"
                   />
                 </InlineField>
-                <InlineField label="Institution" description="Bank, app, or place the account belongs to.">
+                <InlineField label="Institution" description="The bank or app it belongs to.">
                   <Input
                     value={account.institution}
                     onChange={(event) =>
@@ -224,7 +223,7 @@ export function OnboardingFlow() {
                     placeholder="Wells Fargo"
                   />
                 </InlineField>
-                <InlineField label="Account type" description="How this account should behave in the app.">
+                <InlineField label="Account type" description="Pick the kind of account this is.">
                   <Select
                     value={account.type}
                     onChange={(event) =>
@@ -241,7 +240,7 @@ export function OnboardingFlow() {
                     <option value="cash">Cash</option>
                   </Select>
                 </InlineField>
-                <InlineField label="Current balance" description="Use the current cash balance or amount owed.">
+                <InlineField label="Current balance" description="Enter the amount in it right now, or the amount owed.">
                   <Input
                     type="number"
                     value={account.balance}
@@ -265,15 +264,15 @@ export function OnboardingFlow() {
           <SectionHeading
             eyebrow="Responsibilities"
             title="Bills, debts, and expected income"
-            description="Use your known dates so the dashboard can stay ahead of the next problem."
+            description="Add your bills, debts, and income dates so nothing sneaks up on you."
           />
           <div className="grid gap-5 lg:grid-cols-3">
             <div className="space-y-3">
               <p className="text-sm font-medium text-ink">Recurring bills</p>
-              <p className="text-xs leading-5 text-muted">Name the bill, add the amount due, and use the next due date you expect.</p>
+              <p className="text-xs leading-5 text-muted">Add the bill name, amount, and next due date.</p>
               {obligations.map((item, index) => (
                 <div key={item.id} className="space-y-3 rounded-[20px] border border-line bg-white/70 p-4 md:rounded-[24px]">
-                  <InlineField label="Bill name" description="The obligation that should appear on the dashboard.">
+                  <InlineField label="Bill name" description="What this bill is called.">
                     <Input
                       value={item.name}
                       onChange={(event) =>
@@ -282,7 +281,7 @@ export function OnboardingFlow() {
                       placeholder="Rent"
                     />
                   </InlineField>
-                  <InlineField label="Amount due" description="Amount that needs to be protected before the next income.">
+                  <InlineField label="Amount due" description="How much you need to pay.">
                     <Input
                       type="number"
                       value={item.amount}
@@ -292,7 +291,7 @@ export function OnboardingFlow() {
                       placeholder="950"
                     />
                   </InlineField>
-                  <InlineField label="Due date" description="Use the next date this bill is expected.">
+                  <InlineField label="Due date" description="The next day this bill is due.">
                     <Input
                       type="date"
                       value={item.dueDate}
@@ -301,7 +300,7 @@ export function OnboardingFlow() {
                       }
                     />
                   </InlineField>
-                  <InlineField label="Recurs" description="Choose how often this expense should come back.">
+                  <InlineField label="Recurs" description="How often this bill comes back.">
                     <Select
                       value={item.recurrence}
                       onChange={(event) =>
@@ -328,10 +327,10 @@ export function OnboardingFlow() {
 
             <div className="space-y-3">
               <p className="text-sm font-medium text-ink">Debt minimums</p>
-              <p className="text-xs leading-5 text-muted">Track the balance still owed, the minimum payment, and the next due date.</p>
+              <p className="text-xs leading-5 text-muted">Add what you still owe, the minimum payment, and the next due date.</p>
               {debts.map((item, index) => (
                 <div key={item.id} className="space-y-3 rounded-[20px] border border-line bg-white/70 p-4 md:rounded-[24px]">
-                  <InlineField label="Debt name" description="Card or loan name that should stay visible.">
+                  <InlineField label="Debt name" description="The name of the card or loan.">
                     <Input
                       value={item.name}
                       onChange={(event) =>
@@ -341,7 +340,7 @@ export function OnboardingFlow() {
                     />
                   </InlineField>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <InlineField label="Balance owed" description="Total amount still owed right now.">
+                    <InlineField label="Balance owed" description="How much you still owe right now.">
                       <Input
                         type="number"
                         value={item.balance}
@@ -351,7 +350,7 @@ export function OnboardingFlow() {
                         placeholder="318.49"
                       />
                     </InlineField>
-                    <InlineField label="Minimum payment" description="Amount due before the next income arrives.">
+                    <InlineField label="Minimum payment" description="The smallest payment you need to make.">
                       <Input
                         type="number"
                         value={item.minimum}
@@ -362,7 +361,7 @@ export function OnboardingFlow() {
                       />
                     </InlineField>
                   </div>
-                  <InlineField label="Due date" description="Next date the minimum payment is due.">
+                  <InlineField label="Due date" description="The next day this payment is due.">
                     <Input
                       type="date"
                       value={item.dueDate}
@@ -380,10 +379,10 @@ export function OnboardingFlow() {
 
             <div className="space-y-3">
               <p className="text-sm font-medium text-ink">Expected income</p>
-              <p className="text-xs leading-5 text-muted">Enter the source you expect, how much should arrive, and the expected deposit date.</p>
+              <p className="text-xs leading-5 text-muted">Add where the money is coming from, how much, and when you expect it.</p>
               {income.map((item, index) => (
                 <div key={item.id} className="space-y-3 rounded-[20px] border border-line bg-white/70 p-4 md:rounded-[24px]">
-                  <InlineField label="Income source" description="Employer, client, or source you expect money from.">
+                  <InlineField label="Income source" description="Where this money is coming from.">
                     <Input
                       value={item.source}
                       onChange={(event) =>
@@ -392,7 +391,7 @@ export function OnboardingFlow() {
                       placeholder="Payroll deposit"
                     />
                   </InlineField>
-                  <InlineField label="Expected amount" description="The amount you expect to receive.">
+                  <InlineField label="Expected amount" description="How much money you expect.">
                     <Input
                       type="number"
                       value={item.expectedAmount}
@@ -402,7 +401,7 @@ export function OnboardingFlow() {
                       placeholder="2480"
                     />
                   </InlineField>
-                  <InlineField label="Deposit date" description="The day you expect this money to arrive.">
+                  <InlineField label="Deposit date" description="The day you think it will arrive.">
                     <Input
                       type="date"
                       value={item.dueDate}
@@ -411,7 +410,7 @@ export function OnboardingFlow() {
                       }
                     />
                   </InlineField>
-                  <InlineField label="Recurs" description="Use a cadence for paychecks or repeat deposits.">
+                  <InlineField label="Recurs" description="How often this money comes in.">
                     <Select
                       value={item.recurrence}
                       onChange={(event) =>
@@ -441,7 +440,7 @@ export function OnboardingFlow() {
 
       {step === 3 ? (
         <Panel className="space-y-5">
-          <SectionHeading eyebrow="Review" title="Check the baseline before saving settings" description="This is the snapshot the dashboard will use." />
+          <SectionHeading eyebrow="Review" title="Check everything before you save" description="This is what the dashboard will use." />
           <div className="grid gap-4 md:grid-cols-3">
             <SummaryCard label="Accounts" value={`${accounts.length}`} detail="Manual account rows" />
             <SummaryCard label="Bills" value={`${obligations.length}`} detail="Recurring obligations" />
@@ -450,7 +449,7 @@ export function OnboardingFlow() {
           <div className="rounded-[24px] border border-line bg-accent-soft p-4">
             <p className="text-[11px] uppercase tracking-[0.24em] text-accent">Why this matters</p>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-ink">
-              The app uses this setup to calculate safe spend, surface what is next, and keep the week calm instead of reactive.
+              The app uses this to show what is due next, what you can spend, and what needs your attention.
             </p>
           </div>
         </Panel>

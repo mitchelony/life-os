@@ -34,16 +34,65 @@ export function DashboardScreen({ dashboard }: { dashboard: DashboardSnapshot })
       <motion.section
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45 }}
+        className="space-y-3 md:hidden"
+      >
+        <div className="overflow-hidden rounded-[28px] border border-line bg-[linear-gradient(145deg,rgba(16,32,24,0.98),rgba(44,88,73,0.96))] p-5 text-bg shadow-soft">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.24em] text-white/56">Safe through next income</p>
+              <div className="mt-2 text-[2.35rem] font-semibold tracking-tight tabular-nums">
+                {formatMoney(dashboard.availableSpend.availableThroughNextIncome)}
+              </div>
+            </div>
+            <Badge className="border-white/18 bg-[rgba(255,255,255,0.12)] text-white">Today</Badge>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <MiniMetric label="Available now" value={formatSignedMoney(dashboard.availableSpend.availableNow)} />
+            <MiniMetric label="Upcoming income" value={formatMoney(dashboard.cashSummary.upcomingIncome)} />
+          </div>
+
+          <div className="mt-4 rounded-[22px] bg-[rgba(255,255,255,0.1)] p-4">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/60">Next move</p>
+            <p className="mt-2 text-base font-semibold leading-6 text-white">{dashboard.nextItem}</p>
+            <p className="mt-1 text-sm leading-6 text-white/74">{dashboard.afterThat}</p>
+          </div>
+
+          <div className="mt-4 flex gap-2">
+            <Link
+              href="/quick-add"
+              className="inline-flex flex-1 items-center justify-center rounded-full bg-[rgba(255,255,255,0.96)] px-4 py-3 text-sm font-semibold text-[#173126]"
+            >
+              Log money
+            </Link>
+            <Link
+              href="/roadmap"
+              className="inline-flex flex-1 items-center justify-center rounded-full border border-white/22 bg-[rgba(255,255,255,0.1)] px-4 py-3 text-sm font-medium text-white"
+            >
+              Open roadmap
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard label="Cash" value={formatMoney(dashboard.cashSummary.totalCash)} detail="All accounts" />
+          <StatCard label="Debt" value={formatMoney(dashboard.cashSummary.totalDebt)} detail="Tracked balances" />
+        </div>
+      </motion.section>
+
+      <motion.section
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="overflow-hidden rounded-[28px] border border-line bg-[linear-gradient(135deg,rgba(16,32,24,0.96),rgba(61,111,94,0.92))] p-5 text-bg shadow-soft md:rounded-[34px] md:p-8"
+        className="hidden overflow-hidden rounded-[28px] border border-line bg-[linear-gradient(135deg,rgba(16,32,24,0.96),rgba(61,111,94,0.92))] p-5 text-bg shadow-soft md:block md:rounded-[34px] md:p-8"
       >
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div>
             <Badge className="border-white/28 bg-[rgba(255,255,255,0.18)] text-white">Today</Badge>
             <h1 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl md:mt-5 md:text-5xl">Your life is visible.</h1>
             <p className="mt-4 max-w-xl text-sm leading-7 text-white/82">
-              The dashboard keeps the next bill, the next income, and the next action in view so you can spend with
-              less friction.
+              See what is due next, what money is coming in, and what to do first.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap">
               <Link
@@ -68,8 +117,7 @@ export function DashboardScreen({ dashboard }: { dashboard: DashboardSnapshot })
                 {formatMoney(dashboard.availableSpend.availableThroughNextIncome)}
               </div>
               <p className="mt-2 text-sm leading-6 text-white/82">
-                Includes expected income that lands before the next horizon after bills, debt minimums, and guardrails
-                are protected.
+                This includes income you expect before your next big money check-in.
               </p>
               <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/24 bg-[rgba(255,255,255,0.12)] px-3 py-1.5 text-xs text-white/88">
                 <span className="uppercase tracking-[0.22em] text-white/64">Available now</span>
@@ -97,24 +145,24 @@ export function DashboardScreen({ dashboard }: { dashboard: DashboardSnapshot })
         </div>
       </motion.section>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="hidden gap-3 sm:grid-cols-2 xl:grid md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total cash" value={formatMoney(dashboard.cashSummary.totalCash)} detail="All active accounts" />
         <StatCard label="Checking" value={formatMoney(dashboard.cashSummary.checking)} detail="Daily operating cash" />
         <StatCard label="Savings" value={formatMoney(dashboard.cashSummary.savings)} detail="Protected cash floor" />
         <StatCard label="Tracked debt" value={formatMoney(dashboard.cashSummary.totalDebt)} detail="Minimums and balances in view" />
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+      <section className="grid gap-4 md:gap-6 lg:grid-cols-[1.3fr_0.7fr]">
         <Panel>
           <SectionHeading
             eyebrow="Priority"
             title="Top actions"
-            description="The next cash-flow moves, debt pressure, and due items are surfaced first so nothing urgent gets buried."
+            description="The most important things to deal with first."
           />
           <div className="mt-5 space-y-3">
             {dashboard.topPriorities.map((task, index) => (
               <MotionCard key={task.id} delay={0.05 * index}>
-                <div className="flex items-start justify-between gap-4 rounded-[24px] border border-line bg-white/70 p-4">
+                <div className="flex items-start justify-between gap-4 rounded-[20px] border border-line bg-white/70 p-4 md:rounded-[24px]">
                   <div>
                     <div className="flex items-center gap-2">
                       <Badge className="bg-accent-soft text-accent">{task.priority}</Badge>
@@ -134,7 +182,7 @@ export function DashboardScreen({ dashboard }: { dashboard: DashboardSnapshot })
           <SectionHeading
             eyebrow="Snapshot"
             title="Money at a glance"
-            description="A compact readout of the numbers you want without digging through history."
+            description="The key numbers in one place."
           />
           <div className="mt-5 space-y-3">
             <InfoRow icon={Wallet} label="Upcoming income" value={formatMoney(dashboard.cashSummary.upcomingIncome)} />
@@ -142,7 +190,7 @@ export function DashboardScreen({ dashboard }: { dashboard: DashboardSnapshot })
             <InfoRow icon={CreditCard} label="Current debt" value={formatMoney(dashboard.cashSummary.totalDebt)} />
             <InfoRow icon={Landmark} label="Liquid cash" value={formatMoney(dashboard.availableSpend.liquidCash)} />
           </div>
-          <div className="mt-6 rounded-[24px] bg-accent-soft p-4">
+          <div className="mt-6 rounded-[22px] bg-accent-soft p-4 md:rounded-[24px]">
             <p className="text-[11px] uppercase tracking-[0.24em] text-accent">Safe-spend breakdown</p>
             <div className="mt-3 space-y-2 text-sm text-ink">
               <BreakdownRow label="Liquid cash" value={formatMoney(dashboard.availableSpend.liquidCash)} />
@@ -186,12 +234,12 @@ export function DashboardScreen({ dashboard }: { dashboard: DashboardSnapshot })
         </Panel>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+      <section className="grid gap-4 md:gap-6 xl:grid-cols-[1fr_1fr]">
         <Panel>
-          <SectionHeading eyebrow="Accounts" title="Status snapshot" description="The active accounts and what each one currently holds." />
+          <SectionHeading eyebrow="Accounts" title="Account snapshot" description="See what is in each account right now." />
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {dashboard.accounts.map((account) => (
-              <div key={account.id} className="rounded-[24px] border border-line bg-white/70 p-4">
+              <div key={account.id} className="rounded-[20px] border border-line bg-white/70 p-4 md:rounded-[24px]">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium text-ink">{account.name}</p>
@@ -207,11 +255,11 @@ export function DashboardScreen({ dashboard }: { dashboard: DashboardSnapshot })
         </Panel>
 
         <Panel>
-          <SectionHeading eyebrow="Activity" title="Recent entries" description="A glanceable history of what moved recently." />
+          <SectionHeading eyebrow="Activity" title="Recent entries" description="Your latest money entries." />
           <div className="mt-5 space-y-3">
             {dashboard.recentTransactions.length ? (
               dashboard.recentTransactions.map((entry) => (
-                <div key={entry.id} className="rounded-[24px] border border-line bg-white/70 p-4">
+                <div key={entry.id} className="rounded-[20px] border border-line bg-white/70 p-4 md:rounded-[24px]">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-medium text-ink">{entry.title}</p>
@@ -227,8 +275,8 @@ export function DashboardScreen({ dashboard }: { dashboard: DashboardSnapshot })
                 </div>
               ))
             ) : (
-              <div className="rounded-[24px] border border-dashed border-line bg-white/50 p-5 text-sm text-muted">
-                No money has been logged yet. Use Quick add to create your first real entry.
+              <div className="rounded-[20px] border border-dashed border-line bg-white/50 p-5 text-sm text-muted md:rounded-[24px]">
+                Nothing has been logged yet. Use Quick add to save your first entry.
               </div>
             )}
           </div>
@@ -290,6 +338,15 @@ function BreakdownRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between gap-3">
       <span className="text-sm text-muted">{label}</span>
       <span className="text-sm font-medium tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[20px] border border-white/14 bg-[rgba(255,255,255,0.08)] p-3">
+      <p className="text-[10px] uppercase tracking-[0.18em] text-white/58">{label}</p>
+      <p className="mt-2 text-lg font-semibold tracking-tight tabular-nums text-white">{value}</p>
     </div>
   );
 }
