@@ -1,4 +1,5 @@
 from functools import lru_cache
+from urllib.parse import urlparse
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -26,6 +27,39 @@ class Settings(BaseSettings):
 
     def get_cors_allowed_origins(self) -> list[str]:
         return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
+
+    def get_supabase_project_ref(self) -> str | None:
+        parsed = urlparse(self.supabase_url or "")
+        host = parsed.hostname or ""
+        if host.endswith(".supabase.co"):
+            return host.split(".", 1)[0] or None
+        return None
+
+    def get_database_project_ref(self) -> str | None:
+        parsed = urlparse(self.database_url)
+        if parsed.scheme.startswith("sqlite"):
+            return None
+        username = parsed.username or ""
+        if username.startswith("postgres."):
+            return username.split(".", 1)[1] or None
+        host = parsed.hostname or ""
+        if host.startswith("db.") and host.endswith(".supabase.co"):
+            return host.split(".")[1] or None
+        return None
+
+    def validate_supabase_alignment(self) -> None:
+        if self.auth_strategy != "supabase":
+            return
+        supabase_ref = self.get_supabase_project_ref()
+        database_ref = self.get_database_project_ref()
+        if not supabase_ref or not database_ref:
+            return
+        if supabase_ref != database_ref:
+            raise RuntimeError(
+                "Supabase auth and database config point at different projects. "
+                f"SUPABASE_URL uses '{supabase_ref}' but DATABASE_URL uses '{database_ref}'. "
+                "Update DATABASE_URL and SUPABASE_DB_URL to the same project as SUPABASE_URL."
+            )
 
 
 @lru_cache(maxsize=1)

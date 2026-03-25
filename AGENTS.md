@@ -25,6 +25,30 @@ This file is the build contract for Codex agents and human contributors working 
 - Keep auth owner-only and lightweight.
 - Owner secrets must stay server-side. Do not move development auth tokens into browser-visible config.
 
+## Active Workspace Rules
+
+- The active repo is `/Users/MAC/GitHub/life-os`.
+- Ignore the old iCloud-backed repo at `/Users/MAC/Documents/GitHub/life-os`.
+- Do all new work only in the clean repo unless the user explicitly says otherwise.
+- When verifying or editing files, prefer the clean repo paths in responses and tooling.
+
+## Hosted Supabase Rules
+
+- The app is currently being wired against a hosted Supabase project, not local Docker Supabase.
+- Do not assume `supabase start` or local containers are available.
+- Hosted schema has already been applied from `supabase/migrations/20260323000100_initial_schema.sql`.
+- Hosted Supabase is the default setup path in docs and examples. Local Supabase should be presented as optional only.
+- Backend runtime should treat Supabase/Postgres as the primary database path.
+- Do not rely on runtime `create_all()` for hosted Postgres schema creation.
+- If using the Supabase pooler, Postgres usernames must use `postgres.<project_ref>`.
+- Use `postgresql+psycopg://...?...sslmode=require` for Postgres env URLs.
+- Keep CORS explicit and local-dev scoped by default:
+  - `http://localhost:3000`
+  - `http://localhost:3001`
+- Do not use `http://127.0.0.1:3000` for browser auth validation unless CORS is updated first.
+- `SUPABASE_URL`, `DATABASE_URL`, and `SUPABASE_DB_URL` must point at the same hosted project.
+- API startup should fail fast if Supabase auth and database project refs do not match.
+
 ## UX Rules
 
 - The dashboard must answer:
@@ -44,6 +68,10 @@ This file is the build contract for Codex agents and human contributors working 
 - Quick add must be amount-first.
 - Tasks should not simply restate roadmap strategy in different words.
 - Every new screen should justify its inclusion in MVP.
+- The dashboard should focus on "what matters right now" first, not full reporting depth.
+- Secondary details should be pushed lower on the page instead of competing with the primary decision path.
+- Roadmap should feel like a centered planning surface, not a sparse editor.
+- When a page feels empty, fill the primary content area first before adding sidecar chrome.
 
 ## Available Spend Rules
 
@@ -78,6 +106,19 @@ This file is the build contract for Codex agents and human contributors working 
 - Keep sample/mock data isolated so it can be replaced by API data cleanly.
 - Do not ship owner auth tokens or other sensitive secrets in `NEXT_PUBLIC_*` variables.
 - Treat browser storage as sensitive but non-secure during MVP.
+- First successful sign-in should route through the onboarding decision path:
+  - incomplete onboarding -> `/settings`
+  - completed onboarding -> `/dashboard`
+- Logout should take the user directly back to `/login`.
+- Auth pages should follow the overall Life OS visual system even when borrowing structure from external references.
+- The auth screen should support:
+  - sign in
+  - sign up
+  - Google sign-in
+  - OAuth callback completion
+- New auth/onboarding guidance should not reintroduce a dead-end login-only flow.
+- Roadmap should keep the `Focus / Goals / Strategy` mode switch visible and strategy JSON input accessible.
+- Onboarding completion must be decided from API-backed onboarding state, not from generic local setup persistence.
 
 ## Database Rules
 
@@ -86,6 +127,8 @@ This file is the build contract for Codex agents and human contributors working 
 - Merchant/source reuse must be first-class.
 - Keep migrations readable and additive.
 - Seed data should help local development without pretending to be production data.
+- Treat migrations as the source of truth for hosted schema.
+- Keep owner-scoped uniqueness aligned across migrations, ORM metadata, and bootstrap logic.
 
 ## Testing Rules
 
@@ -94,6 +137,18 @@ This file is the build contract for Codex agents and human contributors working 
 - Add frontend tests for primary flows and failure states where practical.
 - Use Playwright CLI for browser validation of UI flows after major frontend slices.
 - If strategy or roadmap logic changes, update tests for payment-order guidance and next-step prioritization.
+- If auth flow changes, verify:
+  - sign up
+  - sign in
+  - Google redirect start
+  - OAuth callback completion
+  - onboarding bootstrap
+  - logout
+- If dashboard structure changes, keep a focused testable helper for any derived view-specific grouping logic.
+- If onboarding bootstrap changes, add coverage for duplicate historical rows and canonical owner-row selection.
+- If a validation pass creates or mutates hosted Supabase data, clean it up before ending the pass.
+- Hosted cleanup is part of the task, not an optional follow-up.
+- If hosted cleanup cannot be completed, call that out explicitly before ending the thread.
 
 ## Sub-Agent Ownership Guidance
 
@@ -101,6 +156,32 @@ This file is the build contract for Codex agents and human contributors working 
 - `apps/api/`: backend code, tests, env handling, services, routers
 - `apps/web/`: UI, client data layer, design system, route screens
 - Shared docs and top-level repo files should be coordinated carefully to avoid conflicts.
+- Close spawned sub-agents after their assigned work is complete.
+
+## Current Persistent Implementation Notes
+
+- Auth is currently Supabase-first:
+  - backend verifies Supabase bearer tokens
+  - frontend stores a lightweight session locally for MVP
+  - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` must point to the same hosted project as backend Supabase config
+- First successful auth should land at `/`, then route through the onboarding decision gate.
+- Local setup storage may mirror setup payloads, but it must not mark onboarding complete by itself.
+- Backend CORS middleware is required for local web development and currently expects explicit localhost origins.
+- The API now validates Supabase auth/database project alignment during startup and should not be started with mixed-project env vars.
+- Onboarding/profile bootstrap now tolerates duplicate historical owner rows by choosing a canonical row instead of throwing `500`.
+- Roadmap strategy is persisted through setup/bootstrap and remains advisory only.
+- Roadmap focus should answer:
+  - what gets paid first
+  - what the next step is
+  - why it matters now
+- Dashboard has been intentionally simplified:
+  - hero safe-spend number
+  - top actions
+  - spend breakdown
+  - compact "this week" strip
+- Browser and hosted-db validation should use disposable test identities and remove them, plus any linked owner-scoped rows, before the pass is considered complete.
+- When updating docs or setup steps, keep them aligned with the active hosted-Supabase flow and the clean repo path.
+- Before ending a substantial pass, check whether `.gitignore` needs updates for any newly generated local artifacts.
 
 ## What To Avoid
 

@@ -58,7 +58,6 @@ The home screen must let the user answer, within seconds:
 - attachment storage
 - OCR and receipt scanning
 - multi-user collaboration
-- public sign-up
 - advanced analytics suite
 - complex budgeting and forecasting views
 
@@ -82,10 +81,8 @@ Must show:
 - `What's After That`
 - `Available Now`
 - `Available Through Next Income`
-- account status snapshot
-- upcoming income
-- overdue obligations
-- top priorities
+- a compact weekly action strip
+- clear access to overdue items and spend breakdown without turning the page into a report
 
 ### Quick Add
 
@@ -122,6 +119,8 @@ First launch should gather the baseline financial picture:
 - protected minimum cash buffer
 
 The initial setup flow should leave the dashboard immediately useful.
+
+First successful sign-in should automatically route through the onboarding decision path.
 
 ### Roadmap
 
@@ -227,12 +226,13 @@ The roadmap strategy layer should:
 - Frontend: Next.js, React, TypeScript, Tailwind CSS
 - Backend: FastAPI, Pydantic, SQLAlchemy
 - Database: Supabase Postgres
-- Auth: owner-only production auth later, local dev-token flow during MVP
+- Auth: owner-only Supabase auth with email/password and Google
 
 ## 10. Security Expectations
 
 - the app is private and single-user
-- local development auth must stay local-only
+- Supabase bearer auth is the primary path
+- local development auth fallback must stay local-only and disabled by default
 - browser-visible configuration must not contain owner secrets
 - financial logic should remain explainable and easy to audit
 - local browser storage is acceptable for MVP convenience, but should be treated as sensitive
@@ -251,7 +251,7 @@ The MVP is successful if:
 ## 12. Tradeoffs
 
 - Manual entry increases reliability but requires discipline
-- Owner-only auth keeps the system simple but is not designed for future public sign-up without refactor
+- Owner-only auth keeps the system simple but would need refactor before any broader multi-user launch
 - Available-spend logic is intentionally conservative and may feel restrictive at times
 - The MVP favors clarity over exhaustive financial modeling
 - Roadmap strategy is advisory in MVP, so it guides action without mutating stored financial truth

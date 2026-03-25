@@ -36,6 +36,7 @@ export function QuickAddFlow() {
   const [saveAsObligation, setSaveAsObligation] = useState(false);
   const [obligationDueDate, setObligationDueDate] = useState("");
   const [submitted, setSubmitted] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const suggestions = useMemo(() => {
@@ -116,20 +117,18 @@ export function QuickAddFlow() {
   }
 
   function handleSubmit() {
+    setSubmitError(null);
     startTransition(() => {
-      void api.submitQuickAdd(draft).then((result) => {
-        const storedSetup = readStoredLifeOsSetup();
-        const apiSaved = !("draft" in result);
-        let setupUpdated = false;
-        if (storedSetup) {
-          saveStoredLifeOsSetup(applyQuickAddToSetup(storedSetup, draft));
-          setupUpdated = true;
-        }
+      void api
+        .submitQuickAdd(draft)
+        .then(() => {
+          const storedSetup = readStoredLifeOsSetup();
+          if (storedSetup) {
+            saveStoredLifeOsSetup(applyQuickAddToSetup(storedSetup, draft));
+          }
 
-        setSubmitted(
-          !setupUpdated && !apiSaved
-            ? "Finish setup in Settings to save locally"
-            : recurrence === "one-time"
+          setSubmitted(
+            recurrence === "one-time"
               ? kind === "income"
                 ? draft.status === "expected"
                   ? "Expected income scheduled"
@@ -142,8 +141,18 @@ export function QuickAddFlow() {
                   ? `Expected income and recurring plan added (${recurrenceLabel(recurrence)})`
                   : `Income logged and recurring plan added (${recurrenceLabel(recurrence)})`
                 : `Expense logged and recurring plan added (${recurrenceLabel(recurrence)})`,
-        );
-      });
+          );
+        })
+        .catch(() => {
+          const storedSetup = readStoredLifeOsSetup();
+          if (storedSetup) {
+            saveStoredLifeOsSetup(applyQuickAddToSetup(storedSetup, draft));
+            setSubmitError("Entry was saved locally only. The API did not confirm the write.");
+            return;
+          }
+
+          setSubmitError("We couldn't save this entry. Check the API connection and try again.");
+        });
     });
   }
 
@@ -343,7 +352,9 @@ export function QuickAddFlow() {
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted">
-            {submitted ? (
+            {submitError ? (
+              <span className="inline-flex items-center gap-2 text-[#7a2f22]">{submitError}</span>
+            ) : submitted ? (
               <span className="inline-flex items-center gap-2 text-success">
                 <Sparkles className="h-4 w-4" />
                 {submitted}

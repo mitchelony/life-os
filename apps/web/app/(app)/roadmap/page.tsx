@@ -324,8 +324,14 @@ export default function RoadmapPage() {
     );
   }
 
+  const strategyImpactRows = [
+    ...dashboard.availableSpend.strategyAllocations,
+    ...dashboard.availableSpend.strategyDebtExtraPayments,
+    ...dashboard.availableSpend.strategyObligationInstallments,
+  ];
+
   return (
-    <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
+    <div className="mx-auto max-w-[1180px] space-y-4 pb-24 md:space-y-6 md:pb-6">
       <Panel>
         <SectionHeading
           eyebrow="Roadmap"
@@ -344,164 +350,133 @@ export default function RoadmapPage() {
         </div>
       </Panel>
 
-      <div className="sticky top-2 z-20 md:hidden">
+      <div className="sticky top-2 z-20">
         <div className="rounded-[22px] border border-line bg-[rgba(255,255,255,0.94)] p-2 shadow-soft backdrop-blur-xl">
           <Segment options={[...mobileViews]} value={mobileView} onChange={(value) => setMobileView(value as (typeof mobileViews)[number])} />
         </div>
       </div>
 
-      <Panel className={cn("md:hidden", mobileView !== "Focus" && "hidden")}>
-        <div className="grid grid-cols-2 gap-3">
-          <CompactRoadmapStat label="Active" value={dashboard.roadmap.summary.activeCount} />
-          <CompactRoadmapStat label="Overdue" value={dashboard.roadmap.summary.overdueCount} />
-          <CompactRoadmapStat label="Progress" value={`${dashboard.roadmap.summary.overallProgress}%`} />
-          <CompactRoadmapStat
-            label="Next flow"
-            value={dashboard.roadmap.paycheckFlow.nextPlan ? "Ready" : "None"}
-            detail={dashboard.roadmap.paycheckFlow.nextPlan?.incomeLabel ?? "Paste a strategy"}
-          />
-        </div>
-      </Panel>
-
-      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr] xl:gap-6">
-        <div className={cn("space-y-4 md:space-y-6 xl:sticky xl:top-4 xl:self-start", mobileView !== "Focus" && "hidden md:block")}>
-          <Panel>
-            <SectionHeading
-              eyebrow="Focus"
-              title={dashboard.roadmap.focus.nextStep?.title ?? "No roadmap focus yet"}
-              description={dashboard.roadmap.focus.whyNow}
+      <div className={cn("space-y-4 md:space-y-6", mobileView !== "Focus" && "hidden")}>
+        <Panel className="md:hidden">
+          <div className="grid grid-cols-2 gap-3">
+            <CompactRoadmapStat label="Active" value={dashboard.roadmap.summary.activeCount} />
+            <CompactRoadmapStat label="Overdue" value={dashboard.roadmap.summary.overdueCount} />
+            <CompactRoadmapStat label="Progress" value={`${dashboard.roadmap.summary.overallProgress}%`} />
+            <CompactRoadmapStat
+              label="Next flow"
+              value={dashboard.roadmap.paycheckFlow.nextPlan ? "Ready" : "None"}
+              detail={dashboard.roadmap.paycheckFlow.nextPlan?.incomeLabel ?? "Paste a strategy"}
             />
-            <div className="mt-4 rounded-[22px] border border-line bg-white/72 p-4">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Best next step</p>
-              <p className="mt-2 text-base font-semibold tracking-tight text-ink">
-                {dashboard.roadmap.focus.nextStep?.title ?? "Paste a strategy or add your first major goal."}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-muted">
-                {dashboard.roadmap.focus.nextStep?.reason ??
-                  "Roadmap looks at what is overdue, what is due soon, and your plan to choose what comes first."}
-              </p>
-            </div>
+          </div>
+        </Panel>
 
-            {dashboard.roadmap.paycheckFlow.nextPlan ? (
-              <div className="mt-4 rounded-[22px] bg-accent-soft p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-accent">Next income flow</p>
-                    <p className="mt-2 text-base font-semibold tracking-tight text-ink">{dashboard.roadmap.paycheckFlow.nextPlan.label}</p>
-                    <p className="mt-1 text-sm text-muted">
-                      {dashboard.roadmap.paycheckFlow.nextPlan.incomeLabel} • {formatMoney(dashboard.roadmap.paycheckFlow.nextPlan.amount)}
-                    </p>
+        <div className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr] xl:gap-6">
+          <div className="space-y-4 md:space-y-6">
+            <Panel className="min-h-[420px]">
+              <SectionHeading
+                eyebrow="Focus"
+                title={dashboard.roadmap.focus.nextStep?.title ?? "No roadmap focus yet"}
+                description={dashboard.roadmap.focus.whyNow}
+              />
+              <div className="mt-5 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="rounded-[24px] border border-line bg-white/72 p-5">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Best next step</p>
+                  <p className="mt-3 text-2xl font-semibold tracking-tight text-ink">
+                    {dashboard.roadmap.focus.nextStep?.title ?? "Paste a strategy or add your first major goal."}
+                  </p>
+                  <p className="mt-3 text-sm leading-7 text-muted">
+                    {dashboard.roadmap.focus.nextStep?.reason ??
+                      "Roadmap looks at what is overdue, what is due soon, and your plan to choose what comes first."}
+                  </p>
+                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                    <CompactRoadmapStat label="Active goals" value={dashboard.roadmap.summary.activeCount} detail="Still moving" />
+                    <CompactRoadmapStat label="Overdue" value={dashboard.roadmap.summary.overdueCount} detail="Needs attention" />
+                    <CompactRoadmapStat label="Progress" value={`${dashboard.roadmap.summary.overallProgress}%`} detail="Across active goals" />
                   </div>
-                  <Badge className="border-transparent bg-white/70 text-accent">
-                    {dashboard.roadmap.paycheckFlow.nextPlan.allocations.length} moves
-                  </Badge>
                 </div>
-                <div className="mt-4 space-y-2">
-                  {dashboard.roadmap.paycheckFlow.nextPlan.allocations.slice(0, 3).map((allocation) => (
-                    <div key={allocation.id} className="flex items-center justify-between gap-4 rounded-[16px] bg-white/70 px-3 py-2.5 text-sm">
-                      <span>{allocation.label}</span>
-                      <span className="font-semibold tabular-nums">{formatMoney(allocation.amount)}</span>
-                    </div>
-                  ))}
-                </div>
-                {dashboard.roadmap.paycheckFlow.nextPlan.allocations.length > 3 ? (
-                  <p className="mt-3 text-xs text-muted">
-                    + {dashboard.roadmap.paycheckFlow.nextPlan.allocations.length - 3} more planned allocations
-                  </p>
-                ) : null}
-                {dashboard.roadmap.paycheckFlow.nextPlan.overAllocatedAmount > 0 ? (
-                  <p className="mt-3 text-sm text-[#7a2f2f]">
-                    This plan is over-allocated by {formatMoney(dashboard.roadmap.paycheckFlow.nextPlan.overAllocatedAmount)}.
-                  </p>
-                ) : null}
-                <p className="mt-3 text-sm leading-6 text-muted">{dashboard.roadmap.paycheckFlow.nextPlan.recommendedStep}</p>
-              </div>
-            ) : (
-              <div className="mt-4 rounded-[22px] bg-accent-soft p-4">
-                <p className="text-[10px] uppercase tracking-[0.22em] text-accent">Current strategy effect</p>
-                <div className="mt-3 space-y-2 text-sm text-ink">
-                  {dashboard.availableSpend.strategyAllocations.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between gap-4">
-                      <span>{item.label}</span>
-                      <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
-                    </div>
-                  ))}
-                  {dashboard.availableSpend.strategyDebtExtraPayments.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between gap-4">
-                      <span>{item.label}</span>
-                      <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
-                    </div>
-                  ))}
-                  {dashboard.availableSpend.strategyObligationInstallments.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between gap-4">
-                      <span>{item.label}</span>
-                      <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
-                    </div>
-                  ))}
-                  {!dashboard.availableSpend.strategyAllocations.length &&
-                  !dashboard.availableSpend.strategyDebtExtraPayments.length &&
-                  !dashboard.availableSpend.strategyObligationInstallments.length ? (
-                    <p className="text-sm text-muted">Your plan is not affecting this time period yet.</p>
-                  ) : null}
-                </div>
-              </div>
-            )}
-          </Panel>
 
-          <Panel className="hidden md:block">
-            <SectionHeading
-              eyebrow="Plan source"
-              title={setup.strategyDocument?.name ?? "No saved plan yet"}
-              description={setup.strategyDocument?.summary ?? "Paste a simple JSON plan so Roadmap knows what to pay first."}
-              action={
-                <Button variant="soft" onClick={() => setShowStrategyEditor((value) => !value)}>
-                  {showStrategyEditor ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  {showStrategyEditor ? "Hide editor" : "Edit strategy"}
-                </Button>
-              }
-            />
-            {showStrategyEditor ? (
-              <div className="mt-5 space-y-3">
-                <Textarea
-                  value={strategyInput}
-                  onChange={(event) => setStrategyInput(event.target.value)}
-                  rows={16}
-                  className="font-mono text-[13px] leading-6"
-                />
-                {strategyErrors.length ? (
-                  <div className="rounded-[22px] border border-[#d8b4b4] bg-[#fff5f5] p-4 text-sm text-[#7a2f2f]">
-                    {strategyErrors.map((error) => (
-                      <p key={error}>{error}</p>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="rounded-[22px] border border-line bg-white/72 p-4 text-sm text-muted">
-                    Use JSON only. It helps to include expected income, income plans, and a payment order.
-                  </div>
-                )}
-                <Button className="w-full" onClick={handleStrategySave}>
-                  Save strategy
-                </Button>
-              </div>
-            ) : (
-              <div className="mt-4 space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <CompactRoadmapStat label="Goals" value={setup.strategyDocument?.goals.length ?? 0} />
-                  <CompactRoadmapStat label="Income plans" value={setup.strategyDocument?.nextIncomePlans?.length ?? 0} />
+                <div className="rounded-[24px] bg-accent-soft p-5">
+                  {dashboard.roadmap.paycheckFlow.nextPlan ? (
+                    <>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.22em] text-accent">Next income flow</p>
+                          <p className="mt-2 text-lg font-semibold tracking-tight text-ink">{dashboard.roadmap.paycheckFlow.nextPlan.label}</p>
+                          <p className="mt-1 text-sm text-muted">
+                            {dashboard.roadmap.paycheckFlow.nextPlan.incomeLabel} • {formatMoney(dashboard.roadmap.paycheckFlow.nextPlan.amount)}
+                          </p>
+                        </div>
+                        <Badge className="border-transparent bg-white/70 text-accent">
+                          {dashboard.roadmap.paycheckFlow.nextPlan.allocations.length} moves
+                        </Badge>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        {dashboard.roadmap.paycheckFlow.nextPlan.allocations.slice(0, 4).map((allocation) => (
+                          <div key={allocation.id} className="flex items-center justify-between gap-4 rounded-[16px] bg-white/72 px-3 py-2.5 text-sm">
+                            <span>{allocation.label}</span>
+                            <span className="font-semibold tabular-nums">{formatMoney(allocation.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-4 text-sm leading-6 text-muted">{dashboard.roadmap.paycheckFlow.nextPlan.recommendedStep}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[10px] uppercase tracking-[0.22em] text-accent">Current strategy effect</p>
+                      <div className="mt-4 space-y-2 text-sm text-ink">
+                        {strategyImpactRows.length ? (
+                          strategyImpactRows.slice(0, 4).map((item) => (
+                            <div key={item.id} className="flex items-center justify-between gap-4 rounded-[16px] bg-white/72 px-3 py-2.5">
+                              <span>{item.label}</span>
+                              <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted">Your plan is not affecting this time period yet.</p>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
-                <div className="rounded-[18px] bg-accent-soft p-4">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-accent">How this helps</p>
-                  <p className="mt-2 text-sm leading-6 text-ink">
-                    This plan tells the app what to put first when money comes in. It does not change your saved balances or entries.
+              </div>
+            </Panel>
+          </div>
+
+          <div className="space-y-4 md:space-y-6">
+            <Panel className="min-h-[420px]">
+              <SectionHeading
+                eyebrow="Why this page exists"
+                title="Keep the next money move obvious"
+                description="Roadmap is for deciding what gets paid first and what step should happen next."
+              />
+              <div className="mt-5 grid gap-3">
+                <div className="rounded-[22px] border border-line bg-white/72 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-muted">What matters first</p>
+                  <p className="mt-2 text-base font-semibold tracking-tight text-ink">{dashboard.nextItem}</p>
+                  <p className="mt-1 text-sm leading-6 text-muted">{dashboard.afterThat}</p>
+                </div>
+                <div className="rounded-[22px] border border-line bg-white/72 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Money pressure</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <CompactRoadmapStat label="Available now" value={formatMoney(dashboard.availableSpend.availableNow)} />
+                    <CompactRoadmapStat label="Through next income" value={formatMoney(dashboard.availableSpend.availableThroughNextIncome)} />
+                  </div>
+                </div>
+                <div className="rounded-[22px] border border-line bg-white/72 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Saved strategy</p>
+                  <p className="mt-2 text-base font-semibold tracking-tight text-ink">{setup.strategyDocument?.name ?? "No saved strategy yet"}</p>
+                  <p className="mt-1 text-sm leading-6 text-muted">
+                    {setup.strategyDocument?.summary ?? "Add a strategy so this page can stay centered on payment order instead of general goals."}
                   </p>
                 </div>
               </div>
-            )}
-          </Panel>
+            </Panel>
+          </div>
         </div>
+      </div>
 
-        <div className={cn("space-y-4 md:space-y-6", mobileView !== "Goals" && "hidden md:block")}>
-          <Panel>
+      <div className={cn("space-y-4 md:space-y-6", mobileView !== "Goals" && "hidden")}>
+        <Panel>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <SectionHeading
                 eyebrow="Goals"
@@ -655,7 +630,7 @@ export default function RoadmapPage() {
                 </div>
               </div>
             ) : null}
-          </Panel>
+        </Panel>
 
           {(["active", "upcoming", "completed"] as const).map((group) => {
             const items = grouped[group];
@@ -690,21 +665,23 @@ export default function RoadmapPage() {
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   <Badge>{item.status}</Badge>
                                   <Badge className="hidden sm:inline-flex">{item.priority}</Badge>
-                                  <Badge className="hidden sm:inline-flex">{item.category}</Badge>
                                   {item.strategyBacked ? <Badge className="border-transparent bg-accent-soft text-accent">Strategy</Badge> : null}
                                 </div>
                                 <h3 className="mt-3 text-base font-semibold tracking-tight text-ink md:text-lg">{item.title}</h3>
-                                <p className="mt-1 text-sm leading-6 text-muted">{item.description || item.reason || "No details yet."}</p>
+                                <p className="mt-1 text-sm leading-6 text-muted">{item.derivedNextStep ?? item.description ?? item.reason ?? "No details yet."}</p>
+                                <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted">
+                                  <span>{item.targetDate ? `Target ${formatDueLabel(item.targetDate)}` : item.timeframeLabel || "No target date"}</span>
+                                  <span>{item.progressValue}% done</span>
+                                  <span>{item.category}</span>
+                                </div>
                               </div>
-                              <div className="rounded-[18px] bg-accent-soft px-3 py-2 text-right">
-                                <p className="text-[10px] uppercase tracking-[0.2em] text-accent">{item.targetDate ? "Target" : "Timeframe"}</p>
-                                <p className="mt-1 text-sm font-medium text-ink">{item.targetDate ? formatDueLabel(item.targetDate) : item.timeframeLabel || "No target date"}</p>
-                                <div className="mt-2 text-xl font-semibold tracking-tight text-ink">{item.progressValue}%</div>
-                              </div>
+                              <Badge className="border-transparent bg-accent-soft text-accent">{item.progressValue}%</Badge>
                             </div>
+
                             <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/6">
                               <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${item.progressValue}%` }} />
                             </div>
+
                             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                               <div className="text-sm text-muted">
                                 Next move: <span className="font-medium text-ink">{item.derivedNextStep ?? item.title}</span>
@@ -720,6 +697,7 @@ export default function RoadmapPage() {
                                 </Button>
                               </div>
                             </div>
+
                             {expanded ? (
                               <div className="mt-5 grid gap-4 xl:grid-cols-[0.75fr_0.25fr]">
                                 <div className="space-y-3">
@@ -746,16 +724,11 @@ export default function RoadmapPage() {
                                       No steps yet. The goal itself is the next move.
                                     </div>
                                   )}
-                                  {item.notes ? (
-                                    <div className="rounded-[18px] bg-accent-soft p-4 text-sm leading-6 text-ink">{item.notes}</div>
-                                  ) : null}
+                                  {item.notes ? <div className="rounded-[18px] bg-accent-soft p-4 text-sm leading-6 text-ink">{item.notes}</div> : null}
                                 </div>
                                 <div className="space-y-3">
                                   <InlineField label="Status">
-                                    <Select
-                                      value={item.status}
-                                      onChange={(event) => handleItemFieldUpdate(item, { status: event.target.value as RoadmapStatus })}
-                                    >
+                                    <Select value={item.status} onChange={(event) => handleItemFieldUpdate(item, { status: event.target.value as RoadmapStatus })}>
                                       {statusOptions.filter((option) => option !== "all").map((option) => (
                                         <option key={option} value={option}>
                                           {option}
@@ -764,10 +737,7 @@ export default function RoadmapPage() {
                                     </Select>
                                   </InlineField>
                                   <InlineField label="Priority">
-                                    <Select
-                                      value={item.priority}
-                                      onChange={(event) => handleItemFieldUpdate(item, { priority: event.target.value as RoadmapPriority })}
-                                    >
+                                    <Select value={item.priority} onChange={(event) => handleItemFieldUpdate(item, { priority: event.target.value as RoadmapPriority })}>
                                       {priorityOptions.filter((option) => option !== "all").map((option) => (
                                         <option key={option} value={option}>
                                           {option}
@@ -793,52 +763,121 @@ export default function RoadmapPage() {
               </Panel>
             );
           })}
-        </div>
+      </div>
 
-        <div className={cn("space-y-4 md:hidden", mobileView !== "Strategy" && "hidden")}>
-          <Panel>
-            <SectionHeading
-              eyebrow="Strategy"
-              title={setup.strategyDocument?.name ?? "Paste the current plan"}
-              description={setup.strategyDocument?.summary ?? "Use JSON only. This plan changes the guidance, not your saved money records."}
-              action={
-                <Button variant="soft" onClick={() => setShowStrategyEditor((value) => !value)}>
-                  {showStrategyEditor ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  {showStrategyEditor ? "Hide editor" : "Edit JSON"}
-                </Button>
-              }
-            />
-            {showStrategyEditor ? (
-              <div className="mt-5 space-y-3">
-                <Textarea
-                  value={strategyInput}
-                  onChange={(event) => setStrategyInput(event.target.value)}
-                  rows={14}
-                  className="font-mono text-[13px] leading-6"
-                />
-                {strategyErrors.length ? (
-                  <div className="rounded-[22px] border border-[#d8b4b4] bg-[#fff5f5] p-4 text-sm text-[#7a2f2f]">
-                    {strategyErrors.map((error) => (
-                      <p key={error}>{error}</p>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="rounded-[22px] border border-line bg-white/72 p-4 text-sm text-muted">
-                    Use JSON only. It helps to include expected income, income plans, and a payment order.
-                  </div>
-                )}
-                <Button className="w-full" onClick={handleStrategySave}>
-                  Save strategy
-                </Button>
-              </div>
-            ) : (
-              <div className="mt-4 grid grid-cols-2 gap-3">
+      <div className={cn("space-y-4 md:space-y-6", mobileView !== "Strategy" && "hidden")}>
+        <Panel>
+          <SectionHeading
+            eyebrow="Strategy"
+            title={setup.strategyDocument?.name ?? "Paste the current plan"}
+            description={setup.strategyDocument?.summary ?? "Use JSON only. This plan changes guidance, not your saved balances or entries."}
+            action={
+              <Button variant="soft" onClick={() => setShowStrategyEditor((value) => !value)}>
+                {showStrategyEditor ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                {showStrategyEditor ? "Hide editor" : "Edit JSON"}
+              </Button>
+            }
+          />
+          {showStrategyEditor ? (
+            <div className="mt-5 space-y-3">
+              <Textarea
+                value={strategyInput}
+                onChange={(event) => setStrategyInput(event.target.value)}
+                rows={18}
+                className="font-mono text-[13px] leading-6"
+              />
+              {strategyErrors.length ? (
+                <div className="rounded-[22px] border border-[#d8b4b4] bg-[#fff5f5] p-4 text-sm text-[#7a2f2f]">
+                  {strategyErrors.map((error) => (
+                    <p key={error}>{error}</p>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-[22px] border border-line bg-white/72 p-4 text-sm text-muted">
+                  Use JSON only. Include expected income and the order you want money to move in.
+                </div>
+              )}
+              <Button className="w-full" onClick={handleStrategySave}>
+                Save strategy
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              <div className="grid gap-3 sm:grid-cols-3">
                 <CompactRoadmapStat label="Goals" value={setup.strategyDocument?.goals.length ?? 0} />
                 <CompactRoadmapStat label="Income plans" value={setup.strategyDocument?.nextIncomePlans?.length ?? 0} />
+                <CompactRoadmapStat
+                  label="Primary mode"
+                  value={setup.strategyDocument?.guidance.primaryUXMode === "next_payments_to_make" ? "Pay order" : "Goal order"}
+                />
               </div>
-            )}
-          </Panel>
-        </div>
+              <div className="rounded-[18px] bg-accent-soft p-4">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-accent">What this controls</p>
+                <p className="mt-2 text-sm leading-6 text-ink">
+                  This is the plan that tells Roadmap what should happen first when money lands. It does not rewrite your ledger or balances.
+                </p>
+              </div>
+              {!showStrategyEditor ? (
+                <Button variant="secondary" className="w-full sm:w-auto" onClick={() => setShowStrategyEditor(true)}>
+                  Paste or edit strategy JSON
+                </Button>
+              ) : null}
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      <div className="space-y-4 md:space-y-6">
+        <Panel>
+          <SectionHeading
+            eyebrow="Context"
+            title="More detail, lower on the page"
+            description="These details support the plan, but they should not get in the way of the next move."
+          />
+          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+            <div className="rounded-[22px] border border-line bg-white/72 p-4">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Plan pressure</p>
+              <div className="mt-3 space-y-2 text-sm text-ink">
+                <div className="flex items-center justify-between gap-4">
+                  <span>Bills before next income</span>
+                  <span className="font-semibold tabular-nums">{formatMoney(dashboard.availableSpend.obligationsDueBeforeNextIncome)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span>Debt minimums</span>
+                  <span className="font-semibold tabular-nums">{formatMoney(dashboard.availableSpend.debtMinimumsDueBeforeNextIncome)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span>Essentials left</span>
+                  <span className="font-semibold tabular-nums">{formatMoney(dashboard.availableSpend.essentialSpendRemaining)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[22px] border border-line bg-white/72 p-4">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Strategy effect</p>
+              <div className="mt-3 space-y-2 text-sm text-ink">
+                {strategyImpactRows.length ? (
+                  strategyImpactRows.slice(0, 5).map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-4">
+                      <span>{item.label}</span>
+                      <span className="font-semibold tabular-nums">{formatMoney(item.amount)}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted">No strategy adjustments are affecting this horizon yet.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-[22px] border border-line bg-white/72 p-4">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Roadmap health</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <CompactRoadmapStat label="Completed" value={dashboard.roadmap.summary.completedCount} detail="Closed goals" />
+                <CompactRoadmapStat label="Finance-linked" value={dashboard.roadmap.summary.debtOrObligationCount} detail="Debt or bill related" />
+              </div>
+            </div>
+          </div>
+        </Panel>
       </div>
     </div>
   );

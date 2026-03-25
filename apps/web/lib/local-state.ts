@@ -1751,7 +1751,6 @@ export function readStoredLifeOsSetup(): StoredLifeOsSetup | null {
 export function saveStoredLifeOsSetup(payload: StoredLifeOsSetup) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(setupKey, JSON.stringify(normalizeStoredLifeOsSetup(payload)));
-  window.localStorage.setItem(onboardingKey, "true");
   window.dispatchEvent(new Event(changedEvent));
 }
 
@@ -1889,7 +1888,7 @@ export function useStoredLifeOsSetup() {
     const normalized = normalizeStoredLifeOsSetup(nextSetup);
     saveStoredLifeOsSetup(normalized);
     setSetup(normalized);
-    void api.saveSetup(storedSetupToBackendSetupPayload(normalized));
+    void api.saveSetup(storedSetupToBackendSetupPayload(normalized)).catch(() => undefined);
   };
 
   return {

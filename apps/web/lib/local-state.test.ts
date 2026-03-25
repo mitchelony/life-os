@@ -1,9 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyQuickAddToSetup,
   buildDashboardFromSetup,
+  createEmptyStoredLifeOsSetup,
+  onboardingKey,
   parseStrategyDocument,
   saveStrategyToSetup,
+  saveStoredLifeOsSetup,
+  setupKey,
   type StoredLifeOsSetup,
 } from "./local-state";
 import type { QuickAddDraft } from "./types";
@@ -30,6 +34,51 @@ const baseSetup: StoredLifeOsSetup = {
   roadmapItems: [],
   strategyDocument: null,
 };
+
+type MockWindow = Window & {
+  localStorage: Storage;
+};
+
+function createMockStorage() {
+  const store = new Map<string, string>();
+  return {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, value);
+    },
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
+    clear: () => {
+      store.clear();
+    },
+    key: (index: number) => Array.from(store.keys())[index] ?? null,
+    get length() {
+      return store.size;
+    },
+  } satisfies Storage;
+}
+
+const originalWindow = globalThis.window;
+
+beforeEach(() => {
+  const mockWindow = {
+    localStorage: createMockStorage(),
+    dispatchEvent: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  } as unknown as MockWindow;
+
+  vi.stubGlobal("window", mockWindow);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  if (originalWindow) {
+    vi.stubGlobal("window", originalWindow);
+  }
+});
 
 const strategyJson = JSON.stringify(
   {
@@ -989,5 +1038,14 @@ describe("buildDashboardFromSetup", () => {
     expect(snapshot.topPriorities.some((task) => task.linkedTo === "Paycheck flow")).toBe(false);
     expect(snapshot.topPriorities.some((task) => task.linkedTo === "Debt")).toBe(true);
     expect(snapshot.topPriorities.some((task) => task.linkedTo === "Obligation")).toBe(true);
+  });
+});
+
+describe("saveStoredLifeOsSetup", () => {
+  it("persists setup without marking onboarding complete", () => {
+    saveStoredLifeOsSetup(createEmptyStoredLifeOsSetup());
+
+    expect(window.localStorage.getItem(setupKey)).not.toBeNull();
+    expect(window.localStorage.getItem(onboardingKey)).toBeNull();
   });
 });

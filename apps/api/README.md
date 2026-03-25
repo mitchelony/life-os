@@ -28,7 +28,7 @@ Important product rules:
 - `income_entries` represent planned or expected income
 - available-spend math must stay conservative and explainable
 - auth is owner-only and lightweight during MVP
-- Supabase email/password is the main auth path
+- Supabase bearer auth is the main auth path
 
 ## Project Layout
 
@@ -42,7 +42,7 @@ app/
 tests/        API and service tests
 ```
 
-## Local Setup
+## Setup
 
 From the repository root:
 
@@ -55,17 +55,24 @@ pip install -r apps/api/requirements-dev.txt
 cp .env.example .env
 ```
 
+Fill the repo-level `.env` with your hosted Supabase values before starting the API.
+
+Required fields:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `DATABASE_URL`
+- `SUPABASE_DB_URL`
+- `AUTH_STRATEGY=supabase`
+- `ALLOW_DEV_LOGIN=false`
+
+If you use the Supabase pooler, the Postgres username must be `postgres.<project_ref>`.
+`SUPABASE_URL`, `DATABASE_URL`, and `SUPABASE_DB_URL` must all reference the same hosted Supabase project.
+
 ## Run the API
 
-Before starting the API, start local Supabase and reset the database:
-
-```bash
-cd /Users/MAC/GitHub/life-os
-supabase start
-supabase db reset
-```
-
-Then run the API from the repository root:
+The normal development path now uses the hosted Supabase project. Start the API from the repository root:
 
 ```bash
 cd /Users/MAC/GitHub/life-os
@@ -76,6 +83,11 @@ npm run dev:api
 Default local address:
 
 - `http://127.0.0.1:8000`
+
+Startup guardrails:
+
+- the API now raises a startup error if `SUPABASE_URL` and `DATABASE_URL` resolve to different Supabase project refs
+- this is intentional and should be fixed by correcting env vars, not bypassed in code
 
 Health check:
 
@@ -92,22 +104,25 @@ Common local variables:
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_DB_URL`
 - `AUTH_STRATEGY`
 - `ALLOW_DEV_LOGIN`
+- `CORS_ALLOWED_ORIGINS`
 
 Notes:
 
 - local development should normally use `AUTH_STRATEGY=supabase`
-- `DATABASE_URL` should point at the local Supabase Postgres instance
+- `DATABASE_URL` should point at hosted or local Supabase Postgres
 - `DEV_OWNER_TOKEN` is now optional local fallback only
 - `ALLOW_DEV_LOGIN` should stay `false` unless you explicitly need the fallback
+- browser requests should come from `http://localhost:3000` or `http://localhost:3001` unless you also update `CORS_ALLOWED_ORIGINS`
 
 ## Tests
 
 Run all backend tests:
 
 ```bash
-cd /Users/MAC/Documents/GitHub/life-os/apps/api
+cd /Users/MAC/GitHub/life-os/apps/api
 source ../../.venv/bin/activate
 python3 -m pytest
 ```
@@ -116,6 +131,12 @@ Run targeted tests:
 
 ```bash
 python3 -m pytest tests/test_auth.py tests/test_available_spend.py tests/test_dashboard.py
+```
+
+Focused regression coverage added for the hosted-auth path:
+
+```bash
+python3 -m pytest tests/test_config.py tests/test_onboarding.py tests/test_settings_bootstrap.py
 ```
 
 ## Design Guidelines
@@ -133,17 +154,5 @@ This API handles financial data and should be treated as sensitive infrastructur
 - Do not expose local development auth on a public host
 - Do not move `DEV_OWNER_TOKEN` into browser-visible config
 - Keep docs and OpenAPI disabled outside development
-- Treat the current dev auth path as temporary MVP infrastructure, not production auth
-
-## Future Direction
-
-Planned direction for production:
-
-- Supabase-backed Postgres
-- owner-only Supabase auth
-- cleaner environment separation between local dev and hosted environments
-
-Local owner seed for Supabase auth:
-
-- email: `owner@life-os.local`
-- password: `life-os-local-dev`
+- Treat the current dev-token fallback as a local-only escape hatch, not the normal auth path
+- Onboarding/profile bootstrap should remain tolerant of duplicate historical owner rows until all environments are confirmed clean

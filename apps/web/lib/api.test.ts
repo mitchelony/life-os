@@ -170,4 +170,40 @@ describe("createApiClient", () => {
     expect(calls[0]?.[1]?.method).toBe("POST");
     expect(calls[1]?.[1]?.method).toBe("POST");
   });
+
+  it("throws when onboarding status cannot be loaded", async () => {
+    vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
+    const client = createApiClient({
+      baseUrl: "http://localhost:8000/api",
+      fetchImpl: vi.fn(async () => new Response("boom", { status: 500 })) as unknown as typeof fetch,
+    });
+
+    await expect(client.startOnboarding()).rejects.toThrow("Request failed with 500");
+  });
+
+  it("throws when setup persistence fails", async () => {
+    vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
+    const client = createApiClient({
+      baseUrl: "http://localhost:8000/api",
+      fetchImpl: vi.fn(async () => new Response("boom", { status: 500 })) as unknown as typeof fetch,
+    });
+
+    await expect(
+      client.saveSetup({
+        display_name: "Mitchel",
+        protected_buffer: "100",
+        essential_target: "25",
+        savings_floor: "300",
+        notes: "Keep it simple.",
+        accounts: [],
+        obligations: [],
+        debts: [],
+        income: [],
+        roadmap_items: [],
+        strategy_document: null,
+      }),
+    ).rejects.toThrow("Request failed with 500");
+
+    await expect(client.completeOnboarding()).rejects.toThrow("Request failed with 500");
+  });
 });

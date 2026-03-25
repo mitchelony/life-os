@@ -7,6 +7,10 @@ type ApiClientOptions = {
   fetchImpl?: typeof fetch;
 };
 
+type RequestOptions = {
+  required?: boolean;
+};
+
 export type BackendDashboardItem = {
   label: string;
   detail: string;
@@ -180,6 +184,10 @@ export type BackendOnboardingCompleteResponse = {
   state: BackendOnboardingState;
 };
 
+function requestErrorMessage(path: string) {
+  return `Request failed for ${path}`;
+}
+
 async function safeJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
     throw new Error(`Request failed with ${response.status}`);
@@ -200,21 +208,34 @@ export function createApiClient(options: ApiClientOptions = {}) {
     return headers;
   };
 
-  const get = async <T,>(path: string, fallback: T): Promise<T> => {
-    if (!baseUrl) return fallback;
+  const get = async <T,>(path: string, fallback: T, options: RequestOptions = {}): Promise<T> => {
+    if (!baseUrl) {
+      if (options.required) {
+        throw new Error(requestErrorMessage(path));
+      }
+      return fallback;
+    }
     try {
       const response = await fetchImpl(`${baseUrl}${path}`, {
         cache: "no-store",
         headers: await getHeaders(),
       });
       return await safeJson<T>(response);
-    } catch {
+    } catch (error) {
+      if (options.required) {
+        throw error instanceof Error ? error : new Error(requestErrorMessage(path));
+      }
       return fallback;
     }
   };
 
-  const post = async <T,>(path: string, body: unknown, fallback: T): Promise<T> => {
-    if (!baseUrl) return fallback;
+  const post = async <T,>(path: string, body: unknown, fallback: T, options: RequestOptions = {}): Promise<T> => {
+    if (!baseUrl) {
+      if (options.required) {
+        throw new Error(requestErrorMessage(path));
+      }
+      return fallback;
+    }
     try {
       const response = await fetchImpl(`${baseUrl}${path}`, {
         method: "POST",
@@ -224,13 +245,21 @@ export function createApiClient(options: ApiClientOptions = {}) {
         body: JSON.stringify(body),
       });
       return await safeJson<T>(response);
-    } catch {
+    } catch (error) {
+      if (options.required) {
+        throw error instanceof Error ? error : new Error(requestErrorMessage(path));
+      }
       return fallback;
     }
   };
 
-  const put = async <T,>(path: string, body: unknown, fallback: T): Promise<T> => {
-    if (!baseUrl) return fallback;
+  const put = async <T,>(path: string, body: unknown, fallback: T, options: RequestOptions = {}): Promise<T> => {
+    if (!baseUrl) {
+      if (options.required) {
+        throw new Error(requestErrorMessage(path));
+      }
+      return fallback;
+    }
     try {
       const response = await fetchImpl(`${baseUrl}${path}`, {
         method: "PUT",
@@ -240,7 +269,10 @@ export function createApiClient(options: ApiClientOptions = {}) {
         body: JSON.stringify(body),
       });
       return await safeJson<T>(response);
-    } catch {
+    } catch (error) {
+      if (options.required) {
+        throw error instanceof Error ? error : new Error(requestErrorMessage(path));
+      }
       return fallback;
     }
   };
@@ -261,9 +293,9 @@ export function createApiClient(options: ApiClientOptions = {}) {
         roadmap_items: [],
         strategy_document: null,
       }),
-    saveSetup: (payload: BackendSetupPayload) => put("/settings/bootstrap", payload, payload),
-    startOnboarding: () => post<BackendOnboardingStartResponse | null>("/onboarding/start", {}, null),
-    completeOnboarding: () => post<BackendOnboardingCompleteResponse | null>("/onboarding/complete", {}, null),
+    saveSetup: (payload: BackendSetupPayload) => put("/settings/bootstrap", payload, payload, { required: true }),
+    startOnboarding: () => post<BackendOnboardingStartResponse | null>("/onboarding/start", {}, null, { required: true }),
+    completeOnboarding: () => post<BackendOnboardingCompleteResponse | null>("/onboarding/complete", {}, null, { required: true }),
     getCategories: async () => {
       const payload = await get<Array<string | { name: string }>>("/categories", sampleCategories);
       return payload.map((item) => (typeof item === "string" ? item : item.name));
@@ -291,6 +323,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
           ok: true,
           draft,
         },
+        { required: true },
       ),
   };
 }

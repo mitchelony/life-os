@@ -11,7 +11,7 @@ apps/
   api/        FastAPI backend
   web/        Next.js App Router frontend
 docs/         Product and engineering docs
-supabase/     Migrations, seed data, and local database setup
+supabase/     Migrations, hosted setup reference, and optional local database setup
 ```
 
 ## Product Boundaries
@@ -59,7 +59,7 @@ supabase/     Migrations, seed data, and local database setup
 The frontend is responsible for:
 
 - rendering the app shell and route screens
-- owner sign-in and session restore through Supabase auth
+- owner sign-in, sign-up, Google OAuth, and session restore through Supabase auth
 - mobile-first UX
 - roadmap and strategy workspace
 - consuming stable API responses as the primary persistence path
@@ -100,7 +100,6 @@ Current important API surfaces include:
 - `GET /api/available-spend/explain`
 - `POST /api/available-spend/explain`
 - `GET /api/auth/whoami`
-- `POST /api/auth/dev-login`
 - CRUD routes for:
   - accounts
   - categories
@@ -152,6 +151,10 @@ The current strategy model is:
 - JSON-based
 - used to guide payment order and focus
 - not allowed to silently mutate the financial ledger
+- surfaced through explicit roadmap modes:
+  - `Focus`
+  - `Goals`
+  - `Strategy`
 
 This means:
 
@@ -160,22 +163,22 @@ This means:
 
 ## Auth Model
 
-Current MVP auth posture:
+Current auth posture:
 
 - owner-only
-- Supabase email/password is the normal path
+- Supabase email/password and Google OAuth are the normal paths
 - the backend verifies Supabase bearer tokens and derives `owner_id` from the session
 - the browser should not ship any owner secret
 - local dev-token fallback is optional and should stay disabled unless explicitly needed
 
-The local dev path is intentionally temporary. Production should move to a stronger owner-only auth flow.
+The current frontend still uses a lightweight client-side session store instead of a full cookie/middleware Supabase SSR flow.
 
 ## UX Architecture
 
 ### Primary Surfaces
 
 - `Dashboard`
-  - operational snapshot
+  - operational snapshot centered on what matters right now
 - `Quick Add`
   - amount-first money entry
 - `Roadmap`
@@ -205,3 +208,4 @@ The local dev path is intentionally temporary. Production should move to a stron
 - some state is mirrored in the browser for convenience
 - strategy guidance is advisory rather than authoritative
 - the frontend still uses lightweight client-side session handling instead of a full cookie/middleware Supabase SSR flow
+- the hosted Supabase project is the active integration target; local Supabase is optional, not the default path

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Panel, cn } from "@/components/ui";
 import { hasAuthSession } from "@/lib/auth";
@@ -13,6 +13,8 @@ const onboardingKey = process.env.NEXT_PUBLIC_ONBOARDING_KEY ?? "life-os-onboard
 
 export function HomeGate() {
   const router = useRouter();
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,30 +26,39 @@ export function HomeGate() {
         return;
       }
 
-      const localOnboarded = window.localStorage.getItem(onboardingKey) === "true";
-      const onboarding = await api.startOnboarding();
-      const isOnboardingComplete = onboarding?.state.is_complete ?? localOnboarded;
-      if (cancelled) return;
+      setRouteError(null);
 
-      if (isOnboardingComplete) {
-        window.localStorage.setItem(onboardingKey, "true");
-      } else {
-        window.localStorage.removeItem(onboardingKey);
+      try {
+        const localOnboarded = window.localStorage.getItem(onboardingKey) === "true";
+        const onboarding = await api.startOnboarding();
+        const isOnboardingComplete = onboarding?.state.is_complete ?? localOnboarded;
+        if (cancelled) return;
+
+        if (isOnboardingComplete) {
+          window.localStorage.setItem(onboardingKey, "true");
+        } else {
+          window.localStorage.removeItem(onboardingKey);
+        }
+
+        router.replace(
+          getInitialAppRoute({
+            hasAuthSession: signedIn,
+            isOnboardingComplete,
+          }),
+        );
+      } catch {
+        if (!cancelled) {
+          window.localStorage.removeItem(onboardingKey);
+          setRouteError("We couldn't verify your onboarding state. Check the API connection and try again.");
+        }
       }
-
-      router.replace(
-        getInitialAppRoute({
-          hasAuthSession: signedIn,
-          isOnboardingComplete,
-        }),
-      );
     }
 
     void routeUser();
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, retryNonce]);
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl items-center px-4 py-8">
@@ -61,23 +72,40 @@ export function HomeGate() {
             <p className="mt-4 max-w-xl text-base leading-7 text-muted">
               See what is due next, what comes after that, and how much you can safely spend.
             </p>
+            {routeError ? (
+              <div className="mt-6 rounded-[24px] border border-[rgba(165,57,42,0.16)] bg-[rgba(165,57,42,0.08)] px-4 py-3 text-sm text-[#7a2f22]">
+                {routeError}
+              </div>
+            ) : null}
             <div className="mt-8 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => router.push("/settings")}
-                className="inline-flex items-center justify-center rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-bg transition duration-200 hover:-translate-y-0.5 hover:bg-[#0c1511]"
-              >
-                Open setup
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push("/dashboard")}
-                className={cn(
-                  "inline-flex items-center justify-center rounded-full border border-line bg-transparent px-4 py-2.5 text-sm font-medium text-ink transition duration-200 hover:-translate-y-0.5 hover:bg-black/5",
-                )}
-              >
-                Open dashboard
-              </button>
+              {routeError ? (
+                <button
+                  type="button"
+                  onClick={() => setRetryNonce((current) => current + 1)}
+                  className="inline-flex items-center justify-center rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-bg transition duration-200 hover:-translate-y-0.5 hover:bg-[#0c1511]"
+                >
+                  Retry check
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/settings")}
+                    className="inline-flex items-center justify-center rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-bg transition duration-200 hover:-translate-y-0.5 hover:bg-[#0c1511]"
+                  >
+                    Open setup
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/dashboard")}
+                    className={cn(
+                      "inline-flex items-center justify-center rounded-full border border-line bg-transparent px-4 py-2.5 text-sm font-medium text-ink transition duration-200 hover:-translate-y-0.5 hover:bg-black/5",
+                    )}
+                  >
+                    Open dashboard
+                  </button>
+                </>
+              )}
             </div>
           </div>
 

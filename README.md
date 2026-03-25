@@ -17,7 +17,7 @@ Life OS is currently in MVP development.
 
 - Manual entry is the source of truth.
 - The backend and web app now prefer API-backed persistence for the core MVP flows.
-- Supabase Postgres and Supabase Auth are now the intended local and hosted path.
+- Supabase Postgres and Supabase Auth are now the live persistence and auth path.
 - The product is intentionally owner-only. There is no team or multi-user model.
 
 ## Repository Structure
@@ -27,7 +27,7 @@ apps/
   api/        FastAPI backend
   web/        Next.js App Router frontend
 docs/         Product and architecture documents
-supabase/     Migrations, seed data, and local Supabase setup
+supabase/     Migrations, hosted setup reference, and optional local Supabase assets
 ```
 
 Key references:
@@ -41,7 +41,7 @@ Key references:
 - Frontend: Next.js App Router, React, TypeScript, Tailwind CSS, Framer Motion
 - Backend: FastAPI, Pydantic, SQLAlchemy
 - Database: Supabase Postgres
-- Auth: Supabase email/password
+- Auth: Supabase email/password and Google OAuth
 
 ## Prerequisites
 
@@ -50,12 +50,12 @@ Install the following before working in the repo:
 - Node.js 20+
 - Python 3.11+
 - npm
-- Supabase CLI
-
-Optional but recommended:
-
 - `nvm` for Node version management
 - a local Python virtual environment
+
+Optional:
+
+- Supabase CLI if you want to run a local Supabase stack later
 
 ## Quick Start
 
@@ -85,31 +85,59 @@ pip install -U pip
 pip install -r apps/api/requirements-dev.txt
 ```
 
-### 4. Start local Supabase
-
-```bash
-supabase start
-supabase db reset
-```
-
-The local seed creates a single owner account:
-
-- email: `owner@life-os.local`
-- password: `life-os-local-dev`
-
-### 5. Create local environment config
+### 4. Create local environment config
 
 ```bash
 cp .env.example .env
 ```
 
-### 6. Install frontend dependencies
+Fill `.env` with your hosted Supabase values:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `DATABASE_URL`
+- `SUPABASE_DB_URL`
+
+Important:
+
+- if you use the Supabase pooler, the Postgres username must be `postgres.<project_ref>`
+- keep `AUTH_STRATEGY=supabase`
+- keep `ALLOW_DEV_LOGIN=false` unless you are intentionally debugging the local fallback
+- `SUPABASE_URL`, `DATABASE_URL`, and `SUPABASE_DB_URL` must all point at the same hosted Supabase project
+- the API now fails fast at startup if auth and database env vars point at different Supabase project refs
+
+### 5. Create frontend env config
+
+```bash
+cp apps/web/.env.example apps/web/.env.local
+```
+
+Set these to the same hosted project:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_API_BASE_URL`
+
+### 6. Create the owner account in Supabase
+
+In the hosted Supabase dashboard:
+
+- enable Email provider
+- enable Google provider if you want Google sign-in
+- add redirect URLs:
+  - `http://localhost:3000/auth/callback`
+  - `http://localhost:3001/auth/callback`
+- use `http://localhost:3000` or `http://localhost:3001` for browser validation, not `http://127.0.0.1:3000`, unless you also change API CORS config
+- create the owner user through Auth or sign up through the app
+
+### 7. Install frontend dependencies
 
 ```bash
 npm install
 ```
 
-### 7. Start the apps
+### 8. Start the apps
 
 In one terminal:
 
@@ -158,16 +186,33 @@ source ../../.venv/bin/activate
 python3 -m pytest
 ```
 
+## Auth and Onboarding
+
+The app is now owner-authenticated through Supabase.
+
+Current auth behavior:
+
+- sign in with email/password or Google
+- first successful sign-in routes through the onboarding decision path
+- incomplete onboarding goes to `Settings`
+- completed onboarding goes to `Dashboard`
+- logout returns directly to `/login`
+- onboarding/profile bootstrap is defensive against duplicate historical owner rows instead of crashing with `500`
+
 ## Database and Supabase
 
-The repo includes Supabase migrations and seed data for the long-term production direction.
+Hosted Supabase is the normal path right now.
 
-For local database work:
+Use [supabase/README.md](/Users/MAC/GitHub/life-os/supabase/README.md) for:
 
-- see [supabase/README.md](/Users/MAC/GitHub/life-os/supabase/README.md)
-- use `supabase start` for the local stack
-- use `supabase db reset` to apply the canonical schema and seed the owner account
-- keep `DATABASE_URL` pointed at the local Supabase Postgres instance
+- hosted project setup
+- schema application
+- optional local Supabase workflow
+
+Current verification note:
+
+- the active hosted `life-os` Supabase schema is in the expected owner-scoped shape
+- the main setup risk is local env drift between Supabase auth config and database URLs
 
 ## Security Notes
 
@@ -190,7 +235,7 @@ This app handles sensitive financial information. Keep the following in mind:
 
 Before making major changes, read:
 
-- [AGENTS.md](/Users/MAC/Documents/GitHub/life-os/AGENTS.md)
+- [AGENTS.md](/Users/MAC/GitHub/life-os/AGENTS.md)
 - [docs/PRD.md](/Users/MAC/GitHub/life-os/docs/PRD.md)
 - [docs/ARCHITECTURE.md](/Users/MAC/GitHub/life-os/docs/ARCHITECTURE.md)
 

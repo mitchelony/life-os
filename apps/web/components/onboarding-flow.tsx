@@ -111,6 +111,8 @@ export function OnboardingFlow() {
   const [debts, setDebts] = useState<DebtDraft[]>(defaultDebts);
   const [income, setIncome] = useState<IncomeDraft[]>(defaultIncome);
   const [notes, setNotes] = useState("Keep the dashboard calm and high-signal.");
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const completedPercent = useMemo(() => Math.round(((step + 1) / 4) * 100), [step]);
 
@@ -217,13 +219,23 @@ export function OnboardingFlow() {
       strategyDocument: existing?.strategyDocument ?? null,
     };
 
+    setIsSaving(true);
+    setSaveError(null);
     void api
       .saveSetup(storedSetupToBackendSetupPayload(nextSetup))
       .then(() => api.completeOnboarding())
-      .finally(() => {
+      .then(() => {
         saveStoredLifeOsSetup(nextSetup);
         window.localStorage.setItem(onboardingKey, "true");
         router.push("/dashboard");
+      })
+      .catch(() => {
+        saveStoredLifeOsSetup(nextSetup);
+        window.localStorage.removeItem(onboardingKey);
+        setSaveError("Setup was saved locally, but the API could not confirm onboarding. Fix the connection and try again.");
+      })
+      .finally(() => {
+        setIsSaving(false);
       });
   }
 
@@ -240,6 +252,11 @@ export function OnboardingFlow() {
         <div className="mt-5 h-2 overflow-hidden rounded-full bg-black/5">
           <div className="h-full rounded-full bg-accent transition-all duration-300" style={{ width: `${completedPercent}%` }} />
         </div>
+        {saveError ? (
+          <div className="mt-4 rounded-[20px] border border-[rgba(165,57,42,0.16)] bg-[rgba(165,57,42,0.08)] px-4 py-3 text-sm text-[#7a2f22]">
+            {saveError}
+          </div>
+        ) : null}
       </Panel>
 
       {step === 0 ? (
@@ -538,18 +555,23 @@ export function OnboardingFlow() {
           <p className="text-sm font-medium text-ink">{completedPercent}% done</p>
         </div>
         <div className="flex items-center gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Button className="h-11 shrink-0 px-4 sm:w-auto" variant="ghost" onClick={() => setStep((current) => Math.max(0, current - 1) as Step)} disabled={step === 0}>
+          <Button
+            className="h-11 shrink-0 px-4 sm:w-auto"
+            variant="ghost"
+            onClick={() => setStep((current) => Math.max(0, current - 1) as Step)}
+            disabled={step === 0 || isSaving}
+          >
             <ChevronLeft className="h-4 w-4" /> Back
           </Button>
           <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:flex-none sm:items-center">
             {step < 3 ? (
-              <Button className="h-11 w-full sm:w-auto" onClick={() => setStep((current) => Math.min(3, current + 1) as Step)}>
+              <Button className="h-11 w-full sm:w-auto" onClick={() => setStep((current) => Math.min(3, current + 1) as Step)} disabled={isSaving}>
                 Next <ChevronRight className="h-4 w-4" />
               </Button>
             ) : null}
             {step === 3 ? (
-              <Button className="h-11 w-full sm:w-auto" onClick={completeOnboarding}>
-                <Check className="h-4 w-4" /> Save setup
+              <Button className="h-11 w-full sm:w-auto" onClick={completeOnboarding} disabled={isSaving}>
+                <Check className="h-4 w-4" /> {isSaving ? "Saving..." : "Save setup"}
               </Button>
             ) : null}
           </div>

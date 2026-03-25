@@ -17,6 +17,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    settings.validate_supabase_alignment()
     is_dev = settings.environment == "development"
     cors_allowed_origins = settings.get_cors_allowed_origins()
     app = FastAPI(

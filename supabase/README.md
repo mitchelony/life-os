@@ -2,20 +2,20 @@
 
 This directory contains the database assets for Life OS.
 
-It is the long-term data layer for the product and includes:
+It is the canonical database layer for the product and includes:
 
 - SQL migrations
-- local seed data
+- local seed data for optional local Supabase use
 - Supabase project configuration
 
-The current app is still in an MVP transition phase, so some local backend flows can run without full Supabase wiring. This folder documents the intended database path.
+The active product path is a hosted Supabase project. Local Supabase remains optional for isolated development.
 
 ## Directory Contents
 
 ```text
-config.toml      Supabase local project config
-migrations/      schema changes
-seed.sql         local development seed data
+config.toml      optional local Supabase config
+migrations/      canonical schema changes
+seed.sql         optional local development seed data
 ```
 
 ## Database Design Principles
@@ -26,7 +26,31 @@ seed.sql         local development seed data
 - obligations and debts drive urgency and spendability logic
 - migrations should be additive and readable
 
-## Local Supabase Setup
+## Hosted Supabase Setup
+
+The hosted project is the default path right now.
+
+Recommended flow:
+
+1. Create a new hosted Supabase project
+2. Run the canonical schema SQL from `supabase/migrations/20260323000100_initial_schema.sql`
+3. Enable Email auth
+4. Enable Google auth if desired
+5. Add redirect URLs:
+   - `http://localhost:3000/auth/callback`
+   - `http://localhost:3001/auth/callback`
+6. Create the owner user through Auth or sign up through the app
+7. Point repo `.env` and `apps/web/.env.local` at the same hosted project
+
+Notes:
+
+- the auth trigger creates `profiles`, `onboarding_state`, and default `app_settings` rows for new users
+- if you use the Supabase pooler, the database username must be `postgres.<project_ref>`
+- hosted SQL should be treated as the real schema path; do not depend on runtime `create_all()`
+- repo `.env` and `apps/web/.env.local` must all target the same hosted project; do not mix one project's `SUPABASE_URL` with another project's pooler URL
+- local browser validation should use `http://localhost:3000` or `http://localhost:3001` unless API CORS is expanded
+
+## Optional Local Supabase Setup
 
 Prerequisite:
 
@@ -35,7 +59,7 @@ Prerequisite:
 From the repository root:
 
 ```bash
-cd /Users/MAC/Documents/GitHub/life-os
+cd /Users/MAC/GitHub/life-os
 supabase start
 supabase db reset
 ```
@@ -46,9 +70,9 @@ What this does:
 - applies the migrations in `supabase/migrations`
 - runs `supabase/seed.sql`
 
-## Remote Supabase Setup
+## Optional Hosted CLI Workflow
 
-Link a hosted project:
+If you want to manage the hosted project through the CLI:
 
 ```bash
 supabase link --project-ref <project-ref>
@@ -60,7 +84,7 @@ Push migrations:
 supabase db push
 ```
 
-Use caution with seed data on hosted environments. `seed.sql` is meant for local development unless you intentionally want starter data in a remote project.
+Use caution with seed data on hosted environments. `seed.sql` is meant for local development unless you intentionally want starter data in a hosted project.
 
 ## Seed Data and Owner UUID
 
@@ -112,6 +136,6 @@ supabase stop
 
 ## Relationship to the Rest of the Repo
 
-- [root README](/Users/MAC/Documents/GitHub/life-os/README.md) explains the full repo setup
+- [root README](/Users/MAC/GitHub/life-os/README.md) explains the full repo setup
 - [apps/api/README.md](/Users/MAC/GitHub/life-os/apps/api/README.md) covers backend development
 - [docs/ARCHITECTURE.md](/Users/MAC/GitHub/life-os/docs/ARCHITECTURE.md) captures the domain model and API direction
