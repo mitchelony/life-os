@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type BackendDashboardResponse, type BackendSetupPayload } from "@/lib/api";
 import { computeAvailableSpend, getCreditCardBalance, getTotalCash, money } from "@/lib/finance";
-import { sampleDashboard } from "@/lib/sample-data";
 import type {
   Account,
   AdvisoryAllocation,
@@ -1754,8 +1753,68 @@ export function saveStoredLifeOsSetup(payload: StoredLifeOsSetup) {
   window.dispatchEvent(new Event(changedEvent));
 }
 
+function buildEmptyDashboardSnapshot(): DashboardSnapshot {
+  const now = new Date().toISOString();
+  return {
+    generatedAt: now,
+    today: now,
+    nextItem: "Finish setup in Settings",
+    afterThat: "Add your first bill or income source",
+    availableSpend: computeAvailableSpend({
+      accounts: [],
+      obligations: [],
+      debts: [],
+      upcomingIncome: [],
+      protectedCashBuffer: 0,
+      manualReserves: 0,
+      essentialSpendRemaining: 0,
+      nextIncomeDate: now,
+    }),
+    cashSummary: {
+      totalCash: 0,
+      checking: 0,
+      savings: 0,
+      creditCard: 0,
+      totalDebt: 0,
+      overdueObligations: 0,
+      upcomingIncome: 0,
+    },
+    topPriorities: [],
+    upcomingIncome: [],
+    accounts: [],
+    obligations: [],
+    debts: [],
+    merchants: [],
+    sources: [],
+    recentTransactions: [],
+    roadmap: {
+      items: [],
+      summary: {
+        activeCount: 0,
+        overdueCount: 0,
+        completedCount: 0,
+        debtOrObligationCount: 0,
+        overallProgress: 0,
+        mostUrgentItem: null,
+        recommendedNextStep: null,
+      },
+      focus: {
+        item: null,
+        nextStep: null,
+        whyNow: "Add a strategy or finish setup to see what gets paid first.",
+      },
+      paycheckFlow: {
+        plans: [],
+        nextPlan: null,
+        nextAllocation: null,
+      },
+      strategy: null,
+    },
+  };
+}
+
 export function buildDashboardFromSetup(setup: StoredLifeOsSetup | null): DashboardSnapshot {
-  if (!setup) return sampleDashboard;
+  if (!setup) return buildEmptyDashboardSnapshot();
 
   const normalizedSetup = normalizeStoredLifeOsSetup(setup);
   const openingAccounts = mapAccounts(normalizedSetup.accounts);
@@ -1825,7 +1884,7 @@ export function buildDashboardFromSetup(setup: StoredLifeOsSetup | null): Dashbo
   const topPriorities = buildTopPriorities(obligations, debts, upcomingIncome);
 
   return {
-    ...sampleDashboard,
+    ...buildEmptyDashboardSnapshot(),
     generatedAt: new Date().toISOString(),
     today: new Date().toISOString(),
     nextItem: roadmapFocus.nextStep?.title ?? paycheckFlow.nextAllocation?.label ?? topPriorities[0]?.title ?? "Finish setup in Settings",
@@ -1899,7 +1958,7 @@ export function useStoredLifeOsSetup() {
 }
 
 export function useLifeOsDashboard() {
-  const [dashboard, setDashboard] = useState<DashboardSnapshot>(sampleDashboard);
+  const [dashboard, setDashboard] = useState<DashboardSnapshot>(() => buildDashboardFromSetup(readStoredLifeOsSetup()));
 
   useEffect(() => {
     let cancelled = false;

@@ -43,6 +43,7 @@ This file is the compact handoff for new threads.
   - top actions
   - compact weekly strip
 - Do not let it drift back into a dense reporting page.
+- Authenticated app pages should not flash `sampleDashboard` content before real local/API data hydrates.
 
 ## Roadmap UX State
 

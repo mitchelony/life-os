@@ -599,6 +599,18 @@ describe("applyQuickAddToSetup", () => {
 });
 
 describe("buildDashboardFromSetup", () => {
+  it("returns an empty dashboard snapshot when no setup exists", () => {
+    const snapshot = buildDashboardFromSetup(null);
+
+    expect(snapshot.availableSpend.availableNow).toBe(0);
+    expect(snapshot.availableSpend.availableThroughNextIncome).toBe(0);
+    expect(snapshot.accounts).toEqual([]);
+    expect(snapshot.obligations).toEqual([]);
+    expect(snapshot.debts).toEqual([]);
+    expect(snapshot.topPriorities).toEqual([]);
+    expect(snapshot.nextItem).toBe("Finish setup in Settings");
+  });
+
   it("parses and saves a valid strategy document", () => {
     const parsed = parseStrategyDocument(strategyJson);
     expect(parsed.errors).toEqual([]);
