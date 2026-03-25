@@ -82,8 +82,11 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   async function handleSignOut() {
     await signOut();
     setMobileMenuOpen(false);
+    if (typeof window !== "undefined") {
+      window.location.assign("/login");
+      return;
+    }
     router.replace("/login");
-    router.refresh();
   }
 
   const pullProgress = getPullToRefreshProgress(pullDistance);
