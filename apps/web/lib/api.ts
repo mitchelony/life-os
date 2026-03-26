@@ -210,6 +210,23 @@ export type BackendTaskCreatePayload = {
 
 export type BackendTaskUpdatePayload = Partial<BackendTaskCreatePayload>;
 
+export type BackendTransaction = {
+  id: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+  kind: "expense" | "income" | "transfer";
+  amount: number;
+  account_id?: string | null;
+  category_id?: string | null;
+  merchant_id?: string | null;
+  income_source_id?: string | null;
+  occurred_on: string;
+  notes?: string | null;
+  is_planned: boolean;
+  is_cleared: boolean;
+};
+
 export type BackendDecisionAction = {
   id: string;
   title: string;
@@ -427,6 +444,69 @@ export type BackendIncomePlanAllocation = {
 export type BackendIncomePlanAllocationCreatePayload = Omit<BackendIncomePlanAllocation, "id" | "owner_id" | "created_at" | "updated_at">;
 export type BackendIncomePlanAllocationUpdatePayload = Partial<Omit<BackendIncomePlanAllocationCreatePayload, "income_plan_id">>;
 
+export type BackendRoadmapImportStep = {
+  title: string;
+  status?: string;
+  due_on?: string | null;
+  sort_order?: number;
+  linked_type?: string | null;
+  linked_id?: string | null;
+  notes?: string | null;
+};
+
+export type BackendRoadmapImportGoal = {
+  temp_id?: string | null;
+  title: string;
+  description?: string;
+  status?: string;
+  priority?: string;
+  target_date?: string | null;
+  linked_type?: string | null;
+  linked_id?: string | null;
+  metric_kind?: string | null;
+  metric_start_value?: number | null;
+  metric_current_value?: number | null;
+  metric_target_value?: number | null;
+  steps?: BackendRoadmapImportStep[];
+};
+
+export type BackendRoadmapImportAllocation = {
+  label: string;
+  allocation_type: string;
+  amount: number;
+  sort_order?: number;
+  linked_type?: string | null;
+  linked_id?: string | null;
+  notes?: string | null;
+};
+
+export type BackendRoadmapImportIncomePlan = {
+  temp_id?: string | null;
+  label: string;
+  amount: number;
+  expected_on?: string | null;
+  is_reliable?: boolean;
+  status?: string;
+  notes?: string | null;
+  allocations?: BackendRoadmapImportAllocation[];
+};
+
+export type BackendRoadmapImportPayload = {
+  version?: number;
+  reset_planning_first?: boolean;
+  goals?: BackendRoadmapImportGoal[];
+  income_plans?: BackendRoadmapImportIncomePlan[];
+};
+
+export type BackendRoadmapImportResult = {
+  goals_created: number;
+  steps_created: number;
+  income_plans_created: number;
+  allocations_created: number;
+  goal_ids: Record<string, string>;
+  income_plan_ids: Record<string, string>;
+};
+
 export type BackendDebt = {
   id: string;
   owner_id: string;
@@ -465,6 +545,73 @@ export type BackendAccount = {
   balance: number;
   is_active: boolean;
   notes?: string | null;
+};
+
+export type BackendIncomeEntry = {
+  id: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+  source_name: string;
+  amount: number;
+  status: "expected" | "received" | "missed";
+  expected_on?: string | null;
+  received_on?: string | null;
+  account_id?: string | null;
+  notes?: string | null;
+};
+
+export type BackendIncomeEntryCreatePayload = {
+  source_name: string;
+  amount: number;
+  status?: "expected" | "received" | "missed";
+  expected_on?: string | null;
+  received_on?: string | null;
+  account_id?: string | null;
+  notes?: string | null;
+};
+
+export type BackendIncomeEntryUpdatePayload = Partial<BackendIncomeEntryCreatePayload>;
+
+export type BackendIncomeEntryConfirmPayload = {
+  received_on?: string | null;
+  account_id?: string | null;
+};
+
+export type BackendIncomeEntryConfirmResponse = {
+  income_entry: BackendIncomeEntry;
+  transaction_id: string;
+};
+
+export type BackendPlanningContextExport = {
+  version: number;
+  exported_at: string;
+  owner_id: string;
+  settings: Record<string, string>;
+  accounts: BackendAccount[];
+  debts: BackendDebt[];
+  obligations: BackendObligation[];
+  expected_income_entries: BackendIncomeEntry[];
+  expense_transactions: BackendTransaction[];
+  actions: BackendAction[];
+  roadmap_goals: BackendRoadmapGoal[];
+  roadmap_steps: BackendRoadmapStep[];
+  income_plans: BackendIncomePlan[];
+  income_plan_allocations: BackendIncomePlanAllocation[];
+  allowed_values: {
+    account_types: string[];
+    debt_statuses: string[];
+    obligation_frequencies: string[];
+    income_statuses: string[];
+    action_statuses: string[];
+    action_lanes: string[];
+    action_sources: string[];
+    roadmap_goal_statuses: string[];
+    roadmap_goal_priorities: string[];
+    roadmap_step_statuses: string[];
+    income_plan_statuses: string[];
+    income_allocation_types: string[];
+  };
 };
 
 function requestErrorMessage(path: string) {
@@ -665,6 +812,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
     listDebts: () => get<BackendDebt[]>("/debts", [], { required: true }),
     listObligations: () => get<BackendObligation[]>("/obligations", [], { required: true }),
     listAccounts: () => get<BackendAccount[]>("/accounts", [], { required: true }),
+    listIncomeEntries: () => get<BackendIncomeEntry[]>("/income-entries", [], { required: true }),
     createTask: (payload: BackendTaskCreatePayload) =>
       post<BackendTask>("/tasks", payload, {
         id: "task-draft",
@@ -803,6 +951,62 @@ export function createApiClient(options: ApiClientOptions = {}) {
         updated_at: "",
         ...payload,
       }, { required: true }),
+    createIncomeEntry: (payload: BackendIncomeEntryCreatePayload) =>
+      post<BackendIncomeEntry>("/income-entries", payload, {
+        id: "income-entry-draft",
+        owner_id: "",
+        created_at: "",
+        updated_at: "",
+        source_name: payload.source_name,
+        amount: payload.amount,
+        status: payload.status ?? "expected",
+        expected_on: payload.expected_on ?? null,
+        received_on: payload.received_on ?? null,
+        account_id: payload.account_id ?? null,
+        notes: payload.notes ?? null,
+      }, { required: true }),
+    updateIncomeEntry: (entryId: string, payload: BackendIncomeEntryUpdatePayload) =>
+      patch<BackendIncomeEntry>(`/income-entries/${entryId}`, payload, {
+        id: entryId,
+        owner_id: "",
+        created_at: "",
+        updated_at: "",
+        source_name: payload.source_name ?? "",
+        amount: payload.amount ?? 0,
+        status: payload.status ?? "expected",
+        expected_on: payload.expected_on ?? null,
+        received_on: payload.received_on ?? null,
+        account_id: payload.account_id ?? null,
+        notes: payload.notes ?? null,
+      }, { required: true }),
+    deleteIncomeEntry: (entryId: string) => del(`/income-entries/${entryId}`, { required: true }),
+    confirmIncomeEntry: (entryId: string, payload: BackendIncomeEntryConfirmPayload) =>
+      post<BackendIncomeEntryConfirmResponse>(`/income-entries/${entryId}/confirm`, payload, {
+        income_entry: {
+          id: entryId,
+          owner_id: "",
+          created_at: "",
+          updated_at: "",
+          source_name: "",
+          amount: 0,
+          status: "received",
+          expected_on: null,
+          received_on: payload.received_on ?? null,
+          account_id: payload.account_id ?? null,
+          notes: null,
+        },
+        transaction_id: "",
+      }, { required: true }),
+    importRoadmap: (payload: BackendRoadmapImportPayload) =>
+      post<BackendRoadmapImportResult>("/roadmap/import", payload, {
+        goals_created: 0,
+        steps_created: 0,
+        income_plans_created: 0,
+        allocations_created: 0,
+        goal_ids: {},
+        income_plan_ids: {},
+      }, { required: true }),
+    getPlanningContextExport: () => get<BackendPlanningContextExport | null>("/planning/context-export", null, { required: true }),
     relaunchPlanning: () => post<void>("/planning/relaunch", {}, undefined, { required: true }),
     submitQuickAdd: (draft: QuickAddDraft) =>
       post(

@@ -275,6 +275,16 @@ class IncomeEntryRead(TimestampedRead, IncomeEntryBase):
     pass
 
 
+class IncomeEntryConfirmRequest(BaseModel):
+    received_on: date | None = None
+    account_id: str | None = None
+
+
+class IncomeEntryConfirmResponse(BaseModel):
+    income_entry: IncomeEntryRead
+    transaction_id: str
+
+
 class ObligationBase(BaseModel):
     name: str
     amount: float
@@ -708,6 +718,102 @@ class RoadmapPlanRead(BaseModel):
 class RoadmapGoalSummary(BaseModel):
     goals: list[RoadmapGoalRead] = Field(default_factory=list)
     plans: list[RoadmapPlanRead] = Field(default_factory=list)
+
+
+class RoadmapImportStep(BaseModel):
+    title: str
+    status: str = "todo"
+    due_on: date | None = None
+    sort_order: int = 0
+    linked_type: str | None = None
+    linked_id: str | None = None
+    notes: str | None = None
+
+
+class RoadmapImportGoal(BaseModel):
+    temp_id: str | None = None
+    title: str
+    description: str = ""
+    status: str = "active"
+    priority: str = "medium"
+    target_date: date | None = None
+    linked_type: str | None = None
+    linked_id: str | None = None
+    metric_kind: str | None = None
+    metric_start_value: float | None = None
+    metric_current_value: float | None = None
+    metric_target_value: float | None = None
+    steps: list[RoadmapImportStep] = Field(default_factory=list)
+
+
+class RoadmapImportAllocation(BaseModel):
+    label: str
+    allocation_type: str
+    amount: float
+    sort_order: int = 0
+    linked_type: str | None = None
+    linked_id: str | None = None
+    notes: str | None = None
+
+
+class RoadmapImportIncomePlan(BaseModel):
+    temp_id: str | None = None
+    label: str
+    amount: float
+    expected_on: date | None = None
+    is_reliable: bool = True
+    status: str = "planned"
+    notes: str | None = None
+    allocations: list[RoadmapImportAllocation] = Field(default_factory=list)
+
+
+class RoadmapImportPayload(BaseModel):
+    version: int = 1
+    reset_planning_first: bool = False
+    goals: list[RoadmapImportGoal] = Field(default_factory=list)
+    income_plans: list[RoadmapImportIncomePlan] = Field(default_factory=list)
+
+
+class RoadmapImportResult(BaseModel):
+    goals_created: int = 0
+    steps_created: int = 0
+    income_plans_created: int = 0
+    allocations_created: int = 0
+    goal_ids: dict[str, str] = Field(default_factory=dict)
+    income_plan_ids: dict[str, str] = Field(default_factory=dict)
+
+
+class ContextExportAllowedValues(BaseModel):
+    account_types: list[str] = Field(default_factory=list)
+    debt_statuses: list[str] = Field(default_factory=list)
+    obligation_frequencies: list[str] = Field(default_factory=list)
+    income_statuses: list[str] = Field(default_factory=list)
+    action_statuses: list[str] = Field(default_factory=list)
+    action_lanes: list[str] = Field(default_factory=list)
+    action_sources: list[str] = Field(default_factory=list)
+    roadmap_goal_statuses: list[str] = Field(default_factory=list)
+    roadmap_goal_priorities: list[str] = Field(default_factory=list)
+    roadmap_step_statuses: list[str] = Field(default_factory=list)
+    income_plan_statuses: list[str] = Field(default_factory=list)
+    income_allocation_types: list[str] = Field(default_factory=list)
+
+
+class ContextExportPayload(BaseModel):
+    version: int = 1
+    exported_at: datetime
+    owner_id: str
+    settings: dict[str, str] = Field(default_factory=dict)
+    accounts: list[AccountRead] = Field(default_factory=list)
+    debts: list[DebtRead] = Field(default_factory=list)
+    obligations: list[ObligationRead] = Field(default_factory=list)
+    expected_income_entries: list[IncomeEntryRead] = Field(default_factory=list)
+    expense_transactions: list[TransactionRead] = Field(default_factory=list)
+    actions: list[ActionItemRead] = Field(default_factory=list)
+    roadmap_goals: list[RoadmapGoalEntityRead] = Field(default_factory=list)
+    roadmap_steps: list[RoadmapStepRead] = Field(default_factory=list)
+    income_plans: list[IncomePlanRead] = Field(default_factory=list)
+    income_plan_allocations: list[IncomePlanAllocationRead] = Field(default_factory=list)
+    allowed_values: ContextExportAllowedValues
 
 
 class DecisionSnapshot(BaseModel):
