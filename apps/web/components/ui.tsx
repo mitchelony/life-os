@@ -35,18 +35,24 @@ export function SectionHeading({
   title,
   description,
   action,
+  tone = "default",
 }: {
   eyebrow?: string;
   title: string;
   description?: string;
   action?: ReactNode;
+  tone?: "default" | "inverse";
 }) {
+  const eyebrowClass = tone === "inverse" ? "text-white/70" : "text-muted";
+  const titleClass = tone === "inverse" ? "text-white" : "text-ink";
+  const descriptionClass = tone === "inverse" ? "text-white/78" : "text-muted";
+
   return (
     <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end sm:gap-4">
       <div className="space-y-1">
-        {eyebrow ? <p className="text-[10px] uppercase tracking-[0.24em] text-muted md:text-[11px] md:tracking-[0.28em]">{eyebrow}</p> : null}
-        <h2 className="text-base font-semibold tracking-tight text-ink md:text-lg">{title}</h2>
-        {description ? <p className="max-w-2xl text-sm leading-6 text-muted">{description}</p> : null}
+        {eyebrow ? <p className={cn("text-[10px] uppercase tracking-[0.24em] md:text-[11px] md:tracking-[0.28em]", eyebrowClass)}>{eyebrow}</p> : null}
+        <h2 className={cn("text-base font-semibold tracking-tight md:text-lg", titleClass)}>{title}</h2>
+        {description ? <p className={cn("max-w-2xl text-sm leading-6", descriptionClass)}>{description}</p> : null}
       </div>
       {action ? <div className="w-full shrink-0 sm:w-auto">{action}</div> : null}
     </div>
@@ -163,19 +169,24 @@ export function InlineField({
   children,
   helper,
   description,
+  tone = "default",
 }: {
   label: string;
   children: ReactNode;
   helper?: string;
   description?: string;
+  tone?: "default" | "inverse";
 }) {
+  const labelClass = tone === "inverse" ? "text-white" : "text-ink";
+  const helperClass = tone === "inverse" ? "text-white/72" : "text-muted";
+
   return (
     <label className="space-y-2">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-ink">{label}</span>
-        {helper ? <span className="text-xs text-muted">{helper}</span> : null}
+        <span className={cn("text-sm font-medium", labelClass)}>{label}</span>
+        {helper ? <span className={cn("text-xs", helperClass)}>{helper}</span> : null}
       </div>
-      {description ? <p className="text-xs leading-5 text-muted">{description}</p> : null}
+      {description ? <p className={cn("text-xs leading-5", helperClass)}>{description}</p> : null}
       {children}
     </label>
   );

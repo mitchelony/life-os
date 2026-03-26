@@ -445,13 +445,19 @@ export default function RoadmapPage() {
           eyebrow="Roadmap"
           title={snapshot?.focus.primaryAction?.title ?? "Set the next paycheck in order"}
           description={snapshot?.focus.whyNow ?? "Roadmap should answer what gets paid first, what happens after that, and what goal is actually active."}
+          tone="inverse"
           action={
             <div className="flex flex-wrap gap-2">
               <Button variant="secondary" disabled={pending} onClick={() => setGoalComposerOpen((current) => !current)}>
                 <Plus className="h-4 w-4" />
                 {goalComposerOpen ? "Close goal" : "Add goal"}
               </Button>
-              <Button variant="soft" disabled={pending} onClick={() => setPlanComposerOpen((current) => !current)}>
+              <Button
+                variant="ghost"
+                className="border-white/18 bg-white/10 text-white hover:bg-white/16"
+                disabled={pending}
+                onClick={() => setPlanComposerOpen((current) => !current)}
+              >
                 <Plus className="h-4 w-4" />
                 {planComposerOpen ? "Close plan" : "Add paycheck plan"}
               </Button>
@@ -480,17 +486,17 @@ export default function RoadmapPage() {
 
         {goalComposerOpen ? (
           <div className="mt-5 grid gap-3 rounded-[24px] border border-white/10 bg-white/10 p-4 md:grid-cols-2">
-            <InlineField label="Goal title">
+            <InlineField label="Goal title" tone="inverse">
               <Input value={goalDraft.title} onChange={(event) => setGoalDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Get utilities current and stop the slide" />
             </InlineField>
-            <InlineField label="Target date">
+            <InlineField label="Target date" tone="inverse">
               <Input type="date" value={goalDraft.targetDate} onChange={(event) => setGoalDraft((current) => ({ ...current, targetDate: event.target.value }))} />
             </InlineField>
-            <InlineField label="Description">
+            <InlineField label="Description" tone="inverse">
               <Textarea rows={3} value={goalDraft.description} onChange={(event) => setGoalDraft((current) => ({ ...current, description: event.target.value }))} placeholder="State the outcome in plain language." />
             </InlineField>
             <div className="grid gap-3">
-              <InlineField label="Priority">
+              <InlineField label="Priority" tone="inverse">
                 <Select value={goalDraft.priority} onChange={(event) => setGoalDraft((current) => ({ ...current, priority: event.target.value }))}>
                   {goalPriorityOptions.map((option) => (
                     <option key={option} value={option}>
@@ -499,7 +505,7 @@ export default function RoadmapPage() {
                   ))}
                 </Select>
               </InlineField>
-              <InlineField label="Link">
+              <InlineField label="Link" tone="inverse">
                 <Select
                   value={goalDraft.linkedType && goalDraft.linkedId ? `${goalDraft.linkedType}:${goalDraft.linkedId}` : ""}
                   onChange={(event) => {
@@ -530,16 +536,16 @@ export default function RoadmapPage() {
 
         {planComposerOpen ? (
           <div className="mt-5 grid gap-3 rounded-[24px] border border-white/10 bg-white/10 p-4 md:grid-cols-2">
-            <InlineField label="Plan label">
+            <InlineField label="Plan label" tone="inverse">
               <Input value={planDraft.label} onChange={(event) => setPlanDraft((current) => ({ ...current, label: event.target.value }))} placeholder="When the next paycheck lands" />
             </InlineField>
-            <InlineField label="Amount">
+            <InlineField label="Amount" tone="inverse">
               <Input value={planDraft.amount} onChange={(event) => setPlanDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" inputMode="decimal" />
             </InlineField>
-            <InlineField label="Expected on">
+            <InlineField label="Expected on" tone="inverse">
               <Input type="date" value={planDraft.expectedOn} onChange={(event) => setPlanDraft((current) => ({ ...current, expectedOn: event.target.value }))} />
             </InlineField>
-            <InlineField label="Reliability">
+            <InlineField label="Reliability" tone="inverse">
               <Select
                 value={planDraft.isReliable ? "reliable" : "tentative"}
                 onChange={(event) => setPlanDraft((current) => ({ ...current, isReliable: event.target.value === "reliable" }))}
@@ -548,7 +554,7 @@ export default function RoadmapPage() {
                 <option value="tentative">Tentative</option>
               </Select>
             </InlineField>
-            <InlineField label="Notes" helper="Optional">
+            <InlineField label="Notes" helper="Optional" tone="inverse">
               <Textarea rows={3} value={planDraft.notes} onChange={(event) => setPlanDraft((current) => ({ ...current, notes: event.target.value }))} placeholder="Keep the intent clear." />
             </InlineField>
             <div className="md:col-span-2">
