@@ -26,6 +26,14 @@ This file is the compact handoff for new threads.
   - settings/bootstrap
   - roadmap and strategy
 - Browser storage is still used as a mirror or fallback, not as the main saved truth.
+- Current settings flow is split into:
+  - `Roadmap setup`
+  - `Onboarding`
+  - `Useful settings`
+- `Roadmap setup` now owns:
+  - GPT context export
+  - roadmap import schema `v2`
+- Expected income now has its own `Income` route outside onboarding.
 
 ## Auth State
 
@@ -76,6 +84,8 @@ This file is the compact handoff for new threads.
   - compact weekly strip
 - Do not let it drift back into a dense reporting page.
 - Authenticated app pages should not flash `sampleDashboard` content before real local/API data hydrates.
+- Closed or inactive items should not keep feeding dashboard priority.
+- Completed, skipped, or blocked actions belong lower in the action system, not in the dashboard hero path.
 
 ## Accounts UX State
 
@@ -91,18 +101,37 @@ This file is the compact handoff for new threads.
 - Account deletion should stay conservative:
   - if an account still has linked data, do not silently let the page orphan those references
 
-## Tasks UX State
+## Actions State
 
-- Tasks should stay derived from obligations, debt minimums, and expected income.
-- The user should still be able to manage that list:
-  - add manual tasks
-  - edit derived task wording, due dates, priority, and notes through overrides
-  - mark tasks done or reopen them
-  - hide derived tasks and restore them later
-- Managed task state is currently local-first:
-  - it lives in browser setup storage as `manualTasks` and `taskOverrides`
-  - it should survive onboarding saves and API dashboard/setup refreshes
-- The Tasks page is now the control surface for that behavior, not just a read-only mirror of dashboard top actions.
+- The product language has shifted from `Tasks` toward `Actions`, even if `/tasks` still exists as the route.
+- Actions are API-backed and persist across refresh and login.
+- Inactive actions:
+  - `done`
+  - `skipped`
+  - `blocked`
+- Inactive actions should:
+  - fall to the bottom of the action list
+  - stop feeding dashboard priority
+  - stop acting like live next-step guidance
+- Action lanes are now date-aware:
+  - due today or overdue -> `do_now`
+  - due within 7 days -> `this_week`
+  - later work -> `manual`
+  - explicit `when_income_lands` remains distinct
+
+## Income State
+
+- Expected income is managed on `/income`.
+- The Income page is the current control surface for:
+  - viewing expected income
+  - editing expected income
+  - deleting expected income
+  - confirming expected income into a real income transaction
+- Confirmation should:
+  - mark the income entry as received
+  - create a real transaction
+  - update the linked account when an account is provided
+  - write an activity event for downstream snapshot surfaces
 
 ## Roadmap UX State
 
@@ -115,6 +144,11 @@ This file is the compact handoff for new threads.
 - The canonical bulk seed contract is roadmap import schema `v2`.
 - GPT-pasted roadmap JSON may contain smart quotes; the frontend import flow should normalize them before parse when safe to do so.
 - Import files should preserve explicit linked ids for real records and use temp ids only for in-file dependencies.
+- Current import caveats:
+  - goal, step, and income-plan temp ids resolve within the import file
+  - top-level debt, obligation, and expected-income temp ids also resolve when `temp_id` is provided
+  - if you want to preserve existing debt and obligation ids after a planning reset, leave top-level `debts` and `obligations` empty in the import payload
+  - `source_income_entry_id` should be a real existing id or `null`, not a placeholder label
 
 ## Icon State
 
@@ -150,6 +184,33 @@ This file is the compact handoff for new threads.
   - then earlier `created_at`
   - then lower `id`
 - Regression tests cover duplicate `profiles` and duplicate `onboarding_state` rows.
+- Planning relaunch currently clears:
+  - roadmap goals and steps
+  - actions
+  - planner drafts
+  - activity history
+  - progress snapshots
+  - transactions
+  - expected income entries
+  - merchants
+  - income sources
+  - reserves
+- Planning relaunch currently preserves:
+  - accounts
+  - debts
+  - obligations
+- The roadmap importer writes `ActivityEvent` rows so recent updates can reflect bulk setup activity.
+
+## Current Progress Snapshot
+
+- API-owned planning state is live.
+- Settings owns the main setup and reset workflows.
+- Expected income has a dedicated route instead of living only in onboarding.
+- Context export plus roadmap import schema `v2` form the GPT-assisted setup path.
+- Dashboard and roadmap both read from shared backend planning state.
+- The main remaining sharp edge is operational, not conceptual:
+  - hosted migrations must stay in sync with importer fields before deploys
+  - production web envs must never build against localhost API values
 
 ## Verification Commands
 
@@ -203,22 +264,14 @@ python3 -m playwright --help
 
 ## Known Next Steps
 
-- Do a Playwright validation pass for auth:
-  - sign up
-  - sign in
-  - Google redirect start
-  - OAuth callback completion
-  - onboarding completion
-  - logout
-- Validate full hosted flow with the correct `life-os` database credentials in repo `.env`:
-  - sign back in
-  - quick add
-  - roadmap strategy save/load
-- Keep repo docs aligned with real hosted-project behavior after each substantial pass.
-- Keep polishing primary surfaces around their core question instead of adding more panels.
-- Keep local setup mirroring and API-backed onboarding state separate so fresh-session routing stays consistent.
-- Next major product slice after the current auth/mobile work:
-  - in-app editing and adjustment for debts
-  - obligations
-  - income
-  - expenses/transactions
+- Do a focused hosted validation pass for:
+  - roadmap import `v2`
+  - context export
+  - expected income confirm flow
+  - relaunch planning behavior
+- Keep deploy docs aligned with the real Vercel and Render env behavior so production never falls back to localhost.
+- Keep roadmap import docs honest about current temp-id resolution limits instead of implying broader linker support than exists today.
+- Keep primary surfaces focused on:
+  - dashboard -> what matters now
+  - roadmap -> what gets paid first
+  - income -> what money is expected next

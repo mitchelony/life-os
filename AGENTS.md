@@ -207,6 +207,14 @@ This file is the build contract for Codex agents and human contributors working 
   - top actions
   - spend breakdown
   - compact "this week" strip
+- Settings now owns the bulk setup workflow:
+  - GPT context export
+  - roadmap import schema `v2`
+  - onboarding edits
+  - planning relaunch
+- Expected income now has its own `Income` route and can be confirmed into real income transactions.
+- Planning relaunch currently clears expected income, transactions, merchants, income sources, reserves, roadmap state, actions, and progress history while preserving accounts, debts, and obligations.
+- Actions are API-backed, date-aware, and inactive action states should stop feeding dashboard priority.
 - Browser and hosted-db validation should use disposable test identities and remove them, plus any linked owner-scoped rows, before the pass is considered complete.
 - When updating docs or setup steps, keep them aligned with the active hosted-Supabase flow and the clean repo path.
 - Before ending a substantial pass, check whether `.gitignore` needs updates for any newly generated local artifacts.
@@ -216,6 +224,7 @@ This file is the build contract for Codex agents and human contributors working 
 - Roadmap import schema `v2` is the preferred one-shot planning seed format.
 - Frontend roadmap import should live in Settings rather than being hidden inside onboarding.
 - Import payloads may contain richer advisory fields than the current UI uses; the backend importer is the contract boundary for what is actually persisted.
+- Temp-id resolution currently exists for goals, steps, income plans, and optional top-level debt, obligation, and expected-income temp ids when provided explicitly.
 
 ## What To Avoid
 

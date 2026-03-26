@@ -335,4 +335,114 @@ describe("createApiClient", () => {
     expect(calls[0]?.[1]?.method).toBe("POST");
     expect(result.goals_created).toBe(1);
   });
+
+  it("uses the typed accounts endpoints for CRUD", async () => {
+    vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            id: "account-1",
+            owner_id: "owner-1",
+            created_at: "2026-03-26T00:00:00Z",
+            updated_at: "2026-03-26T00:00:00Z",
+            name: "Checking",
+            type: "checking",
+            institution: "Bank",
+            balance: 1000,
+            is_active: true,
+            notes: null,
+            linked_record_count: 0,
+            can_delete: true,
+          }),
+          { status: 201 },
+        );
+      }
+      if (init?.method === "PATCH") {
+        return new Response(
+          JSON.stringify({
+            id: "account-1",
+            owner_id: "owner-1",
+            created_at: "2026-03-26T00:00:00Z",
+            updated_at: "2026-03-26T00:00:00Z",
+            name: "Main checking",
+            type: "checking",
+            institution: "Bank",
+            balance: 1180,
+            is_active: true,
+            notes: null,
+            linked_record_count: 0,
+            can_delete: true,
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(null, { status: 204 });
+    });
+
+    const client = createApiClient({
+      baseUrl: "http://localhost:8000/api",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    await client.createAccount({ name: "Checking", type: "checking", institution: "Bank", balance: 1000 });
+    await client.updateAccount("account-1", { name: "Main checking", balance: 1180 });
+    await client.deleteAccount("account-1");
+
+    const calls = fetchImpl.mock.calls as unknown as Array<[string, RequestInit | undefined]>;
+    expect(calls[0]?.[0]).toBe("http://localhost:8000/api/accounts");
+    expect(calls[0]?.[1]?.method).toBe("POST");
+    expect(calls[1]?.[0]).toBe("http://localhost:8000/api/accounts/account-1");
+    expect(calls[1]?.[1]?.method).toBe("PATCH");
+    expect(calls[2]?.[0]).toBe("http://localhost:8000/api/accounts/account-1");
+    expect(calls[2]?.[1]?.method).toBe("DELETE");
+  });
+
+  it("reads and writes typed app settings", async () => {
+    vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/settings") && (init?.method == null)) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "setting-1",
+              owner_id: "owner-1",
+              created_at: "2026-03-26T00:00:00Z",
+              updated_at: "2026-03-26T00:00:00Z",
+              key: "dashboard_show_momentum",
+              value: "true",
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          id: "setting-2",
+          owner_id: "owner-1",
+          created_at: "2026-03-26T00:00:00Z",
+          updated_at: "2026-03-26T00:00:00Z",
+          key: "dashboard_show_recent_updates",
+          value: "false",
+        }),
+        { status: 200 },
+      );
+    });
+
+    const client = createApiClient({
+      baseUrl: "http://localhost:8000/api",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    const settings = await client.listSettings();
+    await client.upsertSetting("dashboard_show_recent_updates", "false");
+
+    const calls = fetchImpl.mock.calls as unknown as Array<[string, RequestInit | undefined]>;
+    expect(settings[0]?.key).toBe("dashboard_show_momentum");
+    expect(calls[0]?.[0]).toBe("http://localhost:8000/api/settings");
+    expect(calls[1]?.[0]).toBe("http://localhost:8000/api/settings/dashboard_show_recent_updates");
+    expect(calls[1]?.[1]?.method).toBe("PUT");
+    expect(calls[1]?.[1]?.body).toBe(JSON.stringify({ value: "false" }));
+  });
 });

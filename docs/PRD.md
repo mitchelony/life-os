@@ -44,12 +44,13 @@ The home screen must let the user answer, within seconds:
 - accounts
 - expense entry
 - income entry
+- expected income management and confirmation
 - merchant/source reuse
 - bills and obligations
 - debt tracking
 - available-spend calculation
 - roadmap and payment-order planning
-- tasks and reminders
+- actions and reminders
 - settings and app preferences
 
 ### Explicitly Deferred
@@ -83,6 +84,7 @@ Must show:
 - `Available Through Next Income`
 - a compact weekly action strip
 - clear access to overdue items and spend breakdown without turning the page into a report
+- closed work should not keep competing with live priorities
 
 ### Quick Add
 
@@ -144,6 +146,18 @@ Roadmap should support:
 - one-shot import through roadmap schema `v2`
 - expected income, cash reserves, obligations, debts, and actions in the same planning import
 
+### Income
+
+Income should have its own control surface outside onboarding.
+
+It should support:
+
+- viewing expected income
+- editing expected income
+- deleting expected income
+- confirming expected income into real income history
+- keeping future income visible without forcing the user back through setup
+
 ## 7. Available Spend Logic
 
 ### Core Formula
@@ -204,6 +218,7 @@ The second number may include expected, reliable income before the current plann
 - due date, priority, status, linked financial entity, and notes
 - should not simply repeat roadmap strategy items in different words
 - should focus on short-horizon follow-up actions
+- closed actions should fall out of the main decision path once they are done, skipped, or blocked
 
 ### Settings
 
@@ -212,6 +227,9 @@ The second number may include expected, reliable income before the current plann
 - savings floor
 - dashboard preferences
 - initial setup state
+- GPT context export
+- roadmap import schema `v2`
+- planning relaunch
 
 ### Roadmap Strategy
 
@@ -223,6 +241,7 @@ The roadmap strategy layer should:
 - influence guidance across the dashboard, debts, obligations, and tasks
 - stay advisory only during MVP
 - not silently rewrite the ledger or account balances
+- accept richer advisory fields than the current UI may show, while letting the backend importer remain the contract boundary
 
 ## 9. Technical Direction
 

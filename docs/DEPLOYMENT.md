@@ -40,6 +40,8 @@ Notes:
 - `apps/web/vercel.json` marks the project as a Next.js app
 - the web app should never point at `localhost` in production
 - auth callback URLs should come from `NEXT_PUBLIC_APP_ORIGIN` in production, not from a local browser or LAN origin
+- `NEXT_PUBLIC_*` values are baked into the web bundle at build time
+- if you fix a bad API URL in Vercel env vars, redeploy the site; the running deployment will not pick up the change without a fresh build
 
 ## API on Render
 
@@ -71,6 +73,9 @@ Runtime notes:
 
 - the API must bind to `0.0.0.0`
 - health check path is `/healthz`
+- CORS origin matching must be exact
+- if Vercel serves `https://mitchel-life-os.vercel.app`, that exact origin must appear in `CORS_ALLOWED_ORIGINS`
+- after changing Render env vars, redeploy the service before retesting browser requests
 
 ## Supabase Production Settings
 
@@ -97,6 +102,8 @@ If you use a non-`app` subdomain, use the real production web origin everywhere 
    - onboarding route decision
    - logout
    - sign back in
+   - context export
+   - expected income confirm
    - roadmap save/load
    - roadmap import `v2`
 
@@ -109,6 +116,8 @@ If you use a non-`app` subdomain, use the real production web origin everywhere 
 - logout returns to `/login`
 - dashboard no longer references localhost
 - browser network requests target `https://api.<your-domain>/api/...`
+- roadmap import requests return real API errors instead of browser-level CORS failures
+- `/healthz` responds with `Access-Control-Allow-Origin` for the deployed Vercel origin when tested with an `Origin` header
 
 ## What Not To Do
 

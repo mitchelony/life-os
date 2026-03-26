@@ -31,14 +31,108 @@ class RoadmapImportService:
     db: Session
     owner_id: str
 
+    @staticmethod
+    def _resolve_linked_id(
+        linked_type: str | None,
+        linked_id: str | None,
+        *,
+        obligation_ids: dict[str, str],
+        debt_ids: dict[str, str],
+        income_entry_ids: dict[str, str],
+    ) -> str | None:
+        if linked_id is None:
+            return None
+        if linked_type == "obligation":
+            return obligation_ids.get(linked_id, linked_id)
+        if linked_type == "debt":
+            return debt_ids.get(linked_id, linked_id)
+        if linked_type == "income":
+            return income_entry_ids.get(linked_id, linked_id)
+        return linked_id
+
     def import_v2(self, payload: RoadmapImportV2Payload) -> RoadmapImportV2Result:
         if payload.reset_planning_first:
             self._reset(payload)
 
         result = RoadmapImportV2Result()
+        obligation_ids: dict[str, str] = {}
+        debt_ids: dict[str, str] = {}
+        income_entry_ids: dict[str, str] = {}
         goal_ids: dict[str, str] = {}
         step_ids: dict[str, str] = {}
         plan_ids: dict[str, str] = {}
+
+        for obligation_payload in payload.obligations:
+            obligation = Obligation(
+                owner_id=self.owner_id,
+                name=obligation_payload.name,
+                amount=obligation_payload.amount,
+                due_on=obligation_payload.due_on,
+                frequency=ObligationFrequency(obligation_payload.frequency),
+                is_paid=obligation_payload.is_paid,
+                is_recurring=obligation_payload.is_recurring,
+                is_externally_covered=obligation_payload.is_externally_covered,
+                coverage_source_label=obligation_payload.coverage_source_label,
+                minimum_due=obligation_payload.minimum_due,
+                past_due_amount=obligation_payload.past_due_amount,
+                target_payoff_date=obligation_payload.target_payoff_date,
+                notes=obligation_payload.notes,
+            )
+            self.db.add(obligation)
+            self.db.flush()
+            if obligation_payload.temp_id:
+                obligation_ids[obligation_payload.temp_id] = obligation.id
+            result.obligations_created += 1
+
+        for debt_payload in payload.debts:
+            debt = Debt(
+                owner_id=self.owner_id,
+                name=debt_payload.name,
+                balance=debt_payload.balance,
+                minimum_payment=debt_payload.minimum_payment,
+                due_on=debt_payload.due_on,
+                status=DebtStatus(debt_payload.status),
+                apr=debt_payload.apr,
+                statement_balance=debt_payload.statement_balance,
+                minimum_met=debt_payload.minimum_met,
+                minimum_met_on=debt_payload.minimum_met_on,
+                available_credit=debt_payload.available_credit,
+                no_new_spend_mode=debt_payload.no_new_spend_mode,
+                notes=debt_payload.notes,
+            )
+            self.db.add(debt)
+            self.db.flush()
+            if debt_payload.temp_id:
+                debt_ids[debt_payload.temp_id] = debt.id
+            result.debts_created += 1
+
+        created_income_entries: list[tuple[IncomeEntry, object]] = []
+        for income_payload in payload.expected_income_entries:
+            income_entry = IncomeEntry(
+                owner_id=self.owner_id,
+                source_name=income_payload.source_name,
+                amount=income_payload.amount,
+                status=IncomeStatus(income_payload.status),
+                expected_on=income_payload.expected_on,
+                received_on=income_payload.received_on,
+                account_id=income_payload.account_id,
+                is_reliable=income_payload.is_reliable,
+                category=income_payload.category,
+                linked_obligation_id=obligation_ids.get(income_payload.linked_obligation_id, income_payload.linked_obligation_id),
+                linked_debt_id=debt_ids.get(income_payload.linked_debt_id, income_payload.linked_debt_id),
+                is_partial=income_payload.is_partial,
+                parent_income_entry_id=income_payload.parent_income_entry_id,
+                notes=income_payload.notes,
+            )
+            self.db.add(income_entry)
+            self.db.flush()
+            if income_payload.temp_id:
+                income_entry_ids[income_payload.temp_id] = income_entry.id
+            created_income_entries.append((income_entry, income_payload))
+            result.expected_income_entries_created += 1
+
+        for income_entry, income_payload in created_income_entries:
+            income_entry.parent_income_entry_id = income_entry_ids.get(income_payload.parent_income_entry_id, income_payload.parent_income_entry_id)
 
         created_goals: list[tuple[RoadmapGoal, object]] = []
         for goal_payload in payload.goals:
@@ -57,7 +151,13 @@ class RoadmapImportService:
                 sort_order=goal_payload.sort_order,
                 depends_on_goal_ids=[],
                 linked_type=goal_payload.linked_type,
-                linked_id=goal_payload.linked_id,
+                linked_id=self._resolve_linked_id(
+                    goal_payload.linked_type,
+                    goal_payload.linked_id,
+                    obligation_ids=obligation_ids,
+                    debt_ids=debt_ids,
+                    income_entry_ids=income_entry_ids,
+                ),
                 notes=goal_payload.notes,
             )
             self.db.add(goal)
@@ -86,7 +186,13 @@ class RoadmapImportService:
                     is_financial_step=step_payload.is_financial_step,
                     completed_at=step_payload.completed_at,
                     linked_type=step_payload.linked_type,
-                    linked_id=step_payload.linked_id,
+                    linked_id=self._resolve_linked_id(
+                        step_payload.linked_type,
+                        step_payload.linked_id,
+                        obligation_ids=obligation_ids,
+                        debt_ids=debt_ids,
+                        income_entry_ids=income_entry_ids,
+                    ),
                     notes=step_payload.notes,
                 )
                 self.db.add(step)
@@ -112,7 +218,7 @@ class RoadmapImportService:
                 recommended_step=plan_payload.recommended_step,
                 is_partial=plan_payload.is_partial,
                 parent_income_plan_id=None,
-                source_income_entry_id=plan_payload.source_income_entry_id,
+                source_income_entry_id=income_entry_ids.get(plan_payload.source_income_entry_id, plan_payload.source_income_entry_id),
                 notes=plan_payload.notes,
             )
             self.db.add(plan)
@@ -142,7 +248,13 @@ class RoadmapImportService:
                         is_required=allocation_payload.is_required,
                         goal_id=goal_ids.get(allocation_payload.goal_temp_id) if allocation_payload.goal_temp_id else None,
                         linked_type=allocation_payload.linked_type,
-                        linked_id=allocation_payload.linked_id,
+                        linked_id=self._resolve_linked_id(
+                            allocation_payload.linked_type,
+                            allocation_payload.linked_id,
+                            obligation_ids=obligation_ids,
+                            debt_ids=debt_ids,
+                            income_entry_ids=income_entry_ids,
+                        ),
                         account_source_id=allocation_payload.account_source_id,
                         account_destination_id=allocation_payload.account_destination_id,
                         status=allocation_payload.status,
@@ -163,74 +275,19 @@ class RoadmapImportService:
                     is_active=True,
                     purpose_type=reserve_payload.purpose_type,
                     linked_type=reserve_payload.linked_type,
-                    linked_id=reserve_payload.linked_id,
+                    linked_id=self._resolve_linked_id(
+                        reserve_payload.linked_type,
+                        reserve_payload.linked_id,
+                        obligation_ids=obligation_ids,
+                        debt_ids=debt_ids,
+                        income_entry_ids=income_entry_ids,
+                    ),
                     account_id=reserve_payload.account_id,
                     created_on=reserve_payload.created_on,
                     notes=reserve_payload.notes,
                 )
             )
             result.cash_reserves_created += 1
-
-        for income_payload in payload.expected_income_entries:
-            self.db.add(
-                IncomeEntry(
-                    owner_id=self.owner_id,
-                    source_name=income_payload.source_name,
-                    amount=income_payload.amount,
-                    status=IncomeStatus(income_payload.status),
-                    expected_on=income_payload.expected_on,
-                    received_on=income_payload.received_on,
-                    account_id=income_payload.account_id,
-                    is_reliable=income_payload.is_reliable,
-                    category=income_payload.category,
-                    linked_obligation_id=income_payload.linked_obligation_id,
-                    linked_debt_id=income_payload.linked_debt_id,
-                    is_partial=income_payload.is_partial,
-                    parent_income_entry_id=income_payload.parent_income_entry_id,
-                    notes=income_payload.notes,
-                )
-            )
-            result.expected_income_entries_created += 1
-
-        for obligation_payload in payload.obligations:
-            self.db.add(
-                Obligation(
-                    owner_id=self.owner_id,
-                    name=obligation_payload.name,
-                    amount=obligation_payload.amount,
-                    due_on=obligation_payload.due_on,
-                    frequency=ObligationFrequency(obligation_payload.frequency),
-                    is_paid=obligation_payload.is_paid,
-                    is_recurring=obligation_payload.is_recurring,
-                    is_externally_covered=obligation_payload.is_externally_covered,
-                    coverage_source_label=obligation_payload.coverage_source_label,
-                    minimum_due=obligation_payload.minimum_due,
-                    past_due_amount=obligation_payload.past_due_amount,
-                    target_payoff_date=obligation_payload.target_payoff_date,
-                    notes=obligation_payload.notes,
-                )
-            )
-            result.obligations_created += 1
-
-        for debt_payload in payload.debts:
-            self.db.add(
-                Debt(
-                    owner_id=self.owner_id,
-                    name=debt_payload.name,
-                    balance=debt_payload.balance,
-                    minimum_payment=debt_payload.minimum_payment,
-                    due_on=debt_payload.due_on,
-                    status=DebtStatus(debt_payload.status),
-                    apr=debt_payload.apr,
-                    statement_balance=debt_payload.statement_balance,
-                    minimum_met=debt_payload.minimum_met,
-                    minimum_met_on=debt_payload.minimum_met_on,
-                    available_credit=debt_payload.available_credit,
-                    no_new_spend_mode=debt_payload.no_new_spend_mode,
-                    notes=debt_payload.notes,
-                )
-            )
-            result.debts_created += 1
 
         for action_payload in payload.actions:
             self.db.add(
@@ -243,7 +300,13 @@ class RoadmapImportService:
                     source=action_payload.source,
                     due_on=action_payload.due_on,
                     linked_type=action_payload.linked_type,
-                    linked_id=action_payload.linked_id,
+                    linked_id=self._resolve_linked_id(
+                        action_payload.linked_type,
+                        action_payload.linked_id,
+                        obligation_ids=obligation_ids,
+                        debt_ids=debt_ids,
+                        income_entry_ids=income_entry_ids,
+                    ),
                 )
             )
             result.actions_created += 1

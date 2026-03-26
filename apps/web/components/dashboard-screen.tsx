@@ -24,7 +24,21 @@ function eventDate(value: string) {
   }).format(new Date(value));
 }
 
-export function DashboardScreen({ snapshot }: { snapshot: DecisionSnapshot }) {
+export function DashboardScreen({
+  snapshot,
+  preferences = {
+    showCashflow: true,
+    showMomentum: true,
+    showRecentUpdates: true,
+  },
+}: {
+  snapshot: DecisionSnapshot;
+  preferences?: {
+    showCashflow: boolean;
+    showMomentum: boolean;
+    showRecentUpdates: boolean;
+  };
+}) {
   const primary = snapshot.focus.primaryAction;
   const secondary = snapshot.focus.secondaryAction;
   const actionPreview = snapshot.orderedActionQueue.filter((action) => !isInactiveActionStatus(action.status)).slice(0, 4);
@@ -96,51 +110,59 @@ export function DashboardScreen({ snapshot }: { snapshot: DecisionSnapshot }) {
           </div>
         </Panel>
 
-        <Panel>
-          <SectionHeading eyebrow="Cashflow" title="At a glance" description="Enough to see pressure without turning the page into a spreadsheet." />
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <StatCard label="Planned inflow (14d)" value={formatMoney(snapshot.cashflow.next14PlannedInflow)} />
-            <StatCard label="Required outflow (14d)" value={formatMoney(snapshot.cashflow.next14RequiredOutflow)} />
-            <StatCard label="Trailing 30d net" value={formatMoney(snapshot.cashflow.trailing30Net)} detail={`In ${formatMoney(snapshot.cashflow.trailing30Inflow)} / Out ${formatMoney(snapshot.cashflow.trailing30Outflow)}`} />
-            <StatCard label="Next pressure" value={snapshot.cashflow.nextPressurePoint ?? "Nothing urgent"} detail={snapshot.cashflow.nextIncomeDate ? `Next income ${shortDate(snapshot.cashflow.nextIncomeDate)}` : "No reliable income planned"} />
-          </div>
-        </Panel>
+        {preferences.showCashflow ? (
+          <Panel>
+            <SectionHeading eyebrow="Cashflow" title="At a glance" description="Enough to see pressure without turning the page into a spreadsheet." />
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <StatCard label="Planned inflow (14d)" value={formatMoney(snapshot.cashflow.next14PlannedInflow)} />
+              <StatCard label="Required outflow (14d)" value={formatMoney(snapshot.cashflow.next14RequiredOutflow)} />
+              <StatCard label="Trailing 30d net" value={formatMoney(snapshot.cashflow.trailing30Net)} detail={`In ${formatMoney(snapshot.cashflow.trailing30Inflow)} / Out ${formatMoney(snapshot.cashflow.trailing30Outflow)}`} />
+              <StatCard label="Next pressure" value={snapshot.cashflow.nextPressurePoint ?? "Nothing urgent"} detail={snapshot.cashflow.nextIncomeDate ? `Next income ${shortDate(snapshot.cashflow.nextIncomeDate)}` : "No reliable income planned"} />
+            </div>
+          </Panel>
+        ) : null}
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-        <Panel>
-          <SectionHeading eyebrow="Momentum" title={describeTrend(snapshot.progress.sevenDay.direction)} description="Outcome-first progress across cash, debt, overdue pressure, and completed actions." />
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <StatCard label="7 day free now" value={formatSignedMoney(snapshot.progress.sevenDay.freeNowDelta)} />
-            <StatCard label="7 day debt" value={formatSignedMoney(snapshot.progress.sevenDay.totalDebtDelta)} detail="Negative is better here" />
-            <StatCard label="7 day overdue" value={String(snapshot.progress.sevenDay.overdueDelta)} detail="Negative means fewer overdue items" />
-            <StatCard label="7 day actions" value={String(snapshot.progress.sevenDay.completedActionsDelta)} />
-            <StatCard label="Goal completion" value={`${Math.round(snapshot.progress.goalCompletionRate)}%`} />
-            <StatCard label="Completed actions" value={String(snapshot.progress.completedActions7d)} detail="Last 7 days" />
-          </div>
-        </Panel>
+      {preferences.showMomentum || preferences.showRecentUpdates ? (
+        <section className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+          {preferences.showMomentum ? (
+            <Panel>
+              <SectionHeading eyebrow="Momentum" title={describeTrend(snapshot.progress.sevenDay.direction)} description="Outcome-first progress across cash, debt, overdue pressure, and completed actions." />
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <StatCard label="7 day free now" value={formatSignedMoney(snapshot.progress.sevenDay.freeNowDelta)} />
+                <StatCard label="7 day debt" value={formatSignedMoney(snapshot.progress.sevenDay.totalDebtDelta)} detail="Negative is better here" />
+                <StatCard label="7 day overdue" value={String(snapshot.progress.sevenDay.overdueDelta)} detail="Negative means fewer overdue items" />
+                <StatCard label="7 day actions" value={String(snapshot.progress.sevenDay.completedActionsDelta)} />
+                <StatCard label="Goal completion" value={`${Math.round(snapshot.progress.goalCompletionRate)}%`} />
+                <StatCard label="Completed actions" value={String(snapshot.progress.completedActions7d)} detail="Last 7 days" />
+              </div>
+            </Panel>
+          ) : null}
 
-        <Panel>
-          <SectionHeading eyebrow="Recent updates" title="What changed" description="Latest money and planning movement." />
-          <div className="mt-5 space-y-3">
-            {snapshot.recentUpdates.length ? (
-              snapshot.recentUpdates.map((update) => (
-                <div key={update.id} className="rounded-[20px] border border-line bg-white/72 p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge>{update.eventType.replaceAll("_", " ")}</Badge>
-                    <span className="text-xs text-muted">{eventDate(update.occurredAt)}</span>
-                  </div>
-                  <p className="mt-3 text-base font-semibold tracking-tight text-ink">{update.title}</p>
-                  <p className="mt-1 text-sm leading-6 text-muted">{update.detail ?? "No extra detail."}</p>
-                  {typeof update.amount === "number" ? <p className="mt-2 text-sm font-medium text-ink">{formatMoney(update.amount)}</p> : null}
-                </div>
-              ))
-            ) : (
-              <div className="rounded-[20px] border border-dashed border-line bg-white/56 p-4 text-sm text-muted">No fresh updates yet. Your next logged action or relaunch event will show here.</div>
-            )}
-          </div>
-        </Panel>
-      </section>
+          {preferences.showRecentUpdates ? (
+            <Panel>
+              <SectionHeading eyebrow="Recent updates" title="What changed" description="Latest money and planning movement." />
+              <div className="mt-5 space-y-3">
+                {snapshot.recentUpdates.length ? (
+                  snapshot.recentUpdates.map((update) => (
+                    <div key={update.id} className="rounded-[20px] border border-line bg-white/72 p-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge>{update.eventType.replaceAll("_", " ")}</Badge>
+                        <span className="text-xs text-muted">{eventDate(update.occurredAt)}</span>
+                      </div>
+                      <p className="mt-3 text-base font-semibold tracking-tight text-ink">{update.title}</p>
+                      <p className="mt-1 text-sm leading-6 text-muted">{update.detail ?? "No extra detail."}</p>
+                      {typeof update.amount === "number" ? <p className="mt-2 text-sm font-medium text-ink">{formatMoney(update.amount)}</p> : null}
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-[20px] border border-dashed border-line bg-white/56 p-4 text-sm text-muted">No fresh updates yet. Your next logged action or relaunch event will show here.</div>
+                )}
+              </div>
+            </Panel>
+          ) : null}
+        </section>
+      ) : null}
     </div>
   );
 }

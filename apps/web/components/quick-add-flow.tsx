@@ -25,6 +25,7 @@ export function QuickAddFlow() {
   const dashboard = useLifeOsDashboard();
   const accountOptions = dashboard.accounts.map((account) => account.name);
   const [kind, setKind] = useState<TransactionKind>("expense");
+  const [remoteSuggestions, setRemoteSuggestions] = useState<string[]>([]);
   const [amount, setAmount] = useState("0.00");
   const [title, setTitle] = useState("");
   const [merchantOrSource, setMerchantOrSource] = useState("");
@@ -39,11 +40,16 @@ export function QuickAddFlow() {
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  const suggestions = useMemo(() => {
+  const fallbackSuggestions = useMemo(() => {
     const list = kind === "expense" ? dashboard.merchants : dashboard.sources;
     return list.map((item) => item.name);
   }, [dashboard.merchants, dashboard.sources, kind]);
+
+  const suggestions = useMemo(() => {
+    const query = merchantOrSource.trim().toLowerCase();
+    const localMatches = fallbackSuggestions.filter((item) => !query || item.toLowerCase().includes(query));
+    return [...new Set([...remoteSuggestions, ...localMatches])].slice(0, 8);
+  }, [fallbackSuggestions, merchantOrSource, remoteSuggestions]);
 
   useEffect(() => {
     if (!date) {
@@ -64,6 +70,31 @@ export function QuickAddFlow() {
       setAccount(accountOptions[0]);
     }
   }, [account, accountOptions]);
+
+  useEffect(() => {
+    let active = true;
+    const handle = window.setTimeout(() => {
+      const run = async () => {
+        try {
+          const nextSuggestions =
+            kind === "expense" ? await api.searchMerchants(merchantOrSource.trim()) : await api.searchSources(merchantOrSource.trim());
+          if (active) {
+            setRemoteSuggestions(nextSuggestions);
+          }
+        } catch {
+          if (active) {
+            setRemoteSuggestions([]);
+          }
+        }
+      };
+      void run();
+    }, 150);
+
+    return () => {
+      active = false;
+      window.clearTimeout(handle);
+    };
+  }, [kind, merchantOrSource]);
 
   const draft: QuickAddDraft = {
     kind,

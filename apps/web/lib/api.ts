@@ -184,6 +184,15 @@ export type BackendOnboardingCompleteResponse = {
   state: BackendOnboardingState;
 };
 
+export type BackendAppSetting = {
+  id: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+  key: string;
+  value: string;
+};
+
 export type BackendTaskStatus = "todo" | "doing" | "done" | "blocked";
 
 export type BackendTask = {
@@ -570,7 +579,20 @@ export type BackendAccount = {
   balance: number;
   is_active: boolean;
   notes?: string | null;
+  linked_record_count?: number;
+  can_delete?: boolean;
 };
+
+export type BackendAccountCreatePayload = {
+  name: string;
+  type: BackendAccount["type"];
+  institution?: string | null;
+  balance?: number;
+  is_active?: boolean;
+  notes?: string | null;
+};
+
+export type BackendAccountUpdatePayload = Partial<BackendAccountCreatePayload>;
 
 export type BackendIncomeEntry = {
   id: string;
@@ -837,7 +859,63 @@ export function createApiClient(options: ApiClientOptions = {}) {
     listDebts: () => get<BackendDebt[]>("/debts", [], { required: true }),
     listObligations: () => get<BackendObligation[]>("/obligations", [], { required: true }),
     listAccounts: () => get<BackendAccount[]>("/accounts", [], { required: true }),
+    createAccount: (payload: BackendAccountCreatePayload) =>
+      post<BackendAccount>(
+        "/accounts",
+        payload,
+        {
+          id: "account-draft",
+          owner_id: "",
+          created_at: "",
+          updated_at: "",
+          name: payload.name,
+          type: payload.type,
+          institution: payload.institution ?? null,
+          balance: payload.balance ?? 0,
+          is_active: payload.is_active ?? true,
+          notes: payload.notes ?? null,
+          linked_record_count: 0,
+          can_delete: true,
+        },
+        { required: true },
+      ),
+    updateAccount: (accountId: string, payload: BackendAccountUpdatePayload) =>
+      patch<BackendAccount>(
+        `/accounts/${accountId}`,
+        payload,
+        {
+          id: accountId,
+          owner_id: "",
+          created_at: "",
+          updated_at: "",
+          name: payload.name ?? "",
+          type: payload.type ?? "checking",
+          institution: payload.institution ?? null,
+          balance: payload.balance ?? 0,
+          is_active: payload.is_active ?? true,
+          notes: payload.notes ?? null,
+          linked_record_count: 0,
+          can_delete: true,
+        },
+        { required: true },
+      ),
+    deleteAccount: (accountId: string) => del(`/accounts/${accountId}`, { required: true }),
     listIncomeEntries: () => get<BackendIncomeEntry[]>("/income-entries", [], { required: true }),
+    listSettings: () => get<BackendAppSetting[]>("/settings", [], { required: true }),
+    upsertSetting: (key: string, value: string) =>
+      put<BackendAppSetting>(
+        `/settings/${encodeURIComponent(key)}`,
+        { value },
+        {
+          id: "setting-draft",
+          owner_id: "",
+          created_at: "",
+          updated_at: "",
+          key,
+          value,
+        },
+        { required: true },
+      ),
     createTask: (payload: BackendTaskCreatePayload) =>
       post<BackendTask>("/tasks", payload, {
         id: "task-draft",

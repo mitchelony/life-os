@@ -313,3 +313,136 @@ def test_roadmap_import_v2_resolves_temp_ids_and_persists_extended_fields(db_ses
 
     event = db_session.query(ActivityEvent).filter(ActivityEvent.owner_id == owner_id).one()
     assert event.event_type == "roadmap_imported"
+
+
+def test_roadmap_import_v2_resolves_top_level_temp_ids_for_debts_obligations_and_income_entries(db_session) -> None:
+    owner_id = "owner-import-links"
+    today = date.today()
+    checking = Account(owner_id=owner_id, name="Checking", type="checking", balance=500)
+    db_session.add(checking)
+    db_session.commit()
+
+    payload = RoadmapImportV2Payload.model_validate(
+        {
+            "version": 2,
+            "reset_planning_first": True,
+            "goals": [
+                {
+                    "temp_id": "goal-rent",
+                    "title": "Cover rent",
+                    "description": "Wait for support and apply it.",
+                    "category": "finances",
+                    "status": "planned",
+                    "priority": "medium",
+                    "linked_type": "income",
+                    "linked_id": "income-rent-support",
+                    "steps": [],
+                }
+            ],
+            "income_plans": [
+                {
+                    "temp_id": "plan-rent-support",
+                    "label": "Rent support",
+                    "amount": 600,
+                    "expected_on": today.isoformat(),
+                    "is_reliable": True,
+                    "status": "planned",
+                    "priority": "medium",
+                    "source_income_entry_id": "income-rent-support",
+                    "allocations": [
+                        {
+                            "temp_id": "alloc-rent",
+                            "label": "Rent",
+                            "allocation_type": "obligation_payment",
+                            "amount": 600,
+                            "linked_type": "obligation",
+                            "linked_id": "obligation-rent",
+                        }
+                    ],
+                }
+            ],
+            "cash_reserves": [],
+            "expected_income_entries": [
+                {
+                    "temp_id": "income-rent-support",
+                    "source_name": "Family rent support",
+                    "amount": 600,
+                    "status": "expected",
+                    "expected_on": today.isoformat(),
+                    "account_id": checking.id,
+                    "is_reliable": True,
+                    "category": "family_support",
+                    "linked_obligation_id": "obligation-rent",
+                    "linked_debt_id": "debt-card",
+                    "is_partial": True,
+                    "parent_income_entry_id": None,
+                },
+                {
+                    "temp_id": "income-rent-support-2",
+                    "source_name": "Family rent support part 2",
+                    "amount": 100,
+                    "status": "expected",
+                    "expected_on": today.isoformat(),
+                    "account_id": checking.id,
+                    "is_reliable": True,
+                    "category": "family_support",
+                    "linked_obligation_id": "obligation-rent",
+                    "linked_debt_id": None,
+                    "is_partial": True,
+                    "parent_income_entry_id": "income-rent-support",
+                },
+            ],
+            "obligations": [
+                {
+                    "temp_id": "obligation-rent",
+                    "name": "Rent",
+                    "amount": 600,
+                    "due_on": today.isoformat(),
+                    "frequency": "monthly",
+                    "is_paid": False,
+                    "is_recurring": True,
+                    "is_externally_covered": True,
+                    "coverage_source_label": "Family rent support",
+                }
+            ],
+            "debts": [
+                {
+                    "temp_id": "debt-card",
+                    "name": "Capital One",
+                    "balance": 300,
+                    "minimum_payment": 25,
+                    "due_on": today.isoformat(),
+                    "status": "active",
+                }
+            ],
+            "actions": [
+                {
+                    "title": "Use support for rent",
+                    "status": "todo",
+                    "lane": "when_income_lands",
+                    "source": "goal",
+                    "due_on": today.isoformat(),
+                    "linked_type": "obligation",
+                    "linked_id": "obligation-rent",
+                }
+            ],
+        }
+    )
+
+    RoadmapImportService(db_session, owner_id).import_v2(payload)
+
+    obligation = db_session.query(Obligation).one()
+    debt = db_session.query(Debt).one()
+    income_entries = db_session.query(IncomeEntry).order_by(IncomeEntry.created_at.asc()).all()
+    goal = db_session.query(RoadmapGoal).one()
+    plan = db_session.query(IncomePlan).one()
+    allocation = db_session.query(IncomePlanAllocation).one()
+    action = db_session.query(ActionItem).one()
+
+    assert goal.linked_id == income_entries[0].id
+    assert plan.source_income_entry_id == income_entries[0].id
+    assert allocation.linked_id == obligation.id
+    assert action.linked_id == obligation.id
+    assert income_entries[0].linked_obligation_id == obligation.id
+    assert income_entries[0].linked_debt_id == debt.id
+    assert income_entries[1].parent_income_entry_id == income_entries[0].id

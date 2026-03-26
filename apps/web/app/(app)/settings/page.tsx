@@ -2,10 +2,10 @@
 
 import { ArrowRight, LogOut, RefreshCw, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ContextExportPanel } from "@/components/context-export-panel";
 import { RoadmapImportPanel } from "@/components/roadmap-import-panel";
-import { Button, Panel, SectionHeading, cn } from "@/components/ui";
+import { Badge, Button, Panel, SectionHeading, cn } from "@/components/ui";
 import { OnboardingFlow } from "@/components/onboarding-flow";
 import { signOut } from "@/lib/auth";
 import { notifyDecisionChanged } from "@/lib/decision";
@@ -16,7 +16,35 @@ export default function SettingsPage() {
   const router = useRouter();
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("roadmap_setup");
   const [relaunchPending, setRelaunchPending] = useState(false);
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [settingsPending, setSettingsPending] = useState<string | null>(null);
   const sections = getSettingsSections();
+
+  useEffect(() => {
+    void api
+      .listSettings()
+      .then((items) => setSettings(Object.fromEntries(items.map((item) => [item.key, item.value]))))
+      .catch(() => setSettings({}));
+  }, []);
+
+  const dashboardPreferences = useMemo(
+    () => ({
+      showCashflow: settings.dashboard_show_cashflow !== "false",
+      showMomentum: settings.dashboard_show_momentum !== "false",
+      showRecentUpdates: settings.dashboard_show_recent_updates !== "false",
+    }),
+    [settings],
+  );
+
+  async function toggleDashboardPreference(key: "dashboard_show_cashflow" | "dashboard_show_momentum" | "dashboard_show_recent_updates", next: boolean) {
+    setSettingsPending(key);
+    try {
+      await api.upsertSetting(key, String(next));
+      setSettings((current) => ({ ...current, [key]: String(next) }));
+    } finally {
+      setSettingsPending(null);
+    }
+  }
 
   async function handleSignOut() {
     await signOut();
@@ -118,6 +146,53 @@ export default function SettingsPage() {
 
       {activeSection === "utilities" ? (
         <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+          <Panel className="space-y-4">
+            <SectionHeading
+              eyebrow="Dashboard preferences"
+              title="Choose what the dashboard keeps in view"
+              description="Hide sections you do not want competing for attention on the main screen."
+            />
+            <div className="grid gap-3">
+              {[
+                {
+                  key: "dashboard_show_cashflow" as const,
+                  title: "Cashflow block",
+                  description: "Keep the short pressure and inflow view on the dashboard.",
+                  active: dashboardPreferences.showCashflow,
+                },
+                {
+                  key: "dashboard_show_momentum" as const,
+                  title: "Momentum block",
+                  description: "Show the 7-day progress comparison on the dashboard.",
+                  active: dashboardPreferences.showMomentum,
+                },
+                {
+                  key: "dashboard_show_recent_updates" as const,
+                  title: "Recent updates block",
+                  description: "Show the latest activity feed on the dashboard.",
+                  active: dashboardPreferences.showRecentUpdates,
+                },
+              ].map((item) => (
+                <div key={item.key} className="flex items-center justify-between gap-4 rounded-[20px] border border-line bg-[rgba(244,241,233,0.82)] p-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-ink">{item.title}</p>
+                      <Badge>{item.active ? "shown" : "hidden"}</Badge>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-muted">{item.description}</p>
+                  </div>
+                  <Button
+                    variant={item.active ? "secondary" : "ghost"}
+                    disabled={settingsPending === item.key}
+                    onClick={() => void toggleDashboardPreference(item.key, !item.active)}
+                  >
+                    {item.active ? "Hide" : "Show"}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </Panel>
+
           <Panel className="space-y-4">
             <SectionHeading
               eyebrow="Planning memory"

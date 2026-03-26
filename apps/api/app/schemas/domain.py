@@ -35,6 +35,10 @@ class AppSettingRead(TimestampedRead):
     value: str
 
 
+class AppSettingWrite(BaseModel):
+    value: str
+
+
 class SettingsBootstrapAccount(BaseModel):
     name: str
     institution: str = ""
@@ -150,7 +154,8 @@ class AccountUpdate(BaseModel):
 
 
 class AccountRead(TimestampedRead, AccountBase):
-    pass
+    linked_record_count: int = 0
+    can_delete: bool = True
 
 
 class CategoryBase(BaseModel):
@@ -784,6 +789,7 @@ class RoadmapImportV2CashReserve(BaseModel):
 
 
 class RoadmapImportV2ExpectedIncomeEntry(BaseModel):
+    temp_id: str | None = None
     source_name: str
     amount: float
     status: Literal["expected", "received", "missed"] = "expected"
@@ -800,6 +806,7 @@ class RoadmapImportV2ExpectedIncomeEntry(BaseModel):
 
 
 class RoadmapImportV2Obligation(BaseModel):
+    temp_id: str | None = None
     name: str
     amount: float
     due_on: date
@@ -815,6 +822,7 @@ class RoadmapImportV2Obligation(BaseModel):
 
 
 class RoadmapImportV2Debt(BaseModel):
+    temp_id: str | None = None
     name: str
     balance: float
     minimum_payment: float = 0

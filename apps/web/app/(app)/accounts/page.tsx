@@ -3,24 +3,35 @@
 import { PencilLine, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Button, InlineField, Input, Panel, SectionHeading, Select, StatCard } from "@/components/ui";
-import {
-  createStoredAccountDraft,
-  hasStoredAccountReferences,
-  removeStoredAccountDraft,
-  renameStoredAccountReferences,
-  updateStoredAccountDraft,
-} from "@/lib/account-management";
+import { api, type BackendAccount, type BackendAccountCreatePayload, type BackendAccountUpdatePayload } from "@/lib/api";
+import { notifyDecisionChanged } from "@/lib/decision";
 import { formatMoney } from "@/lib/finance";
-import { buildDashboardFromSetup, createEmptyStoredLifeOsSetup, useStoredLifeOsSetup, type StoredAccountDraft } from "@/lib/local-state";
 
 const accountTypeOptions = [
   { value: "checking", label: "Checking" },
   { value: "savings", label: "Savings" },
   { value: "cash", label: "Cash" },
   { value: "credit_card", label: "Credit card" },
+  { value: "debt", label: "Debt" },
 ] as const;
 
-function accountTypeHelp(type: StoredAccountDraft["type"]) {
+type AccountDraft = {
+  name: string;
+  institution: string;
+  type: BackendAccount["type"];
+  balance: string;
+  notes: string;
+};
+
+const emptyDraft: AccountDraft = {
+  name: "",
+  institution: "",
+  type: "checking",
+  balance: "",
+  notes: "",
+};
+
+function accountTypeHelp(type: BackendAccount["type"]) {
   switch (type) {
     case "checking":
       return "Use this for the cash you spend from most often.";
@@ -30,33 +41,74 @@ function accountTypeHelp(type: StoredAccountDraft["type"]) {
       return "Use this for wallet cash or any off-bank cash balance.";
     case "credit_card":
       return "Enter the current amount owed on the card.";
+    case "debt":
+      return "Use this only for non-card debt accounts you want to track as accounts.";
     default:
       return "Keep this as a manual account balance.";
   }
 }
 
+function toCreatePayload(draft: AccountDraft): BackendAccountCreatePayload {
+  return {
+    name: draft.name.trim(),
+    institution: draft.institution.trim() || null,
+    type: draft.type,
+    balance: Number(draft.balance || 0),
+    notes: draft.notes.trim() || null,
+    is_active: true,
+  };
+}
+
+function toUpdatePayload(draft: AccountDraft): BackendAccountUpdatePayload {
+  return {
+    name: draft.name.trim(),
+    institution: draft.institution.trim() || null,
+    type: draft.type,
+    balance: Number(draft.balance || 0),
+    notes: draft.notes.trim() || null,
+  };
+}
+
 function AccountEditorCard({
   account,
-  displayBalance,
-  hasLinkedData,
   onSave,
   onDelete,
 }: {
-  account: StoredAccountDraft;
-  displayBalance: number;
-  hasLinkedData: boolean;
-  onSave: (draft: StoredAccountDraft) => void;
-  onDelete: () => void;
+  account: BackendAccount;
+  onSave: (accountId: string, draft: AccountDraft) => Promise<void>;
+  onDelete: (accountId: string) => Promise<void>;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState(account);
+  const [pending, setPending] = useState(false);
+  const [draft, setDraft] = useState<AccountDraft>({
+    name: account.name,
+    institution: account.institution ?? "",
+    type: account.type,
+    balance: String(account.balance),
+    notes: account.notes ?? "",
+  });
 
   useEffect(() => {
-    setDraft(account);
+    setDraft({
+      name: account.name,
+      institution: account.institution ?? "",
+      type: account.type,
+      balance: String(account.balance),
+      notes: account.notes ?? "",
+    });
   }, [account]);
 
-  const balanceLabel = draft.type === "credit_card" ? "Amount owed" : "Current balance";
-  const visibleBalance = draft.type === "credit_card" ? Math.abs(displayBalance) : displayBalance;
+  const balanceLabel = draft.type === "credit_card" || draft.type === "debt" ? "Amount owed" : "Current balance";
+  const visibleBalance = draft.type === "credit_card" || draft.type === "debt" ? Math.abs(account.balance) : account.balance;
+
+  async function run(task: () => Promise<void>) {
+    setPending(true);
+    try {
+      await task();
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <Panel className="space-y-4">
@@ -65,6 +117,7 @@ function AccountEditorCard({
           <div className="flex flex-wrap items-center gap-2">
             <Badge>{draft.type.replace("_", " ")}</Badge>
             <span className="text-xs text-muted">{draft.institution || "Manual institution"}</span>
+            {!account.can_delete ? <Badge>linked</Badge> : null}
           </div>
           <h2 className="mt-3 text-xl font-semibold tracking-tight text-ink">{draft.name || "New account"}</h2>
           <p className="mt-1 text-sm text-muted">{accountTypeHelp(draft.type)}</p>
@@ -77,9 +130,7 @@ function AccountEditorCard({
 
       <div>
         <p className="text-[11px] uppercase tracking-[0.22em] text-muted">{balanceLabel}</p>
-        <div className="mt-2 text-3xl font-semibold tracking-tight tabular-nums md:text-4xl">
-          {formatMoney(visibleBalance)}
-        </div>
+        <div className="mt-2 text-3xl font-semibold tracking-tight tabular-nums md:text-4xl">{formatMoney(visibleBalance)}</div>
       </div>
 
       {isEditing ? (
@@ -99,15 +150,7 @@ function AccountEditorCard({
             />
           </InlineField>
           <InlineField label="Account type">
-            <Select
-              value={draft.type}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  type: event.target.value as StoredAccountDraft["type"],
-                }))
-              }
-            >
+            <Select value={draft.type} onChange={(event) => setDraft((current) => ({ ...current, type: event.target.value as BackendAccount["type"] }))}>
               {accountTypeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -115,38 +158,43 @@ function AccountEditorCard({
               ))}
             </Select>
           </InlineField>
-          <InlineField label={draft.type === "credit_card" ? "Amount owed" : "Balance"} description={accountTypeHelp(draft.type)}>
+          <InlineField label={draft.type === "credit_card" || draft.type === "debt" ? "Amount owed" : "Balance"} description={accountTypeHelp(draft.type)}>
             <Input
               type="number"
               step="0.01"
               value={draft.balance}
               onChange={(event) => setDraft((current) => ({ ...current, balance: event.target.value }))}
-              placeholder={draft.type === "credit_card" ? "498.28" : "1200.00"}
+              placeholder={draft.type === "credit_card" || draft.type === "debt" ? "498.28" : "1200.00"}
+            />
+          </InlineField>
+          <InlineField label="Notes" helper="Optional" description="Use this only for something you actually want to remember later.">
+            <Input
+              value={draft.notes}
+              onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
+              placeholder="Main spending account"
             />
           </InlineField>
           <div className="md:col-span-2 flex flex-wrap gap-2">
             <Button
               className="w-full sm:w-auto"
-              onClick={() => {
-                onSave({
-                  ...draft,
-                  name: draft.name.trim(),
-                  institution: draft.institution.trim(),
-                });
-                setIsEditing(false);
-              }}
-              disabled={!draft.name.trim()}
+              disabled={pending || !draft.name.trim()}
+              onClick={() =>
+                run(async () => {
+                  await onSave(account.id, draft);
+                  setIsEditing(false);
+                })
+              }
             >
               Save account
             </Button>
-            <Button variant="ghost" className="w-full sm:w-auto" onClick={onDelete}>
+            <Button variant="ghost" className="w-full sm:w-auto" disabled={pending} onClick={() => run(() => onDelete(account.id))}>
               <Trash2 className="h-4 w-4" />
               Delete
             </Button>
           </div>
-          {hasLinkedData ? (
+          {!account.can_delete ? (
             <div className="md:col-span-2 text-sm text-muted">
-              This account is still linked to transactions or planned items. Rename is safe. Delete it only after you move those links elsewhere.
+              This account is still linked to {account.linked_record_count ?? 0} record(s). Rename is safe. Delete it only after you move those links elsewhere.
             </div>
           ) : null}
         </div>
@@ -156,36 +204,66 @@ function AccountEditorCard({
 }
 
 export default function AccountsPage() {
-  const { setup, hydrated, save } = useStoredLifeOsSetup();
-  const dashboard = useMemo(() => buildDashboardFromSetup(setup), [setup]);
+  const [accounts, setAccounts] = useState<BackendAccount[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pending, setPending] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
-  const [newAccount, setNewAccount] = useState<StoredAccountDraft>(() => createStoredAccountDraft());
+  const [newAccount, setNewAccount] = useState<AccountDraft>(emptyDraft);
+  const [error, setError] = useState<string | null>(null);
 
-  const accountsById = useMemo(
-    () => new Map(dashboard.accounts.map((account) => [account.id, account])),
-    [dashboard.accounts],
-  );
-
-  function commit(nextSetup: ReturnType<typeof createEmptyStoredLifeOsSetup>) {
-    save(nextSetup);
+  async function load() {
+    setLoading(true);
+    try {
+      const nextAccounts = await api.listAccounts();
+      setAccounts(nextAccounts);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function addAccount() {
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function sync(task: () => Promise<unknown>) {
+    setPending(true);
+    setError(null);
+    try {
+      await task();
+      await load();
+      notifyDecisionChanged();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not save account changes.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  const stats = useMemo(() => {
+    const liquidCash = accounts.filter((item) => item.type === "checking" || item.type === "savings" || item.type === "cash").reduce((sum, item) => sum + item.balance, 0);
+    const checking = accounts.filter((item) => item.type === "checking").reduce((sum, item) => sum + item.balance, 0);
+    const savings = accounts.filter((item) => item.type === "savings").reduce((sum, item) => sum + item.balance, 0);
+    const trackedDebt = accounts.filter((item) => item.type === "credit_card" || item.type === "debt").reduce((sum, item) => sum + Math.abs(item.balance), 0);
+    return { liquidCash, checking, savings, trackedDebt };
+  }, [accounts]);
+
+  async function addAccount() {
     if (!newAccount.name.trim()) return;
-    const base = hydrated ? setup : createEmptyStoredLifeOsSetup();
-    commit({
-      ...base,
-      accounts: [
-        ...base.accounts,
-        {
-          ...newAccount,
-          name: newAccount.name.trim(),
-          institution: newAccount.institution.trim(),
-        },
-      ],
+    await sync(async () => {
+      await api.createAccount(toCreatePayload(newAccount));
+      setNewAccount(emptyDraft);
+      setShowComposer(false);
     });
-    setNewAccount(createStoredAccountDraft());
-    setShowComposer(false);
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
+        <Panel>
+          <SectionHeading eyebrow="Accounts" title="Loading account balances" description="Pulling the latest account list from the API." />
+        </Panel>
+      </div>
+    );
   }
 
   return (
@@ -204,11 +282,13 @@ export default function AccountsPage() {
         />
       </Panel>
 
+      {error ? <Panel className="border-[rgba(165,57,42,0.18)] bg-[rgba(165,57,42,0.06)] text-sm text-ink">{error}</Panel> : null}
+
       <section className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-        <StatCard label="Liquid cash" value={formatMoney(dashboard.availableSpend.liquidCash)} />
-        <StatCard label="Checking" value={formatMoney(dashboard.cashSummary.checking)} />
-        <StatCard label="Savings" value={formatMoney(dashboard.cashSummary.savings)} />
-        <StatCard label="Tracked debt" value={formatMoney(dashboard.cashSummary.totalDebt)} />
+        <StatCard label="Liquid cash" value={formatMoney(stats.liquidCash)} />
+        <StatCard label="Checking" value={formatMoney(stats.checking)} />
+        <StatCard label="Savings" value={formatMoney(stats.savings)} />
+        <StatCard label="Tracked debt" value={formatMoney(stats.trackedDebt)} />
       </section>
 
       {showComposer ? (
@@ -234,15 +314,7 @@ export default function AccountsPage() {
               />
             </InlineField>
             <InlineField label="Account type">
-              <Select
-                value={newAccount.type}
-                onChange={(event) =>
-                  setNewAccount((current) => ({
-                    ...current,
-                    type: event.target.value as StoredAccountDraft["type"],
-                  }))
-                }
-              >
+              <Select value={newAccount.type} onChange={(event) => setNewAccount((current) => ({ ...current, type: event.target.value as BackendAccount["type"] }))}>
                 {accountTypeOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -250,51 +322,39 @@ export default function AccountsPage() {
                 ))}
               </Select>
             </InlineField>
-            <InlineField label={newAccount.type === "credit_card" ? "Amount owed" : "Balance"} description={accountTypeHelp(newAccount.type)}>
+            <InlineField label={newAccount.type === "credit_card" || newAccount.type === "debt" ? "Amount owed" : "Balance"} description={accountTypeHelp(newAccount.type)}>
               <Input
                 type="number"
                 step="0.01"
                 value={newAccount.balance}
                 onChange={(event) => setNewAccount((current) => ({ ...current, balance: event.target.value }))}
-                placeholder={newAccount.type === "credit_card" ? "498.28" : "1200.00"}
+                placeholder={newAccount.type === "credit_card" || newAccount.type === "debt" ? "498.28" : "1200.00"}
+              />
+            </InlineField>
+            <InlineField label="Notes" helper="Optional">
+              <Input
+                value={newAccount.notes}
+                onChange={(event) => setNewAccount((current) => ({ ...current, notes: event.target.value }))}
+                placeholder="Main spending account"
               />
             </InlineField>
           </div>
-          <Button className="w-full sm:w-auto" onClick={addAccount} disabled={!newAccount.name.trim()}>
+          <Button className="w-full sm:w-auto" disabled={pending || !newAccount.name.trim()} onClick={() => void addAccount()}>
             Save account
           </Button>
         </Panel>
       ) : null}
 
       <section className="grid gap-4 lg:grid-cols-2">
-        {setup.accounts.length ? (
-          setup.accounts.map((account) => {
-            const derivedAccount = accountsById.get(account.id);
-            const displayBalance = derivedAccount?.balance ?? Number(account.balance || 0);
-
-            return (
-              <AccountEditorCard
-                key={account.id}
-                account={account}
-                displayBalance={displayBalance}
-                hasLinkedData={hasStoredAccountReferences(setup, account.name)}
-                onSave={(draft) => {
-                  const renamedSetup = renameStoredAccountReferences(setup, account.name, draft.name.trim());
-                  commit({
-                    ...renamedSetup,
-                    accounts: updateStoredAccountDraft(renamedSetup.accounts, account.id, draft),
-                  });
-                }}
-                onDelete={() => {
-                  if (hasStoredAccountReferences(setup, account.name)) return;
-                  commit({
-                    ...setup,
-                    accounts: removeStoredAccountDraft(setup.accounts, account.id),
-                  });
-                }}
-              />
-            );
-          })
+        {accounts.length ? (
+          accounts.map((account) => (
+            <AccountEditorCard
+              key={account.id}
+              account={account}
+              onSave={(accountId, draft) => sync(() => api.updateAccount(accountId, toUpdatePayload(draft)))}
+              onDelete={(accountId) => sync(() => api.deleteAccount(accountId))}
+            />
+          ))
         ) : (
           <Panel className="lg:col-span-2">
             <SectionHeading

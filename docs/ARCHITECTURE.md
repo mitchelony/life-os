@@ -44,8 +44,8 @@ supabase/     Migrations, hosted setup reference, and optional local database se
 
 ### Planning and Guidance
 
-- `tasks`
-  - short-horizon follow-up actions
+- `action_items`
+  - persisted next-step actions used by dashboard and the `Actions` route
 - `roadmapItems`
   - larger goals or milestones
 - `strategyDocument`
@@ -55,6 +55,12 @@ supabase/     Migrations, hosted setup reference, and optional local database se
   - normalized planning entities used by the decision engine
 - `reserves`
   - actual earmarked cash state, including manual reserve intent
+- `activity_events`
+  - recent update feed and notable state changes
+- `progress_snapshots`
+  - time-based planning health snapshots
+- `planner_drafts`
+  - future-facing planning workspace memory
 
 ## System Responsibilities
 
@@ -102,6 +108,9 @@ Current important API surfaces include:
 
 - `GET /api/dashboard`
 - `POST /api/roadmap/import`
+- `GET /api/planning/context-export`
+- `POST /api/planning/relaunch`
+- `POST /api/income-entries/{id}/confirm`
 - `GET /api/available-spend/explain`
 - `POST /api/available-spend/explain`
 - `GET /api/auth/whoami`
@@ -167,6 +176,28 @@ This means:
 - strategy truth is the recommended way to handle them
 - roadmap import schema `v2` is the preferred bulk planning contract for GPT-assisted setup
 - temp ids exist for import dependency resolution only; persisted records still use real ids
+- temp-id resolution currently stops at:
+  - goals
+  - steps
+  - income plans
+- top-level debts, obligations, and expected income entries can also resolve temp ids when provided explicitly
+
+## Decision Engine Behavior
+
+The planning snapshot is backend-owned.
+
+Important current rules:
+
+- dashboard, roadmap, debts, obligations, and actions consume the same server snapshot
+- inactive items should stop feeding live priority
+- inactive actions are:
+  - `done`
+  - `skipped`
+  - `blocked`
+- inactive actions should move to the bottom of the action list
+- action lanes are derived from dates rather than trusting stale saved grouping
+- expected income confirmation converts planned money into real transaction history
+- planning relaunch clears planning layers and income/transaction history while preserving accounts, debts, and obligations
 
 ## Auth Model
 
@@ -190,10 +221,12 @@ The current frontend still uses a lightweight client-side session store instead 
   - amount-first money entry
 - `Roadmap`
   - cash-flow-first planning and strategy
-- `Tasks`
+- `Income`
+  - expected income management and confirmation
+- `Actions`
   - short follow-up actions, not a duplicate roadmap
 - `Settings`
-  - preferences and initial setup
+  - preferences, onboarding edits, GPT context export, roadmap import, and relaunch
 
 ### Mobile Direction
 
@@ -216,3 +249,4 @@ The current frontend still uses a lightweight client-side session store instead 
 - strategy guidance is advisory rather than authoritative
 - the frontend still uses lightweight client-side session handling instead of a full cookie/middleware Supabase SSR flow
 - the hosted Supabase project is the active integration target; local Supabase is optional, not the default path
+- roadmap import `v2` is richer than the currently resolved linker model; some advisory fields are accepted even when not all cross-entity placeholder ids resolve automatically

@@ -115,6 +115,10 @@ export function RoadmapImportPanel({ onImported }: { onImported: () => Promise<v
         <p className="mt-3 text-sm leading-6 text-muted">
           Use the context export first so GPT works with exact live ids. Smart quotes from pasted GPT output are normalized before parsing.
         </p>
+        <p className="mt-2 text-sm leading-6 text-muted">
+          Top-level debt, obligation, and expected-income temp ids can be resolved when you provide <code>temp_id</code>. If you want to keep your
+          current debt and obligation ids instead of recreating those rows, leave top-level <code>debts</code> and <code>obligations</code> empty.
+        </p>
       </div>
 
       {error ? (

@@ -19,6 +19,13 @@ Life OS is currently in MVP development.
 - The backend and web app now prefer API-backed persistence for the core MVP flows.
 - Supabase Postgres and Supabase Auth are now the live persistence and auth path.
 - The product is intentionally owner-only. There is no team or multi-user model.
+- Settings is now the control surface for roadmap setup:
+  - context export for GPT
+  - roadmap import schema `v2`
+  - onboarding edits
+  - planning relaunch
+- Expected income lives on its own `Income` route and can be confirmed into real income transactions.
+- Dashboard and Actions now consume the server decision snapshot instead of rebuilding roadmap logic in the browser.
 
 ## Repository Structure
 
@@ -225,6 +232,36 @@ Notes:
 - use real persisted ids for linked accounts, debts, obligations, and income records
 - temp ids are for import-file relationships only
 - `remaining_unallocated_amount` is accepted for GPT context but treated as advisory, not persisted truth
+- temp-id resolution currently exists for:
+  - goals
+  - steps
+  - income plans
+- temp-id resolution also works for top-level:
+  - obligations
+  - debts
+  - expected income entries
+- if you want to preserve existing debt and obligation ids, keep top-level `debts` and `obligations` empty during a bulk replan
+- `source_income_entry_id` should only be populated with a real existing income entry id, not a placeholder temp id
+
+## Current Operational Flow
+
+The current high-signal app flow is:
+
+1. Sign in or sign up through Supabase auth.
+2. If onboarding is incomplete, land in `Settings`.
+3. Use `Roadmap setup` in `Settings` to:
+   - export live context JSON
+   - generate a GPT roadmap draft against real ids
+   - import roadmap schema `v2`
+4. Use `Income` to manage expected income and confirm entries when money lands.
+5. Use `Dashboard` and `Actions` for the live next-step view.
+
+Current planning behavior:
+
+- inactive actions (`done`, `skipped`, `blocked`) are pushed to the bottom of `Actions`
+- inactive actions do not feed dashboard priority
+- action lanes are date-aware rather than frozen to their original saved lane
+- relaunch planning clears planning history, transactions, expected income, merchants, income sources, and reserves while preserving accounts, debts, and obligations
 
 ## Hosted Validation and Cleanup
 
