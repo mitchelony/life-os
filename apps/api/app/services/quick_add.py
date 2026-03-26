@@ -2,7 +2,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from app.models.domain import Account, Category, IncomeEntry, IncomeSource, Merchant, Obligation, Transaction
+from app.models.domain import Account, ActivityEvent, Category, IncomeEntry, IncomeSource, Merchant, Obligation, Transaction
 from app.models.enums import IncomeStatus, ObligationFrequency, TransactionKind
 from app.schemas.domain import QuickAddRequest, QuickAddResponse
 
@@ -95,6 +95,7 @@ class QuickAddService:
                 self.owner_id,
                 payload.merchant_or_source.strip() or payload.title.strip() or "Manual entry",
             )
+            expense_title = payload.title.strip() or (merchant.name if merchant else "Expense logged")
             transaction = Transaction(
                 owner_id=self.owner_id,
                 kind=TransactionKind.expense,
@@ -109,6 +110,17 @@ class QuickAddService:
             )
             self.db.add(transaction)
             self.db.flush()
+            self.db.add(
+                ActivityEvent(
+                    owner_id=self.owner_id,
+                    event_type="transaction_expense",
+                    title=expense_title,
+                    detail=payload.notes.strip() or None,
+                    amount=payload.amount,
+                    linked_type="transaction",
+                    linked_id=transaction.id,
+                )
+            )
 
             obligation_id = None
             if payload.save_as_obligation or payload.recurrence != "one-time":
@@ -124,6 +136,17 @@ class QuickAddService:
                 )
                 self.db.add(obligation)
                 self.db.flush()
+                self.db.add(
+                    ActivityEvent(
+                        owner_id=self.owner_id,
+                        event_type="obligation_created",
+                        title=obligation.name,
+                        detail="Upcoming obligation added",
+                        amount=payload.amount,
+                        linked_type="obligation",
+                        linked_id=obligation.id,
+                    )
+                )
                 obligation_id = obligation.id
 
             self.db.commit()
@@ -140,6 +163,18 @@ class QuickAddService:
                 notes=payload.notes.strip() or None,
             )
             self.db.add(income_entry)
+            self.db.flush()
+            self.db.add(
+                ActivityEvent(
+                    owner_id=self.owner_id,
+                    event_type="expected_income",
+                    title=income_entry.source_name,
+                    detail=payload.notes.strip() or "Expected income added",
+                    amount=payload.amount,
+                    linked_type="income_entry",
+                    linked_id=income_entry.id,
+                )
+            )
             self.db.commit()
             self.db.refresh(income_entry)
             return QuickAddResponse(ok=True, income_entry_id=income_entry.id)
@@ -150,6 +185,7 @@ class QuickAddService:
             self.owner_id,
             payload.merchant_or_source.strip() or payload.title.strip() or "Manual income",
         )
+        income_title = payload.title.strip() or (source.name if source else "Income logged")
         transaction = Transaction(
             owner_id=self.owner_id,
             kind=TransactionKind.income,
@@ -164,6 +200,17 @@ class QuickAddService:
         )
         self.db.add(transaction)
         self.db.flush()
+        self.db.add(
+            ActivityEvent(
+                owner_id=self.owner_id,
+                event_type="transaction_income",
+                title=income_title,
+                detail=payload.notes.strip() or None,
+                amount=payload.amount,
+                linked_type="transaction",
+                linked_id=transaction.id,
+            )
+        )
 
         income_entry_id = None
         if payload.recurrence != "one-time":

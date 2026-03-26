@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Check, Delete, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
+import { notifyDecisionChanged } from "@/lib/decision";
 import { formatMoney } from "@/lib/finance";
 import { sampleCategories } from "@/lib/sample-data";
 import { applyQuickAddToSetup, readStoredLifeOsSetup, saveStoredLifeOsSetup, useLifeOsDashboard } from "@/lib/local-state";
@@ -126,6 +127,7 @@ export function QuickAddFlow() {
           if (storedSetup) {
             saveStoredLifeOsSetup(applyQuickAddToSetup(storedSetup, draft));
           }
+          notifyDecisionChanged();
 
           setSubmitted(
             recurrence === "one-time"

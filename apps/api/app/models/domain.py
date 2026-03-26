@@ -1,7 +1,7 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Optional
 
-from sqlalchemy import JSON, Boolean, Date, Enum as SQLEnum, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, text
+from sqlalchemy import JSON, Boolean, Date, DateTime, Enum as SQLEnum, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, UUIDTimestampMixin
@@ -189,3 +189,113 @@ class StrategyDocument(UUIDTimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     document: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class ActionItem(UUIDTimestampMixin, Base):
+    __tablename__ = "action_items"
+
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(24), default="todo", nullable=False)
+    lane: Mapped[str] = mapped_column(String(40), default="this_week", nullable=False)
+    source: Mapped[str] = mapped_column(String(40), default="system", nullable=False)
+    due_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    linked_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    linked_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    planner_source: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    skipped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class RoadmapGoal(UUIDTimestampMixin, Base):
+    __tablename__ = "roadmap_goals"
+
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    status: Mapped[str] = mapped_column(String(24), default="active", nullable=False)
+    priority: Mapped[str] = mapped_column(String(24), default="medium", nullable=False)
+    target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    linked_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    linked_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    metric_kind: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    metric_start_value: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    metric_current_value: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    metric_target_value: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    planner_source: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
+
+class RoadmapStep(UUIDTimestampMixin, Base):
+    __tablename__ = "roadmap_steps"
+
+    goal_id: Mapped[str] = mapped_column(String(36), ForeignKey("roadmap_goals.id", ondelete="CASCADE"), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), default="todo", nullable=False)
+    due_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    linked_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    linked_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    goal = relationship("RoadmapGoal")
+
+
+class IncomePlan(UUIDTimestampMixin, Base):
+    __tablename__ = "income_plans"
+
+    label: Mapped[str] = mapped_column(String(200), nullable=False)
+    amount: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False)
+    expected_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    is_reliable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(24), default="planned", nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    planner_source: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
+
+class IncomePlanAllocation(UUIDTimestampMixin, Base):
+    __tablename__ = "income_plan_allocations"
+
+    income_plan_id: Mapped[str] = mapped_column(String(36), ForeignKey("income_plans.id", ondelete="CASCADE"), nullable=False)
+    label: Mapped[str] = mapped_column(String(200), nullable=False)
+    allocation_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    amount: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    linked_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    linked_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    income_plan = relationship("IncomePlan")
+
+
+class ActivityEvent(UUIDTimestampMixin, Base):
+    __tablename__ = "activity_events"
+
+    event_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    amount: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    linked_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    linked_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    payload: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class ProgressSnapshot(UUIDTimestampMixin, Base):
+    __tablename__ = "progress_snapshots"
+
+    snapshot_date: Mapped[date] = mapped_column(Date, nullable=False)
+    free_now: Mapped[float] = mapped_column(Numeric(14, 2), default=0, nullable=False)
+    free_after_planned_income: Mapped[float] = mapped_column(Numeric(14, 2), default=0, nullable=False)
+    total_debt: Mapped[float] = mapped_column(Numeric(14, 2), default=0, nullable=False)
+    overdue_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    completed_actions: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    goal_completion_rate: Mapped[float] = mapped_column(Numeric(5, 2), default=0, nullable=False)
+
+
+class PlannerDraft(UUIDTimestampMixin, Base):
+    __tablename__ = "planner_drafts"
+
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), default="draft", nullable=False)
+    draft: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    planner_source: Mapped[str | None] = mapped_column(String(40), nullable=True)

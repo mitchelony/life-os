@@ -18,14 +18,14 @@ import {
   navItems,
   shouldTriggerPullToRefresh,
 } from "@/lib/app-shell";
-import { useLifeOsDashboard } from "@/lib/local-state";
+import { useDecisionSnapshot } from "@/lib/decision";
 
 export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname();
   const router = useRouter();
   const activeItem = getActiveNavItem(pathname);
   const activePath = activeItem.href;
-  const dashboard = useLifeOsDashboard();
+  const { snapshot } = useDecisionSnapshot();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -91,6 +91,9 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
 
   const pullProgress = getPullToRefreshProgress(pullDistance);
   const showPullIndicator = refreshing || pullDistance > 0;
+  const freeNow = snapshot?.freeNow.amount ?? 0;
+  const freeAfter = snapshot?.freeAfterPlannedIncome.amount ?? 0;
+  const roadmapFocus = snapshot?.focus.primaryAction?.title;
 
   return (
     <div
@@ -137,16 +140,16 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         <div className="mt-auto rounded-[24px] border border-line bg-white/70 p-4">
           <p className="text-[11px] uppercase tracking-[0.26em] text-muted">Today</p>
           <div className="mt-3 text-3xl font-semibold tracking-tight tabular-nums">
-            {formatSignedMoney(dashboard.availableSpend.availableNow)}
+            {formatSignedMoney(freeNow)}
           </div>
           <p className="mt-2 text-sm leading-6 text-muted">What you can safely spend right now.</p>
           <p className="mt-3 text-xs leading-5 text-muted">
-            Through next income: <span className="font-semibold tabular-nums text-ink">{formatMoney(dashboard.availableSpend.availableThroughNextIncome)}</span>
+            Through next income: <span className="font-semibold tabular-nums text-ink">{formatMoney(freeAfter)}</span>
           </p>
-          {dashboard.roadmap.focus.nextStep ? (
+          {roadmapFocus ? (
             <div className="mt-4 rounded-2xl bg-accent-soft p-3">
               <p className="text-[10px] uppercase tracking-[0.24em] text-accent">Roadmap focus</p>
-              <p className="mt-1 text-sm font-medium text-ink">{dashboard.roadmap.focus.nextStep.title}</p>
+              <p className="mt-1 text-sm font-medium text-ink">{roadmapFocus}</p>
             </div>
           ) : null}
           <Button className="mt-4 w-full" onClick={() => router.refresh()}>
@@ -184,10 +187,10 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
               {showMobileSummary ? (
                 <div className="mt-2 flex flex-wrap items-center gap-2 md:hidden">
                   <span className="rounded-full border border-line bg-white/92 px-3 py-1 text-xs font-medium text-ink shadow-[0_6px_20px_rgba(16,32,24,0.06)]">
-                    Available now <span className="tabular-nums">{formatSignedMoney(dashboard.availableSpend.availableNow)}</span>
+                    Available now <span className="tabular-nums">{formatSignedMoney(freeNow)}</span>
                   </span>
                   <span className="rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent">
-                    Through next income {formatMoney(dashboard.availableSpend.availableThroughNextIncome)}
+                    Through next income {formatMoney(freeAfter)}
                   </span>
                 </div>
               ) : null}
@@ -305,10 +308,10 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
               <div className="mt-4 rounded-[22px] bg-accent-soft p-4">
                 <p className="text-[10px] uppercase tracking-[0.22em] text-accent">Today</p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums text-ink">
-                  {formatSignedMoney(dashboard.availableSpend.availableNow)}
+                  {formatSignedMoney(freeNow)}
                 </p>
                 <p className="mt-1 text-sm text-muted">
-                  Through next income <span className="font-semibold tabular-nums text-ink">{formatMoney(dashboard.availableSpend.availableThroughNextIncome)}</span>
+                  Through next income <span className="font-semibold tabular-nums text-ink">{formatMoney(freeAfter)}</span>
                 </p>
               </div>
             </div>

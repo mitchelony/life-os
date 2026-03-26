@@ -210,6 +210,263 @@ export type BackendTaskCreatePayload = {
 
 export type BackendTaskUpdatePayload = Partial<BackendTaskCreatePayload>;
 
+export type BackendDecisionAction = {
+  id: string;
+  title: string;
+  detail?: string | null;
+  status: string;
+  lane: string;
+  source: string;
+  due_on?: string | null;
+  linked_type?: string | null;
+  linked_id?: string | null;
+};
+
+export type BackendFreeCashAmount = {
+  amount: number;
+  breakdown: {
+    liquid_cash: number;
+    protected_buffer: number;
+    active_reserves: number;
+    overdue_obligations: number;
+    obligations_due_within_horizon: number;
+    debt_minimums_due_within_horizon: number;
+    essentials_reserve_within_horizon: number;
+    reliable_income_within_horizon: number;
+    extra_allocations_within_horizon: number;
+  };
+};
+
+export type BackendDecisionSnapshot = {
+  generated_at: string;
+  focus: {
+    primary_action?: BackendDecisionAction | null;
+    secondary_action?: BackendDecisionAction | null;
+    why_now: string;
+  };
+  ordered_action_queue: BackendDecisionAction[];
+  roadmap_summary: {
+    goals: Array<{
+      id: string;
+      title: string;
+      description: string;
+      status: string;
+      priority: string;
+      target_date?: string | null;
+      progress: number;
+      linked_type?: string | null;
+      linked_id?: string | null;
+      metric_kind?: string | null;
+      metric_start_value?: number | null;
+      metric_current_value?: number | null;
+      metric_target_value?: number | null;
+      steps: BackendDecisionAction[];
+    }>;
+    plans: Array<{
+      id: string;
+      label: string;
+      amount: number;
+      expected_on?: string | null;
+      is_reliable: boolean;
+      status: string;
+      allocations: Array<{
+        id: string;
+        label: string;
+        allocation_type: string;
+        amount: number;
+        linked_type?: string | null;
+        linked_id?: string | null;
+      }>;
+    }>;
+  };
+  cashflow_glance: {
+    trailing_30_inflow: number;
+    trailing_30_outflow: number;
+    trailing_30_net: number;
+    next_14_planned_inflow: number;
+    next_14_required_outflow: number;
+    next_income_date?: string | null;
+    next_pressure_point?: string | null;
+  };
+  recent_updates: Array<{
+    id: string;
+    event_type: string;
+    title: string;
+    detail?: string | null;
+    amount?: number | null;
+    occurred_at: string;
+    linked_type?: string | null;
+    linked_id?: string | null;
+  }>;
+  progress_summary: {
+    free_now: number;
+    free_after_planned_income: number;
+    total_debt: number;
+    overdue_count: number;
+    completed_actions_7d: number;
+    goal_completion_rate: number;
+    seven_day: {
+      direction: "forward" | "backward" | "steady";
+      free_now_delta: number;
+      free_after_planned_income_delta: number;
+      total_debt_delta: number;
+      overdue_delta: number;
+      completed_actions_delta: number;
+    };
+    thirty_day: {
+      direction: "forward" | "backward" | "steady";
+      free_now_delta: number;
+      free_after_planned_income_delta: number;
+      total_debt_delta: number;
+      overdue_delta: number;
+      completed_actions_delta: number;
+    };
+  };
+  free_now: BackendFreeCashAmount;
+  free_after_planned_income: BackendFreeCashAmount;
+};
+
+export type BackendAction = {
+  id: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+  title: string;
+  detail?: string | null;
+  status: string;
+  lane: string;
+  source: string;
+  due_on?: string | null;
+  linked_type?: string | null;
+  linked_id?: string | null;
+};
+
+export type BackendActionCreatePayload = {
+  title: string;
+  detail?: string | null;
+  status?: string;
+  lane?: string;
+  source?: string;
+  due_on?: string | null;
+  linked_type?: string | null;
+  linked_id?: string | null;
+};
+
+export type BackendActionUpdatePayload = Partial<BackendActionCreatePayload>;
+
+export type BackendRoadmapGoal = {
+  id: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  target_date?: string | null;
+  linked_type?: string | null;
+  linked_id?: string | null;
+  metric_kind?: string | null;
+  metric_start_value?: number | null;
+  metric_current_value?: number | null;
+  metric_target_value?: number | null;
+};
+
+export type BackendRoadmapGoalCreatePayload = Omit<BackendRoadmapGoal, "id" | "owner_id" | "created_at" | "updated_at">;
+export type BackendRoadmapGoalUpdatePayload = Partial<BackendRoadmapGoalCreatePayload>;
+
+export type BackendRoadmapStep = {
+  id: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+  goal_id: string;
+  title: string;
+  status: string;
+  due_on?: string | null;
+  sort_order: number;
+  linked_type?: string | null;
+  linked_id?: string | null;
+  notes?: string | null;
+};
+
+export type BackendRoadmapStepCreatePayload = Omit<BackendRoadmapStep, "id" | "owner_id" | "created_at" | "updated_at">;
+export type BackendRoadmapStepUpdatePayload = Partial<Omit<BackendRoadmapStepCreatePayload, "goal_id">>;
+
+export type BackendIncomePlan = {
+  id: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+  label: string;
+  amount: number;
+  expected_on?: string | null;
+  is_reliable: boolean;
+  status: string;
+  notes?: string | null;
+};
+
+export type BackendIncomePlanCreatePayload = Omit<BackendIncomePlan, "id" | "owner_id" | "created_at" | "updated_at">;
+export type BackendIncomePlanUpdatePayload = Partial<BackendIncomePlanCreatePayload>;
+
+export type BackendIncomePlanAllocation = {
+  id: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+  income_plan_id: string;
+  label: string;
+  allocation_type: string;
+  amount: number;
+  sort_order: number;
+  linked_type?: string | null;
+  linked_id?: string | null;
+  notes?: string | null;
+};
+
+export type BackendIncomePlanAllocationCreatePayload = Omit<BackendIncomePlanAllocation, "id" | "owner_id" | "created_at" | "updated_at">;
+export type BackendIncomePlanAllocationUpdatePayload = Partial<Omit<BackendIncomePlanAllocationCreatePayload, "income_plan_id">>;
+
+export type BackendDebt = {
+  id: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+  name: string;
+  balance: number;
+  minimum_payment: number;
+  due_on?: string | null;
+  status: "active" | "paused" | "paid_off";
+  notes?: string | null;
+};
+
+export type BackendObligation = {
+  id: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+  name: string;
+  amount: number;
+  due_on: string;
+  frequency: "one_time" | "weekly" | "biweekly" | "monthly" | "yearly";
+  is_paid: boolean;
+  is_recurring: boolean;
+  notes?: string | null;
+};
+
+export type BackendAccount = {
+  id: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+  name: string;
+  institution?: string | null;
+  type: "checking" | "savings" | "credit_card" | "cash" | "debt";
+  balance: number;
+  is_active: boolean;
+  notes?: string | null;
+};
+
 function requestErrorMessage(path: string) {
   return `Request failed for ${path}`;
 }
@@ -379,6 +636,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
   };
 
   return {
+    getDecisionSnapshot: () => get<BackendDecisionSnapshot | null>("/dashboard", null, { required: true }),
     getDashboardData: () => get<BackendDashboardResponse | null>("/dashboard", null),
     getSetup: () =>
       get<BackendSetupPayload>("/settings/bootstrap", {
@@ -404,6 +662,9 @@ export function createApiClient(options: ApiClientOptions = {}) {
     searchMerchants: (query: string) => get<string[]>(`/suggestions/merchants?q=${encodeURIComponent(query)}`, []),
     searchSources: (query: string) => get<string[]>(`/suggestions/sources?q=${encodeURIComponent(query)}`, []),
     listTasks: () => get<BackendTask[]>("/tasks", [], { required: true }),
+    listDebts: () => get<BackendDebt[]>("/debts", [], { required: true }),
+    listObligations: () => get<BackendObligation[]>("/obligations", [], { required: true }),
+    listAccounts: () => get<BackendAccount[]>("/accounts", [], { required: true }),
     createTask: (payload: BackendTaskCreatePayload) =>
       post<BackendTask>("/tasks", payload, {
         id: "task-draft",
@@ -431,6 +692,118 @@ export function createApiClient(options: ApiClientOptions = {}) {
         notes: payload.notes ?? null,
       }, { required: true }),
     deleteTask: (taskId: string) => del(`/tasks/${taskId}`, { required: true }),
+    listActions: () => get<BackendAction[]>("/actions", [], { required: true }),
+    createAction: (payload: BackendActionCreatePayload) =>
+      post<BackendAction>("/actions", payload, {
+        id: "action-draft",
+        owner_id: "",
+        created_at: "",
+        updated_at: "",
+        title: payload.title,
+        detail: payload.detail ?? null,
+        status: payload.status ?? "todo",
+        lane: payload.lane ?? "manual",
+        source: payload.source ?? "manual",
+        due_on: payload.due_on ?? null,
+        linked_type: payload.linked_type ?? null,
+        linked_id: payload.linked_id ?? null,
+      }, { required: true }),
+    updateAction: (actionId: string, payload: BackendActionUpdatePayload) =>
+      patch<BackendAction>(`/actions/${actionId}`, payload, {
+        id: actionId,
+        owner_id: "",
+        created_at: "",
+        updated_at: "",
+        title: payload.title ?? "",
+        detail: payload.detail ?? null,
+        status: payload.status ?? "todo",
+        lane: payload.lane ?? "manual",
+        source: payload.source ?? "manual",
+        due_on: payload.due_on ?? null,
+        linked_type: payload.linked_type ?? null,
+        linked_id: payload.linked_id ?? null,
+      }, { required: true }),
+    deleteAction: (actionId: string) => del(`/actions/${actionId}`, { required: true }),
+    listRoadmapGoals: () => get<BackendRoadmapGoal[]>("/roadmap/goals", [], { required: true }),
+    createRoadmapGoal: (payload: BackendRoadmapGoalCreatePayload) =>
+      post<BackendRoadmapGoal>("/roadmap/goals", payload, {
+        id: "goal-draft",
+        owner_id: "",
+        created_at: "",
+        updated_at: "",
+        ...payload,
+      }, { required: true }),
+    updateRoadmapGoal: (goalId: string, payload: BackendRoadmapGoalUpdatePayload) =>
+      patch<BackendRoadmapGoal>(`/roadmap/goals/${goalId}`, payload, {
+        id: goalId,
+        owner_id: "",
+        created_at: "",
+        updated_at: "",
+        title: payload.title ?? "",
+        description: payload.description ?? "",
+        status: payload.status ?? "active",
+        priority: payload.priority ?? "medium",
+        target_date: payload.target_date ?? null,
+        linked_type: payload.linked_type ?? null,
+        linked_id: payload.linked_id ?? null,
+        metric_kind: payload.metric_kind ?? null,
+        metric_start_value: payload.metric_start_value ?? null,
+        metric_current_value: payload.metric_current_value ?? null,
+        metric_target_value: payload.metric_target_value ?? null,
+      }, { required: true }),
+    createRoadmapStep: (payload: BackendRoadmapStepCreatePayload) =>
+      post<BackendRoadmapStep>("/roadmap/steps", payload, {
+        id: "step-draft",
+        owner_id: "",
+        created_at: "",
+        updated_at: "",
+        ...payload,
+      }, { required: true }),
+    updateRoadmapStep: (stepId: string, payload: BackendRoadmapStepUpdatePayload) =>
+      patch<BackendRoadmapStep>(`/roadmap/steps/${stepId}`, payload, {
+        id: stepId,
+        owner_id: "",
+        created_at: "",
+        updated_at: "",
+        goal_id: "",
+        title: payload.title ?? "",
+        status: payload.status ?? "todo",
+        due_on: payload.due_on ?? null,
+        sort_order: payload.sort_order ?? 0,
+        linked_type: payload.linked_type ?? null,
+        linked_id: payload.linked_id ?? null,
+        notes: payload.notes ?? null,
+      }, { required: true }),
+    createIncomePlan: (payload: BackendIncomePlanCreatePayload) =>
+      post<BackendIncomePlan>("/income-plans", payload, {
+        id: "income-plan-draft",
+        owner_id: "",
+        created_at: "",
+        updated_at: "",
+        ...payload,
+      }, { required: true }),
+    updateIncomePlan: (planId: string, payload: BackendIncomePlanUpdatePayload) =>
+      patch<BackendIncomePlan>(`/income-plans/${planId}`, payload, {
+        id: planId,
+        owner_id: "",
+        created_at: "",
+        updated_at: "",
+        label: payload.label ?? "",
+        amount: payload.amount ?? 0,
+        expected_on: payload.expected_on ?? null,
+        is_reliable: payload.is_reliable ?? true,
+        status: payload.status ?? "planned",
+        notes: payload.notes ?? null,
+      }, { required: true }),
+    createIncomePlanAllocation: (payload: BackendIncomePlanAllocationCreatePayload) =>
+      post<BackendIncomePlanAllocation>("/income-plan-allocations", payload, {
+        id: "income-plan-allocation-draft",
+        owner_id: "",
+        created_at: "",
+        updated_at: "",
+        ...payload,
+      }, { required: true }),
+    relaunchPlanning: () => post<void>("/planning/relaunch", {}, undefined, { required: true }),
     submitQuickAdd: (draft: QuickAddDraft) =>
       post(
         "/quick-add",

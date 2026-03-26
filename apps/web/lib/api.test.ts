@@ -158,7 +158,7 @@ describe("createApiClient", () => {
 
   it("reads and completes onboarding through the onboarding endpoints", async () => {
     vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input).endsWith("/onboarding/start")) {
         return new Response(
           JSON.stringify({

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -459,3 +459,264 @@ class DashboardSummary(BaseModel):
 class DashboardResponse(BaseModel):
     summary: DashboardSummary
     snapshot: DashboardDataSnapshot
+
+
+class FreeCashBreakdown(BaseModel):
+    liquid_cash: float
+    protected_buffer: float
+    active_reserves: float
+    overdue_obligations: float
+    obligations_due_within_horizon: float
+    debt_minimums_due_within_horizon: float
+    essentials_reserve_within_horizon: float
+    reliable_income_within_horizon: float
+    extra_allocations_within_horizon: float
+
+
+class FreeCashAmount(BaseModel):
+    amount: float
+    breakdown: FreeCashBreakdown
+
+
+class DecisionActionBase(BaseModel):
+    title: str
+    detail: str | None = None
+    status: str = "todo"
+    lane: str = "this_week"
+    source: str = "manual"
+    due_on: date | None = None
+    linked_type: str | None = None
+    linked_id: str | None = None
+
+
+class DecisionActionCreate(DecisionActionBase):
+    pass
+
+
+class DecisionActionUpdate(BaseModel):
+    title: str | None = None
+    detail: str | None = None
+    status: str | None = None
+    lane: str | None = None
+    source: str | None = None
+    due_on: date | None = None
+    linked_type: str | None = None
+    linked_id: str | None = None
+
+
+class ActionItemRead(TimestampedRead, DecisionActionBase):
+    pass
+
+
+class DecisionActionRead(DecisionActionBase):
+    id: str
+    pass
+
+
+class RoadmapGoalBase(BaseModel):
+    title: str
+    description: str = ""
+    status: str = "active"
+    priority: str = "medium"
+    target_date: date | None = None
+    linked_type: str | None = None
+    linked_id: str | None = None
+    metric_kind: str | None = None
+    metric_start_value: float | None = None
+    metric_current_value: float | None = None
+    metric_target_value: float | None = None
+
+
+class RoadmapGoalCreate(RoadmapGoalBase):
+    pass
+
+
+class RoadmapGoalUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    status: str | None = None
+    priority: str | None = None
+    target_date: date | None = None
+    linked_type: str | None = None
+    linked_id: str | None = None
+    metric_kind: str | None = None
+    metric_start_value: float | None = None
+    metric_current_value: float | None = None
+    metric_target_value: float | None = None
+
+
+class RoadmapGoalEntityRead(TimestampedRead, RoadmapGoalBase):
+    pass
+
+
+class RoadmapGoalRead(RoadmapGoalBase):
+    id: str
+    progress: float = 0
+    steps: list[DecisionActionRead] = Field(default_factory=list)
+
+
+class RoadmapStepBase(BaseModel):
+    goal_id: str
+    title: str
+    status: str = "todo"
+    due_on: date | None = None
+    sort_order: int = 0
+    linked_type: str | None = None
+    linked_id: str | None = None
+    notes: str | None = None
+
+
+class RoadmapStepCreate(RoadmapStepBase):
+    pass
+
+
+class RoadmapStepUpdate(BaseModel):
+    title: str | None = None
+    status: str | None = None
+    due_on: date | None = None
+    sort_order: int | None = None
+    linked_type: str | None = None
+    linked_id: str | None = None
+    notes: str | None = None
+
+
+class RoadmapStepRead(TimestampedRead, RoadmapStepBase):
+    pass
+
+
+class IncomePlanBase(BaseModel):
+    label: str
+    amount: float
+    expected_on: date | None = None
+    is_reliable: bool = True
+    status: str = "planned"
+    notes: str | None = None
+
+
+class IncomePlanCreate(IncomePlanBase):
+    pass
+
+
+class IncomePlanUpdate(BaseModel):
+    label: str | None = None
+    amount: float | None = None
+    expected_on: date | None = None
+    is_reliable: bool | None = None
+    status: str | None = None
+    notes: str | None = None
+
+
+class IncomePlanRead(TimestampedRead, IncomePlanBase):
+    pass
+
+
+class IncomePlanAllocationBase(BaseModel):
+    income_plan_id: str
+    label: str
+    allocation_type: str
+    amount: float
+    sort_order: int = 0
+    linked_type: str | None = None
+    linked_id: str | None = None
+    notes: str | None = None
+
+
+class IncomePlanAllocationCreate(IncomePlanAllocationBase):
+    pass
+
+
+class IncomePlanAllocationUpdate(BaseModel):
+    label: str | None = None
+    allocation_type: str | None = None
+    amount: float | None = None
+    sort_order: int | None = None
+    linked_type: str | None = None
+    linked_id: str | None = None
+    notes: str | None = None
+
+
+class IncomePlanAllocationRead(TimestampedRead, IncomePlanAllocationBase):
+    pass
+
+
+class RecentUpdate(BaseModel):
+    id: str
+    event_type: str
+    title: str
+    detail: str | None = None
+    amount: float | None = None
+    occurred_at: datetime
+    linked_type: str | None = None
+    linked_id: str | None = None
+
+
+class ProgressTrend(BaseModel):
+    direction: Literal["forward", "backward", "steady"]
+    free_now_delta: float
+    free_after_planned_income_delta: float
+    total_debt_delta: float
+    overdue_delta: int
+    completed_actions_delta: int
+
+
+class ProgressSummary(BaseModel):
+    free_now: float
+    free_after_planned_income: float
+    total_debt: float
+    overdue_count: int
+    completed_actions_7d: int
+    goal_completion_rate: float
+    seven_day: ProgressTrend
+    thirty_day: ProgressTrend
+
+
+class CashflowGlance(BaseModel):
+    trailing_30_inflow: float
+    trailing_30_outflow: float
+    trailing_30_net: float
+    next_14_planned_inflow: float
+    next_14_required_outflow: float
+    next_income_date: date | None = None
+    next_pressure_point: str | None = None
+
+
+class DecisionFocus(BaseModel):
+    primary_action: DecisionActionRead | None = None
+    secondary_action: DecisionActionRead | None = None
+    why_now: str
+
+
+class RoadmapPlanAllocationRead(BaseModel):
+    id: str
+    label: str
+    allocation_type: str
+    amount: float
+    linked_type: str | None = None
+    linked_id: str | None = None
+
+
+class RoadmapPlanRead(BaseModel):
+    id: str
+    label: str
+    amount: float
+    expected_on: date | None = None
+    is_reliable: bool
+    status: str
+    allocations: list[RoadmapPlanAllocationRead] = Field(default_factory=list)
+
+
+class RoadmapGoalSummary(BaseModel):
+    goals: list[RoadmapGoalRead] = Field(default_factory=list)
+    plans: list[RoadmapPlanRead] = Field(default_factory=list)
+
+
+class DecisionSnapshot(BaseModel):
+    generated_at: datetime
+    focus: DecisionFocus
+    ordered_action_queue: list[DecisionActionRead] = Field(default_factory=list)
+    roadmap_summary: RoadmapGoalSummary
+    cashflow_glance: CashflowGlance
+    recent_updates: list[RecentUpdate] = Field(default_factory=list)
+    progress_summary: ProgressSummary
+    free_now: FreeCashAmount
+    free_after_planned_income: FreeCashAmount

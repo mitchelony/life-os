@@ -15,7 +15,7 @@ export const navItems: AppNavItem[] = [
   { href: "/obligations", label: "Obligations", mobileLabel: "Bills", icon: CalendarCheck2 },
   { href: "/debts", label: "Debts", mobileLabel: "Debts", icon: BadgeDollarSign },
   { href: "/roadmap", label: "Roadmap", mobileLabel: "Roadmap", icon: Map },
-  { href: "/tasks", label: "Tasks", mobileLabel: "Tasks", icon: BellRing },
+  { href: "/tasks", label: "Actions", mobileLabel: "Actions", icon: BellRing },
   { href: "/settings", label: "Settings", mobileLabel: "Settings", icon: Settings2 },
 ];
 

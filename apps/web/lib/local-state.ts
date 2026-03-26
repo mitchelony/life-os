@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { api, type BackendDashboardResponse, type BackendSetupPayload } from "@/lib/api";
+import { api, type BackendSetupPayload } from "@/lib/api";
 import { computeAvailableSpend, getCreditCardBalance, getTotalCash, money } from "@/lib/finance";
 import type {
   Account,
@@ -1654,63 +1654,6 @@ export function applyQuickAddToSetup(setup: StoredLifeOsSetup, draft: QuickAddDr
   return nextSetup;
 }
 
-function storedSetupFromApiDashboard(payload: BackendDashboardResponse, localSetup: StoredLifeOsSetup | null): StoredLifeOsSetup {
-  const nextSetup = createEmptyStoredLifeOsSetup();
-  nextSetup.displayName = localSetup?.displayName ?? "Life owner";
-  nextSetup.protectedBuffer = payload.snapshot.settings.protected_cash_buffer ?? "0";
-  nextSetup.essentialTarget = payload.snapshot.settings.essential_spend_target ?? "0";
-  nextSetup.savingsFloor = payload.snapshot.settings.savings_floor ?? "0";
-  nextSetup.notes = payload.snapshot.settings.owner_notes ?? localSetup?.notes ?? "";
-  nextSetup.accounts = payload.snapshot.accounts.map((account) => ({
-    id: account.id,
-    name: account.name,
-    institution: account.institution ?? "",
-    type: account.type === "debt" ? "credit_card" : account.type,
-    balance: String(account.balance),
-  }));
-  nextSetup.obligations = payload.snapshot.obligations.map((item) => ({
-    id: item.id,
-    name: item.name,
-    amount: String(item.amount),
-    dueDate: item.due_on,
-    recurrence: item.frequency === "one_time" ? "one-time" : (item.frequency as RecurrenceFrequency),
-    linkedAccount: payload.snapshot.accounts.find((account) => account.type === "checking")?.name,
-  }));
-  nextSetup.debts = payload.snapshot.debts.map((item) => ({
-    id: item.id,
-    name: item.name,
-    balance: String(item.balance),
-    minimum: String(item.minimum_payment),
-    dueDate: item.due_on ?? startOfTodayIso().slice(0, 10),
-  }));
-  nextSetup.income = payload.snapshot.income_entries
-    .filter((item) => item.status === "expected")
-    .map((item) => ({
-      id: item.id,
-      source: item.source_name,
-      expectedAmount: String(item.amount),
-      dueDate: item.expected_on ?? startOfTodayIso().slice(0, 10),
-      recurrence: "one-time",
-      linkedAccount: payload.snapshot.accounts.find((account) => account.id === item.account_id)?.name,
-    }));
-  nextSetup.transactions = payload.snapshot.transactions.map((item) => ({
-    id: item.id,
-    kind: item.kind,
-    title: item.title ?? item.counterparty_name ?? item.category_name ?? "Manual entry",
-    amount: String(item.amount),
-    date: item.occurred_on,
-    account: item.account_name ?? "Manual account",
-    counterparty: item.counterparty_name ?? item.title ?? "Manual entry",
-    category: item.category_name ?? "Uncategorized",
-    notes: item.notes ?? undefined,
-  }));
-  nextSetup.manualTasks = localSetup?.manualTasks ?? [];
-  nextSetup.taskOverrides = localSetup?.taskOverrides ?? [];
-  nextSetup.roadmapItems = localSetup?.roadmapItems ?? [];
-  nextSetup.strategyDocument = localSetup?.strategyDocument ?? null;
-  return nextSetup;
-}
-
 export function storedSetupFromApiSetup(payload: BackendSetupPayload, localSetup: StoredLifeOsSetup | null): StoredLifeOsSetup {
   const nextSetup = normalizeStoredLifeOsSetup(localSetup ?? createEmptyStoredLifeOsSetup());
   nextSetup.displayName = payload.display_name || nextSetup.displayName;
@@ -2066,18 +2009,9 @@ export function useLifeOsDashboard() {
   const [dashboard, setDashboard] = useState<DashboardSnapshot>(() => buildDashboardFromSetup(readStoredLifeOsSetup()));
 
   useEffect(() => {
-    let cancelled = false;
-
     const sync = async () => {
       const localSetup = readStoredLifeOsSetup();
-      if (!cancelled) {
-        setDashboard(buildDashboardFromSetup(localSetup));
-      }
-
-      const apiDashboard = await api.getDashboardData();
-      if (!cancelled && apiDashboard) {
-        setDashboard(buildDashboardFromSetup(storedSetupFromApiDashboard(apiDashboard, localSetup)));
-      }
+      setDashboard(buildDashboardFromSetup(localSetup));
     };
 
     void sync();
@@ -2087,7 +2021,6 @@ export function useLifeOsDashboard() {
     window.addEventListener("storage", onChange);
     window.addEventListener(changedEvent, onChange);
     return () => {
-      cancelled = true;
       window.removeEventListener("storage", onChange);
       window.removeEventListener(changedEvent, onChange);
     };

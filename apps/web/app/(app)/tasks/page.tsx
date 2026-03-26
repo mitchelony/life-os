@@ -1,532 +1,412 @@
 "use client";
 
-import { Check, EyeOff, PencilLine, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { Badge, Button, cn, InlineField, Input, Panel, SectionHeading, Select, Textarea } from "@/components/ui";
-import {
-  buildDashboardFromSetup,
-  buildManagedTasks,
-  createEmptyStoredLifeOsSetup,
-  useStoredLifeOsSetup,
-  type StoredLifeOsSetup,
-  type StoredTaskOverride,
-} from "@/lib/local-state";
-import type { Task, TaskPriority } from "@/lib/types";
+import { Check, PauseCircle, Plus, RotateCcw, Slash, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Badge, Button, InlineField, Input, Panel, SectionHeading, Select, Textarea } from "@/components/ui";
+import { api } from "@/lib/api";
+import { notifyDecisionChanged, type DecisionAction, useDecisionSnapshot } from "@/lib/decision";
+import { groupActionsByLane } from "@/lib/decision-view";
 
-type TaskDraft = {
-  title: string;
-  dueDate: string;
-  priority: TaskPriority;
-  notes: string;
-};
+const laneOptions = [
+  { value: "do_now", label: "Do now" },
+  { value: "this_week", label: "This week" },
+  { value: "when_income_lands", label: "When income lands" },
+  { value: "manual", label: "Manual" },
+];
 
-const priorityOptions: TaskPriority[] = ["urgent", "high", "normal"];
+const statusOptions = [
+  { value: "todo", label: "To do" },
+  { value: "in_progress", label: "In progress" },
+  { value: "blocked", label: "Blocked" },
+  { value: "done", label: "Done" },
+  { value: "skipped", label: "Skipped" },
+];
 
-function createDraftId() {
-  return `manual-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function todayString() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function dueLabel(date: string) {
+function dueLabel(value?: string) {
+  if (!value) return "No due date";
   return new Intl.DateTimeFormat("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
-  }).format(new Date(date));
+  }).format(new Date(value));
 }
 
-function buildTaskDraft(task: Task): TaskDraft {
-  return {
-    title: task.title,
-    dueDate: task.dueDate.slice(0, 10),
-    priority: task.priority,
-    notes: task.notes ?? "",
-  };
+function laneLabel(value: string) {
+  return laneOptions.find((option) => option.value === value)?.label ?? value.replaceAll("_", " ");
 }
 
-function getBaseSetup(setup: StoredLifeOsSetup, hydrated: boolean) {
-  return hydrated ? setup : createEmptyStoredLifeOsSetup();
+function statusLabel(value: string) {
+  return statusOptions.find((option) => option.value === value)?.label ?? value.replaceAll("_", " ");
 }
 
-function upsertTaskOverride(
-  taskOverrides: StoredTaskOverride[],
-  taskId: string,
-  patch: Partial<StoredTaskOverride>,
-) {
-  const index = taskOverrides.findIndex((item) => item.taskId === taskId);
-  const nextOverride: StoredTaskOverride = {
-    ...(index >= 0 ? taskOverrides[index] : { taskId }),
-    ...patch,
-    taskId,
-  };
-
-  if (!nextOverride.title?.trim()) delete nextOverride.title;
-  if (!nextOverride.dueDate?.trim()) delete nextOverride.dueDate;
-  if (!nextOverride.notes?.trim()) delete nextOverride.notes;
-  if (nextOverride.completed === false) delete nextOverride.completed;
-  if (nextOverride.dismissed === false) delete nextOverride.dismissed;
-
-  const hasMeaningfulFields = Object.keys(nextOverride).some((key) => key !== "taskId");
-  if (!hasMeaningfulFields) {
-    return taskOverrides.filter((item) => item.taskId !== taskId);
-  }
-
-  if (index >= 0) {
-    const nextOverrides = [...taskOverrides];
-    nextOverrides[index] = nextOverride;
-    return nextOverrides;
-  }
-
-  return [...taskOverrides, nextOverride];
+function isDoneLike(status: string) {
+  return status === "done" || status === "skipped";
 }
 
-function HiddenTaskCard({
-  override,
-  onRestore,
-}: {
-  override: StoredTaskOverride;
-  onRestore: () => void;
-}) {
-  return (
-    <Panel className="space-y-3 border-dashed">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Hidden</p>
-          <h3 className="mt-2 text-lg font-semibold tracking-tight text-ink">{override.title ?? "Hidden task"}</h3>
-          <p className="mt-1 text-sm text-muted">
-            {override.dueDate ? dueLabel(override.dueDate) : "No due date"} · {override.linkedTo ?? "Derived task"}
-          </p>
-        </div>
-        <Badge>hidden</Badge>
-      </div>
-      {override.notes ? <p className="text-sm leading-6 text-muted">{override.notes}</p> : null}
-      <Button variant="ghost" className="w-full sm:w-auto" onClick={onRestore}>
-        <RotateCcw className="h-4 w-4" />
-        Restore
-      </Button>
-    </Panel>
-  );
-}
+type ActionDraft = {
+  title: string;
+  detail: string;
+  lane: string;
+  dueOn: string;
+};
 
-function TaskCard({
-  task,
+const emptyDraft: ActionDraft = {
+  title: "",
+  detail: "",
+  lane: "manual",
+  dueOn: "",
+};
+
+function ActionCard({
+  action,
   onSave,
-  onToggleComplete,
-  onDismiss,
+  onStatusChange,
   onDelete,
 }: {
-  task: Task;
-  onSave: (draft: TaskDraft) => void;
-  onToggleComplete: () => void;
-  onDismiss?: () => void;
-  onDelete?: () => void;
+  action: {
+    id: string;
+    title: string;
+    detail?: string;
+    lane: string;
+    source: string;
+    status: string;
+    dueOn?: string;
+  };
+  onSave: (draft: ActionDraft) => Promise<void>;
+  onStatusChange: (status: string) => Promise<void>;
+  onDelete?: () => Promise<void>;
 }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState<TaskDraft>(() => buildTaskDraft(task));
+  const [editing, setEditing] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [draft, setDraft] = useState<ActionDraft>({
+    title: action.title,
+    detail: action.detail ?? "",
+    lane: action.lane,
+    dueOn: action.dueOn ?? "",
+  });
 
-  useEffect(() => {
-    setDraft(buildTaskDraft(task));
-  }, [task]);
-
-  const isManual = task.source === "manual";
+  async function run(task: () => Promise<void>) {
+    setPending(true);
+    try {
+      await task();
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <Panel className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className={cn(task.completed ? "bg-white/88 text-muted" : task.priority === "urgent" ? "bg-[rgba(165,57,42,0.12)] text-[#8a3022]" : "bg-accent-soft text-accent")}>
-              {task.priority}
+            <Badge className={action.source === "manual" ? "border-transparent bg-accent-soft text-accent" : undefined}>
+              {action.source === "manual" ? "manual" : "system"}
             </Badge>
-            <Badge>{isManual ? "manual" : "derived"}</Badge>
-            {task.linkedTo ? <span className="text-xs text-muted">{task.linkedTo}</span> : null}
+            <Badge>{statusLabel(action.status)}</Badge>
+            <Badge>{laneLabel(action.lane)}</Badge>
           </div>
-          <h2 className="mt-3 text-xl font-semibold tracking-tight text-ink">{task.title}</h2>
-          <p className="mt-1 text-sm text-muted">{dueLabel(task.dueDate)}</p>
-          {task.notes ? <p className="mt-3 text-sm leading-6 text-muted">{task.notes}</p> : null}
+          <h2 className="mt-3 text-xl font-semibold tracking-tight text-ink">{action.title}</h2>
+          <p className="mt-1 text-sm text-muted">{dueLabel(action.dueOn)}</p>
+          {action.detail ? <p className="mt-3 text-sm leading-6 text-muted">{action.detail}</p> : null}
         </div>
-        <Button variant="ghost" className="shrink-0" onClick={() => setIsEditing((current) => !current)}>
-          <PencilLine className="h-4 w-4" />
-          {isEditing ? "Close" : "Edit"}
+        <Button variant="ghost" onClick={() => setEditing((current) => !current)}>
+          {editing ? "Close" : "Edit"}
         </Button>
       </div>
 
-      {isEditing ? (
+      {editing ? (
         <div className="grid gap-4 md:grid-cols-2">
           <InlineField label="Title">
             <Input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} />
           </InlineField>
           <InlineField label="Due date">
-            <Input type="date" value={draft.dueDate} onChange={(event) => setDraft((current) => ({ ...current, dueDate: event.target.value }))} />
+            <Input type="date" value={draft.dueOn} onChange={(event) => setDraft((current) => ({ ...current, dueOn: event.target.value }))} />
           </InlineField>
-          <InlineField label="Priority">
-            <Select value={draft.priority} onChange={(event) => setDraft((current) => ({ ...current, priority: event.target.value as TaskPriority }))}>
-              {priorityOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
+          <InlineField label="Lane">
+            <Select value={draft.lane} onChange={(event) => setDraft((current) => ({ ...current, lane: event.target.value }))}>
+              {laneOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </Select>
           </InlineField>
-          <InlineField label="Notes" helper="Optional">
+          <InlineField label="Detail" helper="Optional">
             <Textarea
               rows={3}
-              value={draft.notes}
-              onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
+              value={draft.detail}
+              onChange={(event) => setDraft((current) => ({ ...current, detail: event.target.value }))}
               placeholder="Leave yourself the one note that matters."
             />
           </InlineField>
           <div className="md:col-span-2">
             <Button
-              className="w-full sm:w-auto"
-              onClick={() => {
-                onSave(draft);
-                setIsEditing(false);
-              }}
-              disabled={!draft.title.trim()}
+              disabled={pending || !draft.title.trim()}
+              onClick={() =>
+                run(async () => {
+                  await onSave(draft);
+                  setEditing(false);
+                })
+              }
             >
-              Save task
+              Save action
             </Button>
           </div>
         </div>
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <Button variant={task.completed ? "ghost" : "primary"} className="w-full sm:w-auto" onClick={onToggleComplete}>
-          {task.completed ? <RotateCcw className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-          {task.completed ? "Reopen" : "Mark done"}
+        {action.status === "done" ? (
+          <Button variant="ghost" disabled={pending} onClick={() => run(() => onStatusChange("todo"))}>
+            <RotateCcw className="h-4 w-4" />
+            Reopen
+          </Button>
+        ) : (
+          <Button disabled={pending} onClick={() => run(() => onStatusChange("done"))}>
+            <Check className="h-4 w-4" />
+            Mark done
+          </Button>
+        )}
+        <Button variant="ghost" disabled={pending} onClick={() => run(() => onStatusChange("in_progress"))}>
+          <PauseCircle className="h-4 w-4" />
+          Start
         </Button>
-        {isManual ? (
-          <Button variant="ghost" className="w-full sm:w-auto" onClick={onDelete}>
+        <Button variant="ghost" disabled={pending} onClick={() => run(() => onStatusChange("blocked"))}>
+          <Slash className="h-4 w-4" />
+          Block
+        </Button>
+        <Button variant="ghost" disabled={pending} onClick={() => run(() => onStatusChange("skipped"))}>
+          Skip
+        </Button>
+        {onDelete ? (
+          <Button variant="ghost" disabled={pending} onClick={() => run(onDelete)}>
             <Trash2 className="h-4 w-4" />
             Delete
           </Button>
-        ) : (
-          <Button variant="ghost" className="w-full sm:w-auto" onClick={onDismiss}>
-            <EyeOff className="h-4 w-4" />
-            Hide
-          </Button>
-        )}
+        ) : null}
       </div>
     </Panel>
   );
 }
 
-export default function TasksPage() {
-  const { setup, hydrated, save } = useStoredLifeOsSetup();
-  const dashboard = useMemo(() => buildDashboardFromSetup(setup), [setup]);
-  const [showComposer, setShowComposer] = useState(false);
-  const [newTask, setNewTask] = useState<TaskDraft>({
-    title: "",
-    dueDate: todayString(),
-    priority: "normal",
-    notes: "",
-  });
-
-  const tasks = useMemo(
-    () =>
-      buildManagedTasks(
-        dashboard.obligations,
-        dashboard.debts,
-        dashboard.upcomingIncome,
-        setup.manualTasks,
-        setup.taskOverrides,
-      ),
-    [dashboard.debts, dashboard.obligations, dashboard.upcomingIncome, setup.manualTasks, setup.taskOverrides],
+function ActionLane({
+  title,
+  description,
+  actions,
+  onSave,
+  onStatusChange,
+  onDelete,
+}: {
+  title: string;
+  description: string;
+  actions: DecisionAction[];
+  onSave: (actionId: string, draft: ActionDraft) => Promise<void>;
+  onStatusChange: (actionId: string, status: string) => Promise<void>;
+  onDelete: (actionId: string) => Promise<void>;
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.24em] text-muted">{title}</p>
+          <p className="mt-1 text-sm text-muted">{description}</p>
+        </div>
+        <Badge>{actions.length}</Badge>
+      </div>
+      {actions.length ? (
+        <div className="space-y-3">
+          {actions.map((action) => (
+            <ActionCard
+              key={action.id}
+              action={action}
+              onSave={(draft) => onSave(action.id, draft)}
+              onStatusChange={(status) => onStatusChange(action.id, status)}
+              onDelete={action.source === "manual" ? () => onDelete(action.id) : undefined}
+            />
+          ))}
+        </div>
+      ) : (
+        <Panel className="border-dashed bg-white/56 text-sm text-muted">Nothing here right now.</Panel>
+      )}
+    </section>
   );
+}
 
-  const openTasks = tasks.filter((task) => !task.completed);
-  const completedTasks = tasks.filter((task) => task.completed);
-  const hiddenTasks = setup.taskOverrides.filter((task) => task.dismissed);
+export default function TasksPage() {
+  const { snapshot, loading, refresh } = useDecisionSnapshot();
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [draft, setDraft] = useState<ActionDraft>(emptyDraft);
 
-  function commit(nextSetup: StoredLifeOsSetup) {
-    save(nextSetup);
+  const grouped = useMemo(() => groupActionsByLane(snapshot?.orderedActionQueue ?? []), [snapshot?.orderedActionQueue]);
+  const doneCount = (snapshot?.orderedActionQueue ?? []).filter((item) => isDoneLike(item.status)).length;
+
+  async function sync(task: () => Promise<unknown>) {
+    setPending(true);
+    try {
+      await task();
+      notifyDecisionChanged();
+      await refresh();
+    } finally {
+      setPending(false);
+    }
   }
 
-  function addManualTask() {
-    const base = getBaseSetup(setup, hydrated);
-    if (!newTask.title.trim()) return;
-    commit({
-      ...base,
-      manualTasks: [
-        ...base.manualTasks,
-        {
-          id: createDraftId(),
-          title: newTask.title.trim(),
-          dueDate: newTask.dueDate,
-          priority: newTask.priority,
-          linkedTo: "Manual",
-          completed: false,
-          source: "manual",
-          notes: newTask.notes.trim(),
-        },
-      ],
-    });
-    setNewTask({
-      title: "",
-      dueDate: todayString(),
-      priority: "normal",
-      notes: "",
-    });
-    setShowComposer(false);
-  }
-
-  function updateManualTask(taskId: string, patch: Partial<Task>) {
-    const base = getBaseSetup(setup, hydrated);
-    commit({
-      ...base,
-      manualTasks: base.manualTasks.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              ...patch,
-              title: patch.title?.trim() ?? task.title,
-              notes: patch.notes?.trim() ?? task.notes,
-            }
-          : task,
-      ),
-    });
-  }
-
-  function removeManualTask(taskId: string) {
-    const base = getBaseSetup(setup, hydrated);
-    commit({
-      ...base,
-      manualTasks: base.manualTasks.filter((task) => task.id !== taskId),
-    });
-  }
-
-  function updateDerivedTask(task: Task, patch: Partial<StoredTaskOverride>) {
-    const base = getBaseSetup(setup, hydrated);
-    commit({
-      ...base,
-      taskOverrides: upsertTaskOverride(base.taskOverrides, task.id, {
-        title: patch.title ?? task.title,
-        dueDate: patch.dueDate ?? task.dueDate,
-        priority: patch.priority ?? task.priority,
-        linkedTo: patch.linkedTo ?? task.linkedTo,
-        notes: patch.notes ?? task.notes,
-        completed: patch.completed,
-        dismissed: patch.dismissed,
+  async function createManualAction() {
+    if (!draft.title.trim()) return;
+    await sync(() =>
+      api.createAction({
+        title: draft.title.trim(),
+        detail: draft.detail.trim() || null,
+        lane: draft.lane,
+        status: "todo",
+        source: "manual",
+        due_on: draft.dueOn || null,
       }),
-    });
+    );
+    setDraft(emptyDraft);
+    setComposerOpen(false);
   }
 
-  function restoreHiddenTask(taskId: string) {
-    const base = getBaseSetup(setup, hydrated);
-    commit({
-      ...base,
-      taskOverrides: upsertTaskOverride(base.taskOverrides, taskId, {
-        dismissed: false,
-      }),
-    });
+  if (loading && !snapshot) {
+    return (
+      <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
+        <Panel>
+          <SectionHeading eyebrow="Actions" title="Loading the queue" description="Pulling your next moves from the decision engine." />
+        </Panel>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
-      <Panel>
+    <div className="mx-auto max-w-[1180px] space-y-4 pb-24 md:space-y-6 md:pb-6">
+      <Panel className="overflow-hidden bg-[linear-gradient(135deg,rgba(244,241,233,0.94),rgba(232,245,238,0.88))]">
         <SectionHeading
-          eyebrow="Tasks"
-          title="Keep the follow-ups under your control"
-          description="The app still derives the important bills, debt payments, and income check-ins. You can now add your own tasks, edit the wording, mark things done, and hide noise you do not need."
+          eyebrow="Actions"
+          title={snapshot?.focus.primaryAction?.title ?? "Keep the queue light and decisive"}
+          description={snapshot?.focus.whyNow ?? "This queue is ordered so you know what to do next without recomputing the system."}
           action={
-            <Button className="w-full sm:w-auto" onClick={() => setShowComposer((current) => !current)}>
+            <Button variant="secondary" disabled={pending} onClick={() => setComposerOpen((current) => !current)}>
               <Plus className="h-4 w-4" />
-              {showComposer ? "Close" : "Add task"}
+              {composerOpen ? "Close" : "Add manual action"}
             </Button>
           }
         />
-      </Panel>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <Panel className="bg-white/72">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Do now</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{grouped.doNow.filter((item) => !isDoneLike(item.status)).length}</p>
+          </Panel>
+          <Panel className="bg-white/72">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-muted">This week</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{grouped.thisWeek.filter((item) => !isDoneLike(item.status)).length}</p>
+          </Panel>
+          <Panel className="bg-white/72">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Finished or skipped</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{doneCount}</p>
+          </Panel>
+        </div>
 
-      {showComposer ? (
-        <Panel className="space-y-4">
-          <SectionHeading
-            eyebrow="Manual task"
-            title="Add one thing you want to track yourself"
-            description="Use this for calls, paperwork, or follow-ups that should sit beside the derived money tasks."
-          />
-          <div className="grid gap-4 md:grid-cols-2">
+        {composerOpen ? (
+          <div className="mt-5 grid gap-4 rounded-[24px] border border-line bg-white/74 p-4 md:grid-cols-2">
             <InlineField label="Title">
-              <Input
-                value={newTask.title}
-                onChange={(event) => setNewTask((current) => ({ ...current, title: event.target.value }))}
-                placeholder="Call landlord about the payment split"
-              />
+              <Input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Call utilities and confirm payment arrangement" />
             </InlineField>
             <InlineField label="Due date">
-              <Input
-                type="date"
-                value={newTask.dueDate}
-                onChange={(event) => setNewTask((current) => ({ ...current, dueDate: event.target.value }))}
-              />
+              <Input type="date" value={draft.dueOn} onChange={(event) => setDraft((current) => ({ ...current, dueOn: event.target.value }))} />
             </InlineField>
-            <InlineField label="Priority">
-              <Select
-                value={newTask.priority}
-                onChange={(event) => setNewTask((current) => ({ ...current, priority: event.target.value as TaskPriority }))}
-              >
-                {priorityOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
+            <InlineField label="Lane">
+              <Select value={draft.lane} onChange={(event) => setDraft((current) => ({ ...current, lane: event.target.value }))}>
+                {laneOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </Select>
             </InlineField>
-            <InlineField label="Notes" helper="Optional">
-              <Textarea
-                rows={3}
-                value={newTask.notes}
-                onChange={(event) => setNewTask((current) => ({ ...current, notes: event.target.value }))}
-                placeholder="Keep this short and useful."
-              />
+            <InlineField label="Detail" helper="Optional">
+              <Textarea rows={3} value={draft.detail} onChange={(event) => setDraft((current) => ({ ...current, detail: event.target.value }))} placeholder="Keep it short and useful." />
             </InlineField>
+            <div className="md:col-span-2">
+              <Button disabled={pending || !draft.title.trim()} onClick={() => void createManualAction()}>
+                Save action
+              </Button>
+            </div>
           </div>
-          <Button className="w-full sm:w-auto" onClick={addManualTask} disabled={!newTask.title.trim()}>
-            Save manual task
-          </Button>
-        </Panel>
-      ) : null}
+        ) : null}
+      </Panel>
 
-      {dashboard.roadmap.focus.nextStep ? (
-        <Panel>
-          <SectionHeading
-            eyebrow="Roadmap focus"
-            title={dashboard.roadmap.focus.nextStep.title}
-            description={`${dashboard.roadmap.focus.whyNow} Open Roadmap if you want the full payment order.`}
-          />
-        </Panel>
-      ) : null}
+      <ActionLane
+        title="Do now"
+        description="The actions that should be resolved before anything else."
+        actions={grouped.doNow}
+        onSave={(actionId, nextDraft) =>
+          sync(() =>
+            api.updateAction(actionId, {
+              title: nextDraft.title.trim(),
+              detail: nextDraft.detail.trim() || null,
+              lane: nextDraft.lane,
+              due_on: nextDraft.dueOn || null,
+            }),
+          )
+        }
+        onStatusChange={(actionId, status) => sync(() => api.updateAction(actionId, { status }))}
+        onDelete={(actionId) => sync(() => api.deleteAction(actionId))}
+      />
 
-      <section className="space-y-4">
-        <SectionHeading
-          eyebrow="Open"
-          title="What still needs attention"
-          description="This is the working list. Derived items stay current as your bills, debt, and income change."
-        />
-        {openTasks.length ? (
-          openTasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onSave={(draft) => {
-                if (task.source === "manual") {
-                  updateManualTask(task.id, {
-                    title: draft.title,
-                    dueDate: draft.dueDate,
-                    priority: draft.priority,
-                    notes: draft.notes,
-                  });
-                  return;
-                }
-                updateDerivedTask(task, {
-                  title: draft.title,
-                  dueDate: draft.dueDate,
-                  priority: draft.priority,
-                  notes: draft.notes,
-                  dismissed: false,
-                });
-              }}
-              onToggleComplete={() => {
-                if (task.source === "manual") {
-                  updateManualTask(task.id, {
-                    completed: !task.completed,
-                  });
-                  return;
-                }
-                updateDerivedTask(task, {
-                  completed: !task.completed,
-                  dismissed: false,
-                });
-              }}
-              onDismiss={
-                task.source === "manual"
-                  ? undefined
-                  : () =>
-                      updateDerivedTask(task, {
-                        title: task.title,
-                        dueDate: task.dueDate,
-                        priority: task.priority,
-                        linkedTo: task.linkedTo,
-                        notes: task.notes,
-                        dismissed: true,
-                        completed: false,
-                      })
-              }
-              onDelete={task.source === "manual" ? () => removeManualTask(task.id) : undefined}
-            />
-          ))
-        ) : (
-          <Panel>
-            <SectionHeading
-              eyebrow="Clear"
-              title="Nothing is actively waiting on you"
-              description="Use Add task if you want to track something manual, or let the app create the next derived task when the plan changes."
-            />
-          </Panel>
-        )}
-      </section>
+      <ActionLane
+        title="This week"
+        description="Important, but not the first move."
+        actions={grouped.thisWeek}
+        onSave={(actionId, nextDraft) =>
+          sync(() =>
+            api.updateAction(actionId, {
+              title: nextDraft.title.trim(),
+              detail: nextDraft.detail.trim() || null,
+              lane: nextDraft.lane,
+              due_on: nextDraft.dueOn || null,
+            }),
+          )
+        }
+        onStatusChange={(actionId, status) => sync(() => api.updateAction(actionId, { status }))}
+        onDelete={(actionId) => sync(() => api.deleteAction(actionId))}
+      />
 
-      {completedTasks.length ? (
-        <section className="space-y-4">
-          <SectionHeading
-            eyebrow="Done"
-            title="Completed tasks"
-            description="Reopen anything you want to bring back into the main list."
-          />
-          {completedTasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onSave={(draft) => {
-                if (task.source === "manual") {
-                  updateManualTask(task.id, {
-                    title: draft.title,
-                    dueDate: draft.dueDate,
-                    priority: draft.priority,
-                    notes: draft.notes,
-                  });
-                  return;
-                }
-                updateDerivedTask(task, {
-                  title: draft.title,
-                  dueDate: draft.dueDate,
-                  priority: draft.priority,
-                  notes: draft.notes,
-                });
-              }}
-              onToggleComplete={() => {
-                if (task.source === "manual") {
-                  updateManualTask(task.id, {
-                    completed: false,
-                  });
-                  return;
-                }
-                updateDerivedTask(task, {
-                  completed: false,
-                });
-              }}
-              onDismiss={task.source === "manual" ? undefined : () => updateDerivedTask(task, { dismissed: true, completed: false })}
-              onDelete={task.source === "manual" ? () => removeManualTask(task.id) : undefined}
-            />
-          ))}
-        </section>
-      ) : null}
+      <ActionLane
+        title="When income lands"
+        description="The ordered moves waiting on the next reliable inflow."
+        actions={grouped.whenIncomeLands}
+        onSave={(actionId, nextDraft) =>
+          sync(() =>
+            api.updateAction(actionId, {
+              title: nextDraft.title.trim(),
+              detail: nextDraft.detail.trim() || null,
+              lane: nextDraft.lane,
+              due_on: nextDraft.dueOn || null,
+            }),
+          )
+        }
+        onStatusChange={(actionId, status) => sync(() => api.updateAction(actionId, { status }))}
+        onDelete={(actionId) => sync(() => api.deleteAction(actionId))}
+      />
 
-      {hiddenTasks.length ? (
-        <section className="space-y-4">
-          <SectionHeading
-            eyebrow="Hidden"
-            title="Derived tasks you chose to hide"
-            description="Restore one if it belongs back in the working list."
-          />
-          {hiddenTasks.map((task) => (
-            <HiddenTaskCard key={task.taskId} override={task} onRestore={() => restoreHiddenTask(task.taskId)} />
-          ))}
-        </section>
-      ) : null}
+      <ActionLane
+        title="Manual"
+        description="The tasks you added yourself so they can live inside the same operating system."
+        actions={grouped.manual}
+        onSave={(actionId, nextDraft) =>
+          sync(() =>
+            api.updateAction(actionId, {
+              title: nextDraft.title.trim(),
+              detail: nextDraft.detail.trim() || null,
+              lane: nextDraft.lane,
+              due_on: nextDraft.dueOn || null,
+            }),
+          )
+        }
+        onStatusChange={(actionId, status) => sync(() => api.updateAction(actionId, { status }))}
+        onDelete={(actionId) => sync(() => api.deleteAction(actionId))}
+      />
     </div>
   );
 }
