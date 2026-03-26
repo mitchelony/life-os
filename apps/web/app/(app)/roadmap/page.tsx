@@ -3,7 +3,6 @@
 import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Button, InlineField, Input, Panel, SectionHeading, Select, Textarea } from "@/components/ui";
-import { ExpectedIncomeManager } from "@/components/expected-income-manager";
 import { api, type BackendDebt, type BackendObligation } from "@/lib/api";
 import { notifyDecisionChanged, useDecisionSnapshot } from "@/lib/decision";
 import { formatMoney } from "@/lib/finance";
@@ -598,9 +597,6 @@ export default function RoadmapPage() {
           <Panel className="border-dashed bg-white/56 text-sm text-muted">No paycheck plan yet. Add the next reliable income and break it into explicit moves.</Panel>
         )}
       </section>
-
-      <ExpectedIncomeManager onChanged={refresh} />
-
       <section className="space-y-3">
         <SectionHeading eyebrow="Goals" title="Active outcomes with real step progress" description="Goals stay here only if they change what you need to do with money next." />
         {snapshot?.roadmap.goals.length ? (

@@ -315,13 +315,13 @@ export function ExpectedIncomeManager({ onChanged }: { onChanged?: () => Promise
               entry={entry}
               accounts={accounts}
               onSaved={async (entryId, nextDraft) => {
-                await api.updateIncomeEntry(entryId, toUpdatePayload(nextDraft));
+                await sync(() => api.updateIncomeEntry(entryId, toUpdatePayload(nextDraft)));
               }}
               onDeleted={async (entryId) => {
-                await api.deleteIncomeEntry(entryId);
+                await sync(() => api.deleteIncomeEntry(entryId));
               }}
               onConfirmed={async (entryId, accountId) => {
-                await api.confirmIncomeEntry(entryId, { account_id: accountId ?? null });
+                await sync(() => api.confirmIncomeEntry(entryId, { account_id: accountId ?? null }));
               }}
             />
           ))}

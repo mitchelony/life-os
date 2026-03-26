@@ -23,8 +23,8 @@ describe("app-shell mobile helpers", () => {
 
   it("moves secondary destinations into the browse sheet", () => {
     const secondary = getMobileSecondaryNavItems(navItems);
-    expect(secondary.map((item) => item.href)).toEqual(["/accounts", "/obligations", "/debts", "/settings"]);
-    expect(isMobileSecondaryRoute("/debts", navItems)).toBe(true);
+    expect(secondary.map((item) => item.href)).toEqual(["/accounts", "/obligations", "/debts", "/income", "/settings"]);
+    expect(isMobileSecondaryRoute("/income", navItems)).toBe(true);
   });
 
   it("keeps every desktop destination reachable from the mobile menu", () => {

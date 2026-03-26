@@ -258,4 +258,40 @@ describe("createApiClient", () => {
 
     await expect(client.completeOnboarding()).rejects.toThrow("Request failed with 500");
   });
+
+  it("confirms expected income through the dedicated confirm endpoint", async () => {
+    vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          income_entry: {
+            id: "income-1",
+            owner_id: "owner-1",
+            created_at: "2026-03-26T00:00:00Z",
+            updated_at: "2026-03-26T00:00:00Z",
+            source_name: "Payroll",
+            amount: 900,
+            status: "received",
+            expected_on: "2026-03-29",
+            received_on: "2026-03-29",
+            account_id: "account-1",
+            notes: null,
+          },
+          transaction_id: "txn-1",
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = createApiClient({
+      baseUrl: "http://localhost:8000/api",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    await client.confirmIncomeEntry("income-1", { account_id: "account-1", received_on: "2026-03-29" });
+
+    const calls = fetchImpl.mock.calls as unknown as Array<[string, RequestInit | undefined]>;
+    expect(calls[0]?.[0]).toBe("http://localhost:8000/api/income-entries/income-1/confirm");
+    expect(calls[0]?.[1]?.method).toBe("POST");
+    expect(calls[0]?.[1]?.body).toBe(JSON.stringify({ account_id: "account-1", received_on: "2026-03-29" }));
+  });
 });
