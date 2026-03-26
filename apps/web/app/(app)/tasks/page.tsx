@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { Badge, Button, InlineField, Input, Panel, SectionHeading, Select, Textarea } from "@/components/ui";
 import { api } from "@/lib/api";
 import { notifyDecisionChanged, type DecisionAction, useDecisionSnapshot } from "@/lib/decision";
-import { groupActionsByLane } from "@/lib/decision-view";
+import { groupActionsByLane, isInactiveActionStatus } from "@/lib/decision-view";
 
 const laneOptions = [
   { value: "do_now", label: "Do now" },
@@ -37,10 +37,6 @@ function laneLabel(value: string) {
 
 function statusLabel(value: string) {
   return statusOptions.find((option) => option.value === value)?.label ?? value.replaceAll("_", " ");
-}
-
-function isDoneLike(status: string) {
-  return status === "done" || status === "skipped";
 }
 
 type ActionDraft = {
@@ -156,7 +152,7 @@ function ActionCard({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        {action.status === "done" ? (
+        {isInactiveActionStatus(action.status) ? (
           <Button variant="ghost" disabled={pending} onClick={() => run(() => onStatusChange("todo"))}>
             <RotateCcw className="h-4 w-4" />
             Reopen
@@ -239,7 +235,7 @@ export default function TasksPage() {
   const [draft, setDraft] = useState<ActionDraft>(emptyDraft);
 
   const grouped = useMemo(() => groupActionsByLane(snapshot?.orderedActionQueue ?? []), [snapshot?.orderedActionQueue]);
-  const doneCount = (snapshot?.orderedActionQueue ?? []).filter((item) => isDoneLike(item.status)).length;
+  const inactiveCount = (snapshot?.orderedActionQueue ?? []).filter((item) => isInactiveActionStatus(item.status)).length;
 
   async function sync(task: () => Promise<unknown>) {
     setPending(true);
@@ -295,15 +291,15 @@ export default function TasksPage() {
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <Panel className="bg-white/72">
             <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Do now</p>
-            <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{grouped.doNow.filter((item) => !isDoneLike(item.status)).length}</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{grouped.doNow.length}</p>
           </Panel>
           <Panel className="bg-white/72">
             <p className="text-[10px] uppercase tracking-[0.22em] text-muted">This week</p>
-            <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{grouped.thisWeek.filter((item) => !isDoneLike(item.status)).length}</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{grouped.thisWeek.length}</p>
           </Panel>
           <Panel className="bg-white/72">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Finished or skipped</p>
-            <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{doneCount}</p>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Inactive</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{inactiveCount}</p>
           </Panel>
         </div>
 
@@ -394,6 +390,24 @@ export default function TasksPage() {
         title="Manual"
         description="The tasks you added yourself so they can live inside the same operating system."
         actions={grouped.manual}
+        onSave={(actionId, nextDraft) =>
+          sync(() =>
+            api.updateAction(actionId, {
+              title: nextDraft.title.trim(),
+              detail: nextDraft.detail.trim() || null,
+              lane: nextDraft.lane,
+              due_on: nextDraft.dueOn || null,
+            }),
+          )
+        }
+        onStatusChange={(actionId, status) => sync(() => api.updateAction(actionId, { status }))}
+        onDelete={(actionId) => sync(() => api.deleteAction(actionId))}
+      />
+
+      <ActionLane
+        title="Inactive"
+        description="Done, skipped, and blocked actions move here so they stop competing with live work."
+        actions={grouped.inactive}
         onSave={(actionId, nextDraft) =>
           sync(() =>
             api.updateAction(actionId, {

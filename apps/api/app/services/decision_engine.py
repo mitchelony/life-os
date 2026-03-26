@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import Session
 
 from app.models.domain import (
@@ -43,6 +44,11 @@ def _money(value: float) -> float:
     return round(float(value), 2)
 
 
+INACTIVE_ACTION_STATUSES = {"done", "skipped", "blocked"}
+INACTIVE_GOAL_STATUSES = {"completed", "blocked"}
+INACTIVE_PLAN_STATUSES = {"cancelled", "received"}
+
+
 def _start_of_today() -> date:
     return date.today()
 
@@ -54,37 +60,49 @@ def _setting(settings: dict[str, str], key: str) -> float:
         return 0.0
 
 
+def _is_missing_relation_error(error: ProgrammingError) -> bool:
+    return "does not exist" in str(error).lower()
+
+
 @dataclass(slots=True)
 class DecisionEngineService:
     db: Session
     owner_id: str
 
+    def _safe_query_all(self, model, *filters, order_by=None, limit: int | None = None):
+        try:
+            query = self.db.query(model)
+            for item in filters:
+                query = query.filter(item)
+            if order_by is not None:
+                if isinstance(order_by, (list, tuple)):
+                    query = query.order_by(*order_by)
+                else:
+                    query = query.order_by(order_by)
+            if limit is not None:
+                query = query.limit(limit)
+            return query.all()
+        except ProgrammingError as error:
+            if _is_missing_relation_error(error):
+                self.db.rollback()
+                return []
+            raise
+
     def build(self) -> DecisionSnapshot:
-        accounts = self.db.query(Account).filter(Account.owner_id == self.owner_id, Account.is_active.is_(True)).all()
-        obligations = self.db.query(Obligation).filter(Obligation.owner_id == self.owner_id).all()
-        debts = self.db.query(Debt).filter(Debt.owner_id == self.owner_id).all()
-        reserves = self.db.query(Reserve).filter(Reserve.owner_id == self.owner_id, Reserve.is_active.is_(True)).all()
-        settings = {row.key: row.value for row in self.db.query(AppSetting).filter(AppSetting.owner_id == self.owner_id).all()}
-        income_entries = self.db.query(IncomeEntry).filter(IncomeEntry.owner_id == self.owner_id).all()
-        income_plans = self.db.query(IncomePlan).filter(IncomePlan.owner_id == self.owner_id).order_by(IncomePlan.expected_on.asc()).all()
-        allocations = self.db.query(IncomePlanAllocation).filter(IncomePlanAllocation.owner_id == self.owner_id).order_by(IncomePlanAllocation.sort_order.asc()).all()
-        goals = self.db.query(RoadmapGoal).filter(RoadmapGoal.owner_id == self.owner_id).order_by(RoadmapGoal.created_at.asc()).all()
-        steps = self.db.query(RoadmapStep).filter(RoadmapStep.owner_id == self.owner_id).order_by(RoadmapStep.sort_order.asc()).all()
-        actions = self.db.query(ActionItem).filter(ActionItem.owner_id == self.owner_id, ActionItem.is_archived.is_(False)).all()
-        transactions = self.db.query(Transaction).filter(Transaction.owner_id == self.owner_id).all()
-        events = (
-            self.db.query(ActivityEvent)
-            .filter(ActivityEvent.owner_id == self.owner_id)
-            .order_by(ActivityEvent.occurred_at.desc())
-            .limit(12)
-            .all()
-        )
-        snapshots = (
-            self.db.query(ProgressSnapshot)
-            .filter(ProgressSnapshot.owner_id == self.owner_id)
-            .order_by(ProgressSnapshot.snapshot_date.desc())
-            .all()
-        )
+        accounts = self._safe_query_all(Account, Account.owner_id == self.owner_id, Account.is_active.is_(True))
+        obligations = self._safe_query_all(Obligation, Obligation.owner_id == self.owner_id)
+        debts = self._safe_query_all(Debt, Debt.owner_id == self.owner_id)
+        reserves = self._safe_query_all(Reserve, Reserve.owner_id == self.owner_id, Reserve.is_active.is_(True))
+        settings = {row.key: row.value for row in self._safe_query_all(AppSetting, AppSetting.owner_id == self.owner_id)}
+        income_entries = self._safe_query_all(IncomeEntry, IncomeEntry.owner_id == self.owner_id)
+        income_plans = self._safe_query_all(IncomePlan, IncomePlan.owner_id == self.owner_id, order_by=IncomePlan.expected_on.asc())
+        allocations = self._safe_query_all(IncomePlanAllocation, IncomePlanAllocation.owner_id == self.owner_id, order_by=IncomePlanAllocation.sort_order.asc())
+        goals = self._safe_query_all(RoadmapGoal, RoadmapGoal.owner_id == self.owner_id, order_by=RoadmapGoal.created_at.asc())
+        steps = self._safe_query_all(RoadmapStep, RoadmapStep.owner_id == self.owner_id, order_by=RoadmapStep.sort_order.asc())
+        actions = self._safe_query_all(ActionItem, ActionItem.owner_id == self.owner_id, ActionItem.is_archived.is_(False))
+        transactions = self._safe_query_all(Transaction, Transaction.owner_id == self.owner_id)
+        events = self._safe_query_all(ActivityEvent, ActivityEvent.owner_id == self.owner_id, order_by=ActivityEvent.occurred_at.desc(), limit=12)
+        snapshots = self._safe_query_all(ProgressSnapshot, ProgressSnapshot.owner_id == self.owner_id, order_by=ProgressSnapshot.snapshot_date.desc())
 
         horizon = self._planning_horizon(income_plans, income_entries, obligations, debts)
         free_now, free_after = self._free_cash(accounts, obligations, debts, reserves, settings, income_plans, allocations, horizon)
@@ -118,7 +136,9 @@ class DecisionEngineService:
     ) -> date:
         today = _start_of_today()
         reliable_income_dates = sorted(
-            plan.expected_on for plan in income_plans if plan.is_reliable and plan.status != "cancelled" and plan.expected_on and plan.expected_on >= today
+            plan.expected_on
+            for plan in income_plans
+            if plan.is_reliable and plan.status not in INACTIVE_PLAN_STATUSES and plan.expected_on and plan.expected_on >= today
         )
         expected_income_dates = sorted(
             entry.expected_on for entry in income_entries if entry.status == IncomeStatus.expected and entry.expected_on and entry.expected_on >= today
@@ -146,6 +166,7 @@ class DecisionEngineService:
         horizon: date,
     ) -> tuple[FreeCashAmount, FreeCashAmount]:
         today = _start_of_today()
+        active_plan_ids = {plan.id for plan in income_plans if plan.status not in INACTIVE_PLAN_STATUSES}
         liquid_cash = _money(sum(float(account.balance) for account in accounts if account.type.value in {"checking", "savings", "cash"}))
         protected_buffer = _money(_setting(settings, "protected_cash_buffer"))
         active_reserves = _money(sum(float(reserve.amount) for reserve in reserves if reserve.kind.value == "manual"))
@@ -158,12 +179,18 @@ class DecisionEngineService:
         free_now_amount = _money(liquid_cash - protected_buffer - active_reserves - overdue_obligations - obligations_due - debt_minimums - essentials_reserve)
 
         reliable_income = _money(
-            sum(float(plan.amount) for plan in income_plans if plan.is_reliable and plan.status != "cancelled" and plan.expected_on and today <= plan.expected_on <= horizon)
+            sum(
+                float(plan.amount)
+                for plan in income_plans
+                if plan.is_reliable and plan.status not in INACTIVE_PLAN_STATUSES and plan.expected_on and today <= plan.expected_on <= horizon
+            )
         )
         debt_lookup = {item.id: item for item in debts}
         obligation_lookup = {item.id: item for item in obligations}
         extra_allocations = 0.0
         for allocation in allocations:
+            if allocation.income_plan_id not in active_plan_ids:
+                continue
             if allocation.linked_type == "obligation" and allocation.linked_id in obligation_lookup:
                 continue
             if allocation.linked_type == "debt" and allocation.linked_id in debt_lookup:
@@ -208,11 +235,13 @@ class DecisionEngineService:
         existing = {(action.linked_type, action.linked_id): action for action in actions if action.source == "system"}
         today = _start_of_today()
         created = list(actions)
+        active_keys: set[tuple[str | None, str | None]] = set()
 
         for obligation in obligations:
             if obligation.is_paid:
                 continue
             key = ("obligation", obligation.id)
+            active_keys.add(key)
             title = f"Pay {obligation.name}"
             lane = "do_now" if obligation.due_on < today else "this_week"
             if key not in existing:
@@ -237,6 +266,7 @@ class DecisionEngineService:
             if debt.status != DebtStatus.active:
                 continue
             key = ("debt", debt.id)
+            active_keys.add(key)
             title = f"Pay {debt.name} minimum"
             lane = "do_now" if debt.due_on and debt.due_on <= today + timedelta(days=3) else "this_week"
             if key not in existing:
@@ -257,12 +287,26 @@ class DecisionEngineService:
                 existing[key].lane = lane
                 existing[key].due_on = debt.due_on
 
-        self.db.commit()
-        return (
-            self.db.query(ActionItem)
-            .filter(ActionItem.owner_id == self.owner_id, ActionItem.is_archived.is_(False))
-            .order_by(ActionItem.due_on.asc().nulls_last(), ActionItem.created_at.asc())
-            .all()
+        for action in actions:
+            if action.source != "system":
+                continue
+            key = (action.linked_type, action.linked_id)
+            if key not in active_keys:
+                action.is_archived = True
+
+        try:
+            self.db.commit()
+        except ProgrammingError as error:
+            if _is_missing_relation_error(error):
+                self.db.rollback()
+                return []
+            raise
+
+        return self._safe_query_all(
+            ActionItem,
+            ActionItem.owner_id == self.owner_id,
+            ActionItem.is_archived.is_(False),
+            order_by=[ActionItem.due_on.asc().nulls_last(), ActionItem.created_at.asc()],
         )
 
     def _goal_reads(self, goals: list[RoadmapGoal], steps: list[RoadmapStep]) -> list[RoadmapGoalRead]:
@@ -336,12 +380,21 @@ class DecisionEngineService:
                     for allocation in sorted(allocation_by_plan.get(plan.id, []), key=lambda item: item.sort_order)
                 ],
             )
-            for plan in income_plans
+            for plan in sorted(income_plans, key=lambda item: (1 if item.status in INACTIVE_PLAN_STATUSES else 0, item.expected_on or date.max, item.created_at))
         ]
-        return RoadmapGoalSummary(goals=goals, plans=plans)
+        sorted_goals = sorted(
+            goals,
+            key=lambda item: (
+                1 if item.status in INACTIVE_GOAL_STATUSES else 0,
+                item.target_date or date.max,
+                item.title.lower(),
+            ),
+        )
+        return RoadmapGoalSummary(goals=sorted_goals, plans=plans)
 
     def _action_queue(self, actions: list[ActionItem]) -> list[DecisionActionRead]:
         priority_order = {"do_now": 0, "this_week": 1, "when_income_lands": 2, "manual": 3}
+        status_order = {"in_progress": 0, "todo": 1}
         return [
             DecisionActionRead(
                 id=action.id,
@@ -357,7 +410,9 @@ class DecisionEngineService:
             for action in sorted(
                 actions,
                 key=lambda item: (
+                    1 if item.status in INACTIVE_ACTION_STATUSES else 0,
                     priority_order.get(item.lane, 99),
+                    status_order.get(item.status, 99),
                     item.due_on or date.max,
                     item.created_at,
                 ),
@@ -365,8 +420,11 @@ class DecisionEngineService:
         ]
 
     def _focus(self, actions: list[DecisionActionRead]) -> DecisionFocus:
-        primary = next((action for action in actions if action.status != "done"), None)
-        secondary = next((action for action in actions if primary and action.id != primary.id and action.status != "done"), None)
+        primary = next((action for action in actions if action.status not in INACTIVE_ACTION_STATUSES), None)
+        secondary = next(
+            (action for action in actions if primary and action.id != primary.id and action.status not in INACTIVE_ACTION_STATUSES),
+            None,
+        )
         return DecisionFocus(
             primary_action=primary,
             secondary_action=secondary,
@@ -391,7 +449,7 @@ class DecisionEngineService:
             sum(float(item.amount) for item in transactions if item.kind == TransactionKind.expense and trailing_start <= item.occurred_on <= today)
         )
         planned_inflow = _money(
-            sum(float(plan.amount) for plan in income_plans if plan.status != "cancelled" and plan.expected_on and today <= plan.expected_on <= horizon)
+            sum(float(plan.amount) for plan in income_plans if plan.status not in INACTIVE_PLAN_STATUSES and plan.expected_on and today <= plan.expected_on <= horizon)
             + sum(
                 float(entry.amount)
                 for entry in income_entries
@@ -406,7 +464,7 @@ class DecisionEngineService:
             iter(
                 sorted(
                     [
-                        *(plan.expected_on for plan in income_plans if plan.status != "cancelled" and plan.expected_on and plan.expected_on >= today),
+                        *(plan.expected_on for plan in income_plans if plan.status not in INACTIVE_PLAN_STATUSES and plan.expected_on and plan.expected_on >= today),
                         *(entry.expected_on for entry in income_entries if entry.status == IncomeStatus.expected and entry.expected_on and entry.expected_on >= today),
                     ]
                 )
@@ -445,7 +503,8 @@ class DecisionEngineService:
         total_debt = _money(sum(float(item.balance) for item in debts if item.status == DebtStatus.active))
         overdue_count = sum(1 for item in obligations if not item.is_paid and item.due_on < today)
         completed_actions = sum(1 for item in actions if item.completed_at and item.completed_at.date() >= today - timedelta(days=7))
-        goal_completion_rate = _money(sum(goal.progress for goal in goals) / len(goals)) if goals else 0
+        active_goals = [goal for goal in goals if goal.status not in INACTIVE_GOAL_STATUSES]
+        goal_completion_rate = _money(sum(goal.progress for goal in active_goals) / len(active_goals)) if active_goals else 0
 
         def build_trend(days: int) -> ProgressTrend:
             baseline = next((snapshot for snapshot in snapshots if snapshot.snapshot_date <= today - timedelta(days=days)), None)

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Badge, Panel, SectionHeading, StatCard } from "@/components/ui";
 import { type DecisionSnapshot } from "@/lib/decision";
-import { describeTrend } from "@/lib/decision-view";
+import { describeTrend, isInactiveActionStatus } from "@/lib/decision-view";
 import { formatMoney, formatSignedMoney } from "@/lib/finance";
 
 function shortDate(value?: string) {
@@ -27,7 +27,7 @@ function eventDate(value: string) {
 export function DashboardScreen({ snapshot }: { snapshot: DecisionSnapshot }) {
   const primary = snapshot.focus.primaryAction;
   const secondary = snapshot.focus.secondaryAction;
-  const actionPreview = snapshot.orderedActionQueue.slice(0, 4);
+  const actionPreview = snapshot.orderedActionQueue.filter((action) => !isInactiveActionStatus(action.status)).slice(0, 4);
 
   return (
     <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
