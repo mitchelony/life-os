@@ -3,11 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import Session
 
 from app.models.domain import Account, ActivityEvent, IncomeEntry, IncomeSource, Transaction
 from app.models.enums import IncomeStatus, TransactionKind
 from app.schemas.domain import IncomeEntryConfirmResponse
+
+
+def _is_missing_relation_error(error: ProgrammingError) -> bool:
+    return "does not exist" in str(error).lower()
 
 
 def _find_or_create_income_source(db: Session, owner_id: str, name: str) -> IncomeSource:
@@ -65,18 +70,27 @@ class IncomeEntryService:
         income_entry.account_id = effective_account_id
 
         self.db.flush()
-        self.db.add(
-            ActivityEvent(
-                owner_id=self.owner_id,
-                event_type="income_confirmed",
-                title=income_entry.source_name,
-                detail="Expected income confirmed and recorded.",
-                amount=float(income_entry.amount),
-                linked_type="income_entry",
-                linked_id=income_entry.id,
-            )
-        )
         self.db.commit()
+
+        try:
+            self.db.add(
+                ActivityEvent(
+                    owner_id=self.owner_id,
+                    event_type="income_confirmed",
+                    title=income_entry.source_name,
+                    detail="Expected income confirmed and recorded.",
+                    amount=float(income_entry.amount),
+                    linked_type="income_entry",
+                    linked_id=income_entry.id,
+                )
+            )
+            self.db.commit()
+        except ProgrammingError as error:
+            if _is_missing_relation_error(error):
+                self.db.rollback()
+            else:
+                raise
+
         self.db.refresh(income_entry)
         self.db.refresh(transaction)
         return IncomeEntryConfirmResponse(income_entry=income_entry, transaction_id=transaction.id)
