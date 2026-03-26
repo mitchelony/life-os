@@ -1,27 +1,9 @@
 import { ImageResponse } from "next/og";
+import { AppIconArt } from "./icon-art";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
 export default function AppleIcon() {
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#102018",
-          color: "#f7f5f0",
-          fontSize: 72,
-          fontWeight: 700,
-        }}
-      >
-        L
-      </div>
-    ),
-    size,
-  );
+  return new ImageResponse(<AppIconArt scale={size.width} />, size);
 }

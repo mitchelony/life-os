@@ -22,6 +22,7 @@ import type {
   StrategyIncomeFlowAllocation,
   StrategyIncomeFlowPlan,
   Task,
+  TaskPriority,
   Transaction,
 } from "@/lib/types";
 
@@ -75,6 +76,19 @@ export type StoredTransactionDraft = {
   notes?: string;
 };
 
+export type StoredManualTaskDraft = Task;
+
+export type StoredTaskOverride = {
+  taskId: string;
+  title?: string;
+  dueDate?: string;
+  priority?: TaskPriority;
+  linkedTo?: string;
+  completed?: boolean;
+  dismissed?: boolean;
+  notes?: string;
+};
+
 export type StoredLifeOsSetup = {
   displayName: string;
   protectedBuffer: string;
@@ -86,6 +100,8 @@ export type StoredLifeOsSetup = {
   debts: StoredDebtDraft[];
   income: StoredIncomeDraft[];
   transactions: StoredTransactionDraft[];
+  manualTasks: StoredManualTaskDraft[];
+  taskOverrides: StoredTaskOverride[];
   roadmapItems: RoadmapItem[];
   strategyDocument: StrategyDocument | null;
 };
@@ -115,6 +131,8 @@ export function createEmptyStoredLifeOsSetup(): StoredLifeOsSetup {
     debts: [],
     income: [],
     transactions: [],
+    manualTasks: [],
+    taskOverrides: [],
     roadmapItems: [],
     strategyDocument: null,
   };
@@ -187,6 +205,33 @@ function normalizeRoadmapItem(item: Partial<RoadmapItem>, index = 0): RoadmapIte
   };
 }
 
+function normalizeStoredTask(task: Partial<StoredManualTaskDraft>, index = 0): StoredManualTaskDraft {
+  return {
+    id: task.id ?? `task-${index}-${createDraftId()}`,
+    title: typeof task.title === "string" ? task.title : "",
+    dueDate: typeof task.dueDate === "string" && task.dueDate ? task.dueDate : startOfTodayIso().slice(0, 10),
+    priority: task.priority === "urgent" || task.priority === "high" ? task.priority : "normal",
+    linkedTo: typeof task.linkedTo === "string" ? task.linkedTo : "Manual",
+    completed: Boolean(task.completed),
+    source: "manual",
+    notes: typeof task.notes === "string" ? task.notes : "",
+  };
+}
+
+function normalizeStoredTaskOverride(task: Partial<StoredTaskOverride>): StoredTaskOverride | null {
+  if (typeof task.taskId !== "string" || !task.taskId.trim()) return null;
+  return {
+    taskId: task.taskId,
+    title: typeof task.title === "string" ? task.title : undefined,
+    dueDate: typeof task.dueDate === "string" ? task.dueDate : undefined,
+    priority: task.priority === "urgent" || task.priority === "high" || task.priority === "normal" ? task.priority : undefined,
+    linkedTo: typeof task.linkedTo === "string" ? task.linkedTo : undefined,
+    completed: typeof task.completed === "boolean" ? task.completed : undefined,
+    dismissed: typeof task.dismissed === "boolean" ? task.dismissed : undefined,
+    notes: typeof task.notes === "string" ? task.notes : undefined,
+  };
+}
+
 function hasApiSetupData(payload: BackendSetupPayload) {
   return (
     payload.accounts.length > 0 ||
@@ -217,6 +262,10 @@ function normalizeStoredLifeOsSetup(raw: Partial<StoredLifeOsSetup>): StoredLife
     accounts: raw.accounts ?? [],
     debts: raw.debts ?? [],
     transactions: raw.transactions ?? [],
+    manualTasks: (raw.manualTasks ?? []).map((item, index) => normalizeStoredTask(item, index)),
+    taskOverrides: (raw.taskOverrides ?? [])
+      .map((item) => normalizeStoredTaskOverride(item))
+      .filter((item): item is StoredTaskOverride => Boolean(item)),
     roadmapItems: (raw.roadmapItems ?? []).map((item, index) => normalizeRoadmapItem(item, index)),
     strategyDocument: raw.strategyDocument ?? null,
   };
@@ -1450,7 +1499,7 @@ function buildRoadmapFocus(
   };
 }
 
-function buildTopPriorities(
+function buildDerivedTasks(
   obligations: Obligation[],
   debts: Debt[],
   income: IncomeItem[],
@@ -1462,6 +1511,7 @@ function buildTopPriorities(
     priority: item.status === "overdue" ? "urgent" as const : "high" as const,
     linkedTo: "Obligation",
     completed: false,
+    source: "derived" as const,
   }));
   const debtTasks = debts.map((item) => ({
     id: `debt-${item.id}`,
@@ -1470,6 +1520,7 @@ function buildTopPriorities(
     priority: item.strategy?.priority === "critical" ? "urgent" as const : "high" as const,
     linkedTo: "Debt",
     completed: false,
+    source: "derived" as const,
   }));
   const incomeTasks = income.map((item) => ({
     id: `income-${item.id}`,
@@ -1478,6 +1529,7 @@ function buildTopPriorities(
     priority: "normal" as const,
     linkedTo: "Income",
     completed: false,
+    source: "derived" as const,
   }));
 
   const seenTitles = new Set<string>();
@@ -1487,20 +1539,65 @@ function buildTopPriorities(
       if (seenTitles.has(key)) return false;
       seenTitles.add(key);
       return true;
-    })
-    .sort((left, right) => {
-      const priorityOrder = { urgent: 0, high: 1, normal: 2 };
-      if (priorityOrder[left.priority] !== priorityOrder[right.priority]) {
-        return priorityOrder[left.priority] - priorityOrder[right.priority];
-      }
-      const surfaceOrder = { Debt: 0, Obligation: 1, Income: 2 };
-      const leftSurface = surfaceOrder[(left.linkedTo ?? "Income") as keyof typeof surfaceOrder] ?? 2;
-      const rightSurface = surfaceOrder[(right.linkedTo ?? "Income") as keyof typeof surfaceOrder] ?? 2;
-      if (leftSurface !== rightSurface) {
-        return leftSurface - rightSurface;
-      }
-      return new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime();
-    })
+    });
+}
+
+function sortManagedTasks(left: Task, right: Task) {
+  if (left.completed !== right.completed) return left.completed ? 1 : -1;
+
+  const priorityOrder = { urgent: 0, high: 1, normal: 2 };
+  if (priorityOrder[left.priority] !== priorityOrder[right.priority]) {
+    return priorityOrder[left.priority] - priorityOrder[right.priority];
+  }
+
+  const surfaceOrder = { Debt: 0, Obligation: 1, Income: 2, Manual: 3 };
+  const leftSurface = surfaceOrder[(left.linkedTo ?? "Manual") as keyof typeof surfaceOrder] ?? 3;
+  const rightSurface = surfaceOrder[(right.linkedTo ?? "Manual") as keyof typeof surfaceOrder] ?? 3;
+  if (leftSurface !== rightSurface) {
+    return leftSurface - rightSurface;
+  }
+
+  return new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime();
+}
+
+export function buildManagedTasks(
+  obligations: Obligation[],
+  debts: Debt[],
+  income: IncomeItem[],
+  manualTasks: StoredManualTaskDraft[] = [],
+  taskOverrides: StoredTaskOverride[] = [],
+): Task[] {
+  const overridesByTaskId = new Map(taskOverrides.map((item) => [item.taskId, item]));
+
+  const derivedTasks = buildDerivedTasks(obligations, debts, income).reduce<Task[]>((allTasks, task) => {
+      const override = overridesByTaskId.get(task.id);
+      if (override?.dismissed) return allTasks;
+      allTasks.push({
+        ...task,
+        title: override?.title ?? task.title,
+        dueDate: override?.dueDate ?? task.dueDate,
+        priority: override?.priority ?? task.priority,
+        linkedTo: override?.linkedTo ?? task.linkedTo,
+        completed: override?.completed ?? task.completed,
+        notes: override?.notes ?? task.notes,
+      });
+      return allTasks;
+    }, []);
+
+  const normalizedManualTasks = manualTasks.map((task, index) => normalizeStoredTask(task, index));
+
+  return [...derivedTasks, ...normalizedManualTasks].sort(sortManagedTasks);
+}
+
+function buildTopPriorities(
+  obligations: Obligation[],
+  debts: Debt[],
+  income: IncomeItem[],
+  manualTasks: StoredManualTaskDraft[] = [],
+  taskOverrides: StoredTaskOverride[] = [],
+): Task[] {
+  return buildManagedTasks(obligations, debts, income, manualTasks, taskOverrides)
+    .filter((task) => !task.completed)
     .slice(0, 4);
 }
 
@@ -1607,6 +1704,8 @@ function storedSetupFromApiDashboard(payload: BackendDashboardResponse, localSet
     category: item.category_name ?? "Uncategorized",
     notes: item.notes ?? undefined,
   }));
+  nextSetup.manualTasks = localSetup?.manualTasks ?? [];
+  nextSetup.taskOverrides = localSetup?.taskOverrides ?? [];
   nextSetup.roadmapItems = localSetup?.roadmapItems ?? [];
   nextSetup.strategyDocument = localSetup?.strategyDocument ?? null;
   return nextSetup;
@@ -1881,7 +1980,13 @@ export function buildDashboardFromSetup(setup: StoredLifeOsSetup | null): Dashbo
     .sort((left, right) => (right.urgencyScore ?? 0) - (left.urgencyScore ?? 0));
   const roadmapSummary = buildRoadmapSummary(roadmapItems);
   const roadmapFocus = buildRoadmapFocus(roadmapItems, roadmapSummary, paycheckFlow, normalizedSetup.strategyDocument);
-  const topPriorities = buildTopPriorities(obligations, debts, upcomingIncome);
+  const topPriorities = buildTopPriorities(
+    obligations,
+    debts,
+    upcomingIncome,
+    normalizedSetup.manualTasks,
+    normalizedSetup.taskOverrides,
+  );
 
   return {
     ...buildEmptyDashboardSnapshot(),

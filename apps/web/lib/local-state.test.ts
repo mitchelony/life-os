@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyQuickAddToSetup,
+  buildManagedTasks,
   buildDashboardFromSetup,
   createEmptyStoredLifeOsSetup,
   onboardingKey,
@@ -31,6 +32,8 @@ const baseSetup: StoredLifeOsSetup = {
   debts: [],
   income: [],
   transactions: [],
+  manualTasks: [],
+  taskOverrides: [],
   roadmapItems: [],
   strategyDocument: null,
 };
@@ -945,6 +948,76 @@ describe("buildDashboardFromSetup", () => {
     expect(snapshot.topPriorities[0]?.title).toContain("Capital One");
   });
 
+  it("lets you add manual tasks while keeping derived tasks in the mix", () => {
+    const snapshot = buildDashboardFromSetup({
+      ...baseSetup,
+      obligations: [
+        {
+          id: "obl-1",
+          name: "Rent",
+          amount: "600",
+          dueDate: "2099-03-26",
+          recurrence: "monthly",
+        },
+      ],
+      manualTasks: [
+        {
+          id: "manual-1",
+          title: "Text roommate about utilities split",
+          dueDate: "2099-03-25",
+          priority: "high",
+          linkedTo: "Manual",
+          completed: false,
+          source: "manual",
+          notes: "Ask for the latest total before the paycheck lands.",
+        },
+      ],
+    });
+
+    expect(snapshot.topPriorities.some((task) => task.title === "Text roommate about utilities split")).toBe(true);
+    expect(snapshot.topPriorities.some((task) => task.title === "Rent")).toBe(true);
+  });
+
+  it("hides dismissed or completed derived tasks from the task list and dashboard priorities", () => {
+    const obligations = [
+      {
+        id: "obl-1",
+        name: "Rent",
+        amount: "600",
+        dueDate: "2099-03-26",
+        recurrence: "monthly" as const,
+      },
+    ];
+    const debts = [
+      {
+        id: "debt-1",
+        name: "Capital One Credit Card",
+        balance: "498.28",
+        minimum: "10",
+        dueDate: "2099-03-25",
+      },
+    ];
+
+    const snapshot = buildDashboardFromSetup({
+      ...baseSetup,
+      obligations,
+      debts,
+      taskOverrides: [
+        {
+          taskId: "obligation-obl-1",
+          dismissed: true,
+        },
+        {
+          taskId: "debt-debt-1",
+          completed: true,
+        },
+      ],
+    });
+
+    expect(snapshot.topPriorities.some((task) => task.title === "Rent")).toBe(false);
+    expect(snapshot.topPriorities.some((task) => task.title.includes("Capital One"))).toBe(false);
+  });
+
   it("uses confirmed strategy expected income as an advisory fallback horizon", () => {
     const setup = saveStrategyToSetup(
       {
@@ -1050,6 +1123,58 @@ describe("buildDashboardFromSetup", () => {
     expect(snapshot.topPriorities.some((task) => task.linkedTo === "Paycheck flow")).toBe(false);
     expect(snapshot.topPriorities.some((task) => task.linkedTo === "Debt")).toBe(true);
     expect(snapshot.topPriorities.some((task) => task.linkedTo === "Obligation")).toBe(true);
+  });
+});
+
+describe("buildManagedTasks", () => {
+  it("applies overrides to derived tasks and sorts manual tasks with them", () => {
+    const tasks = buildManagedTasks(
+      [
+        {
+          id: "obl-1",
+          name: "Utilities",
+          amount: 442.7,
+          dueDate: "2099-03-30",
+          status: "overdue",
+          recurrence: "one-time",
+        },
+      ],
+      [],
+      [],
+      [
+        {
+          id: "manual-1",
+          title: "Call utilities office",
+          dueDate: "2099-03-25",
+          priority: "high",
+          linkedTo: "Manual",
+          completed: false,
+          source: "manual",
+          notes: "Ask about the catch-up total.",
+        },
+      ],
+      [
+        {
+          taskId: "obligation-obl-1",
+          title: "Utilities catch-up payment",
+          priority: "high",
+          notes: "Pay this from the next tutoring paycheck.",
+        },
+      ],
+    );
+
+    expect(tasks[0]).toMatchObject({
+      id: "obligation-obl-1",
+      title: "Utilities catch-up payment",
+      priority: "high",
+      notes: "Pay this from the next tutoring paycheck.",
+      source: "derived",
+    });
+    expect(tasks[1]).toMatchObject({
+      id: "manual-1",
+      title: "Call utilities office",
+      source: "manual",
+    });
   });
 });
 

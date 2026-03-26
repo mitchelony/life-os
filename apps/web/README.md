@@ -15,6 +15,20 @@ Core screens include:
 - tasks
 - settings
 
+Tasks are still derived from bills, debt, and expected income, but the web app now lets the user manage that layer directly with:
+
+- manual task add/delete
+- derived task overrides for title, due date, priority, and notes
+- complete/reopen controls
+- hide/restore for derived tasks
+
+Accounts are also manageable directly from the Accounts page:
+
+- add account
+- edit account name, institution, type, and balance
+- delete accounts that no longer have linked data
+- keep name-linked transaction and planned-income references in sync when an account name changes
+
 ## Stack
 
 - Next.js App Router
@@ -87,6 +101,7 @@ If port `3000` is already in use, Next.js will automatically choose the next ope
 The frontend currently uses a very small env surface:
 
 - `NEXT_PUBLIC_API_BASE_URL` - optional backend base URL, usually `http://localhost:8000/api`
+- `NEXT_PUBLIC_APP_ORIGIN` - public web origin to use for auth callbacks, for example `https://app.yourdomain.com`
 - `NEXT_PUBLIC_ONBOARDING_KEY` - browser storage key for onboarding state
 - `NEXT_PUBLIC_SUPABASE_URL` - hosted Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - hosted Supabase anon key
@@ -97,6 +112,7 @@ Important:
 - the web app signs in the owner through Supabase email/password or Google and sends the bearer token to the backend
 - API-backed persistence is now the preferred path for dashboard, quick add, settings, and roadmap data
 - browser storage is still used as a mirror/fallback, not the primary saved truth
+- production auth callbacks should use `NEXT_PUBLIC_APP_ORIGIN`, not the current browser's LAN address
 - mobile shell behavior should keep desktop parity for navigation and session controls
 - every desktop destination should remain reachable from the mobile menu
 - mobile must expose a direct path to log out without forcing the user through settings
@@ -164,6 +180,19 @@ Current tests focus on:
 - app shell behavior
 - API client behavior
 
+For real browser validation on this machine:
+
+```bash
+cd /Users/MAC/GitHub/life-os
+python3 -m playwright install webkit
+```
+
+Important:
+
+- the generic Playwright wrapper may resolve to a missing `playwright-cli` binary here
+- if that happens, use `python3 -m playwright ...` or another explicit runtime path instead of retrying the broken wrapper
+- a wrapper failure is a tooling problem, not automatically a frontend regression
+
 ## Frontend Design Rules
 
 - mobile-first layouts
@@ -174,6 +203,9 @@ Current tests focus on:
 - calm, explainable finance UI
 - auth screens should follow the Life OS visual system even when using a more editorial split layout
 - on phones, auth should be form-first and compact; supporting preview content must not push the first input fields below an oversized hero
+- the web app should ship a real branded tab icon:
+  - `/icon` and `/apple-icon` should match the current app mark
+  - `app/favicon.ico` should exist for browser tabs and bookmarks
 
 ## Notes for Developers
 

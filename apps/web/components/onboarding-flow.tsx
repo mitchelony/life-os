@@ -215,6 +215,8 @@ export function OnboardingFlow() {
       debts,
       income,
       transactions: storedTransactions,
+      manualTasks: existing?.manualTasks ?? [],
+      taskOverrides: existing?.taskOverrides ?? [],
       roadmapItems: existing?.roadmapItems ?? [],
       strategyDocument: existing?.strategyDocument ?? null,
     };

@@ -94,6 +94,8 @@ export type Task = {
   priority: TaskPriority;
   linkedTo?: string;
   completed: boolean;
+  source?: "derived" | "manual";
+  notes?: string;
 };
 
 export type IncomeItem = {

@@ -31,11 +31,19 @@ function getSupabaseAnonKey() {
   return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 }
 
+function getConfiguredAppOrigin() {
+  return process.env.NEXT_PUBLIC_APP_ORIGIN?.trim().replace(/\/$/, "") ?? "";
+}
+
 function isLoopbackHost(hostname: string) {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0";
 }
 
 export function getBrowserAuthCallbackUrl() {
+  const configuredOrigin = getConfiguredAppOrigin();
+  if (configuredOrigin) {
+    return `${configuredOrigin}/auth/callback`;
+  }
   if (typeof window === "undefined") return "";
   return `${window.location.origin}/auth/callback`;
 }

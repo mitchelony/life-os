@@ -89,6 +89,7 @@ describe("browser auth callback handling", () => {
   const originalWindow = globalThis.window;
   const originalSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const originalSupabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const originalAppOrigin = process.env.NEXT_PUBLIC_APP_ORIGIN;
 
   beforeEach(() => {
     const assign = vi.fn();
@@ -107,6 +108,7 @@ describe("browser auth callback handling", () => {
     vi.stubGlobal("window", mockWindow);
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+    delete process.env.NEXT_PUBLIC_APP_ORIGIN;
   });
 
   afterEach(() => {
@@ -114,6 +116,7 @@ describe("browser auth callback handling", () => {
     vi.unstubAllGlobals();
     process.env.NEXT_PUBLIC_SUPABASE_URL = originalSupabaseUrl;
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = originalSupabaseAnonKey;
+    process.env.NEXT_PUBLIC_APP_ORIGIN = originalAppOrigin;
     if (originalWindow) {
       vi.stubGlobal("window", originalWindow);
     }
@@ -134,5 +137,14 @@ describe("browser auth callback handling", () => {
     expect(authorizeUrl.searchParams.get("provider")).toBe("google");
     expect(authorizeUrl.searchParams.get("apikey")).toBe("anon-key");
     expect(authorizeUrl.searchParams.get("redirect_to")).toBe("http://192.168.1.162:3000/auth/callback");
+  });
+
+  it("prefers the configured public app origin for auth callbacks", () => {
+    process.env.NEXT_PUBLIC_APP_ORIGIN = "https://app.lifeos.money";
+
+    startGoogleSignIn();
+
+    const authorizeUrl = new URL((window.location.assign as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]);
+    expect(authorizeUrl.searchParams.get("redirect_to")).toBe("https://app.lifeos.money/auth/callback");
   });
 });

@@ -136,6 +136,11 @@ This file is the build contract for Codex agents and human contributors working 
 - Add API tests for permission boundaries and core response shapes.
 - Add frontend tests for primary flows and failure states where practical.
 - Use Playwright CLI for browser validation of UI flows after major frontend slices.
+- On this machine, do not rely on the generic Playwright wrapper if it resolves to a missing `playwright-cli` binary.
+- If the wrapper is broken, use a direct installed runtime instead:
+  - Python package form: `python3 -m playwright ...`
+  - or an explicit project/runtime invocation that does not depend on the missing wrapper binary
+- Before assuming the app is broken, distinguish wrapper/tooling failures from actual browser-flow failures.
 - If strategy or roadmap logic changes, update tests for payment-order guidance and next-step prioritization.
 - If auth flow changes, verify:
   - sign up
@@ -182,6 +187,9 @@ This file is the build contract for Codex agents and human contributors working 
 - Browser and hosted-db validation should use disposable test identities and remove them, plus any linked owner-scoped rows, before the pass is considered complete.
 - When updating docs or setup steps, keep them aligned with the active hosted-Supabase flow and the clean repo path.
 - Before ending a substantial pass, check whether `.gitignore` needs updates for any newly generated local artifacts.
+- If Playwright browser binaries are missing, install them explicitly before retrying:
+  - `python3 -m playwright install <browser>`
+  - do not keep retrying the same broken wrapper path
 
 ## What To Avoid
 

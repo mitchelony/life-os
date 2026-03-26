@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApiClient } from "@/lib/api";
 import * as auth from "@/lib/auth";
+import { sampleCategories } from "@/lib/sample-data";
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -29,6 +30,33 @@ describe("createApiClient", () => {
 
     const calls = fetchImpl.mock.calls as unknown as Array<[string, RequestInit | undefined]>;
     expect(calls[0]?.[0]).toBe("http://192.168.1.162:8000/api/categories");
+  });
+
+  it("does not rewrite loopback API URLs in production mode", async () => {
+    const calls: Array<Parameters<typeof fetch>> = [];
+    vi.spyOn(auth, "getAccessToken").mockResolvedValue(null);
+    vi.stubGlobal("window", {
+      location: {
+        hostname: "app.lifeos.money",
+        protocol: "https:",
+      },
+    });
+    const env = process.env as Record<string, string | undefined>;
+    const originalNodeEnv = env.NODE_ENV;
+    env.NODE_ENV = "production";
+
+    const api = createApiClient({
+      baseUrl: "http://localhost:8000/api",
+      fetchImpl: (async (...args: Parameters<typeof fetch>) => {
+        calls.push(args);
+        return new Response(JSON.stringify(sampleCategories), { status: 200 });
+      }) as typeof fetch,
+    });
+
+    await api.getCategories();
+
+    expect(calls[0]?.[0]).toBe("http://localhost:8000/api/categories");
+    env.NODE_ENV = originalNodeEnv;
   });
 
   it("does not attach auth headers to GET requests when no session exists", async () => {

@@ -30,6 +30,7 @@ This file is the compact handoff for new threads.
 - Supabase email/password auth is supported.
 - Supabase Google OAuth is supported.
 - Auth callback route: `/auth/callback`
+- Production auth callback URLs should come from `NEXT_PUBLIC_APP_ORIGIN`, not from a LAN browser origin.
 - First successful auth returns to `/`, then the home gate decides:
   - incomplete onboarding -> `/settings`
   - completed onboarding -> `/dashboard`
@@ -42,6 +43,7 @@ This file is the compact handoff for new threads.
   - add the exact LAN origin, for example `http://192.168.1.162:3000`, to API `CORS_ALLOWED_ORIGINS`
 - If hosted Supabase does not allow the exact LAN callback URL, OAuth will often bounce back to the project's default site URL, which may still be `http://localhost:3000`.
 - `npm run dev:api` now binds to `0.0.0.0:8000` by default so phone-based onboarding checks can reach the backend over LAN.
+- Browser-aware localhost/LAN API rewriting is a local-development convenience only and should not be relied on in production.
 - The `/login` screen now uses a mobile form-first layout:
   - brand header
   - short auth copy
@@ -71,6 +73,33 @@ This file is the compact handoff for new threads.
 - Do not let it drift back into a dense reporting page.
 - Authenticated app pages should not flash `sampleDashboard` content before real local/API data hydrates.
 
+## Accounts UX State
+
+- The Accounts page is now the control surface for account balances, not just a read-only summary.
+- You can:
+  - add accounts
+  - edit name, institution, type, and balance
+  - remove unlinked accounts
+- Account renames should update name-linked references in:
+  - transactions
+  - obligation linked accounts
+  - expected income linked accounts
+- Account deletion should stay conservative:
+  - if an account still has linked data, do not silently let the page orphan those references
+
+## Tasks UX State
+
+- Tasks should stay derived from obligations, debt minimums, and expected income.
+- The user should still be able to manage that list:
+  - add manual tasks
+  - edit derived task wording, due dates, priority, and notes through overrides
+  - mark tasks done or reopen them
+  - hide derived tasks and restore them later
+- Managed task state is currently local-first:
+  - it lives in browser setup storage as `manualTasks` and `taskOverrides`
+  - it should survive onboarding saves and API dashboard/setup refreshes
+- The Tasks page is now the control surface for that behavior, not just a read-only mirror of dashboard top actions.
+
 ## Roadmap UX State
 
 - Roadmap is a cash-flow-first planning surface.
@@ -78,6 +107,12 @@ This file is the compact handoff for new threads.
 - Strategy JSON input must remain accessible in `Strategy` mode.
 - The page should feel centered and full, not sparse.
 - Secondary detail belongs lower on the page, not above the main decision content.
+
+## Icon State
+
+- The web app no longer uses a placeholder `L` icon.
+- App icon routes (`/icon`, `/apple-icon`) now use the branded card mark.
+- A real `apps/web/app/favicon.ico` now exists for browser tabs and bookmarks.
 
 ## Hosted Supabase Setup Notes
 
@@ -142,6 +177,19 @@ cd /Users/MAC/GitHub/life-os/apps/api
 source ../../.venv/bin/activate
 python3 -m pytest
 ```
+
+Playwright/browser validation on this machine:
+
+```bash
+cd /Users/MAC/GitHub/life-os
+python3 -m playwright install webkit
+python3 -m playwright --help
+```
+
+- The generic Playwright wrapper on this machine may resolve to a missing `playwright-cli` binary.
+- If that happens, do not keep retrying the wrapper.
+- Use the Python package form instead, or another explicit runtime path that does not depend on the missing wrapper binary.
+- Treat wrapper resolution failures as tooling issues first, not as evidence that the app flow is broken.
 
 ## Known Next Steps
 

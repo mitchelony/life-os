@@ -184,12 +184,39 @@ export type BackendOnboardingCompleteResponse = {
   state: BackendOnboardingState;
 };
 
+export type BackendTaskStatus = "todo" | "doing" | "done" | "blocked";
+
+export type BackendTask = {
+  id: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+  title: string;
+  status: BackendTaskStatus;
+  due_on?: string | null;
+  linked_type?: string | null;
+  linked_id?: string | null;
+  notes?: string | null;
+};
+
+export type BackendTaskCreatePayload = {
+  title: string;
+  status?: BackendTaskStatus;
+  due_on?: string | null;
+  linked_type?: string | null;
+  linked_id?: string | null;
+  notes?: string | null;
+};
+
+export type BackendTaskUpdatePayload = Partial<BackendTaskCreatePayload>;
+
 function requestErrorMessage(path: string) {
   return `Request failed for ${path}`;
 }
 
 function resolveBrowserAwareBaseUrl(baseUrl: string) {
   if (!baseUrl || typeof window === "undefined") return baseUrl;
+  if (process.env.NODE_ENV === "production") return baseUrl;
 
   try {
     const parsed = new URL(baseUrl);
@@ -305,6 +332,52 @@ export function createApiClient(options: ApiClientOptions = {}) {
     }
   };
 
+  const patch = async <T,>(path: string, body: unknown, fallback: T, options: RequestOptions = {}): Promise<T> => {
+    if (!baseUrl) {
+      if (options.required) {
+        throw new Error(requestErrorMessage(path));
+      }
+      return fallback;
+    }
+    try {
+      const response = await fetchImpl(`${baseUrl}${path}`, {
+        method: "PATCH",
+        headers: await getHeaders({
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify(body),
+      });
+      return await safeJson<T>(response);
+    } catch (error) {
+      if (options.required) {
+        throw error instanceof Error ? error : new Error(requestErrorMessage(path));
+      }
+      return fallback;
+    }
+  };
+
+  const del = async (path: string, options: RequestOptions = {}): Promise<void> => {
+    if (!baseUrl) {
+      if (options.required) {
+        throw new Error(requestErrorMessage(path));
+      }
+      return;
+    }
+    try {
+      const response = await fetchImpl(`${baseUrl}${path}`, {
+        method: "DELETE",
+        headers: await getHeaders(),
+      });
+      if (!response.ok) {
+        throw new Error(`Request failed with ${response.status}`);
+      }
+    } catch (error) {
+      if (options.required) {
+        throw error instanceof Error ? error : new Error(requestErrorMessage(path));
+      }
+    }
+  };
+
   return {
     getDashboardData: () => get<BackendDashboardResponse | null>("/dashboard", null),
     getSetup: () =>
@@ -330,6 +403,34 @@ export function createApiClient(options: ApiClientOptions = {}) {
     },
     searchMerchants: (query: string) => get<string[]>(`/suggestions/merchants?q=${encodeURIComponent(query)}`, []),
     searchSources: (query: string) => get<string[]>(`/suggestions/sources?q=${encodeURIComponent(query)}`, []),
+    listTasks: () => get<BackendTask[]>("/tasks", [], { required: true }),
+    createTask: (payload: BackendTaskCreatePayload) =>
+      post<BackendTask>("/tasks", payload, {
+        id: "task-draft",
+        owner_id: "",
+        created_at: "",
+        updated_at: "",
+        title: payload.title,
+        status: payload.status ?? "todo",
+        due_on: payload.due_on ?? null,
+        linked_type: payload.linked_type ?? null,
+        linked_id: payload.linked_id ?? null,
+        notes: payload.notes ?? null,
+      }, { required: true }),
+    updateTask: (taskId: string, payload: BackendTaskUpdatePayload) =>
+      patch<BackendTask>(`/tasks/${taskId}`, payload, {
+        id: taskId,
+        owner_id: "",
+        created_at: "",
+        updated_at: "",
+        title: payload.title ?? "",
+        status: payload.status ?? "todo",
+        due_on: payload.due_on ?? null,
+        linked_type: payload.linked_type ?? null,
+        linked_id: payload.linked_id ?? null,
+        notes: payload.notes ?? null,
+      }, { required: true }),
+    deleteTask: (taskId: string) => del(`/tasks/${taskId}`, { required: true }),
     submitQuickAdd: (draft: QuickAddDraft) =>
       post(
         "/quick-add",

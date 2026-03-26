@@ -30,6 +30,7 @@ Create a Vercel project from this repo with:
 Set these production env vars in Vercel:
 
 - `NEXT_PUBLIC_API_BASE_URL=https://api.<your-domain>/api`
+- `NEXT_PUBLIC_APP_ORIGIN=https://app.<your-domain>`
 - `NEXT_PUBLIC_SUPABASE_URL=https://<your-project-ref>.supabase.co`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY=<supabase-anon-key>`
 - `NEXT_PUBLIC_ONBOARDING_KEY=life-os-onboarded`
@@ -38,6 +39,7 @@ Notes:
 
 - `apps/web/vercel.json` marks the project as a Next.js app
 - the web app should never point at `localhost` in production
+- auth callback URLs should come from `NEXT_PUBLIC_APP_ORIGIN` in production, not from a local browser or LAN origin
 
 ## API on Render
 
