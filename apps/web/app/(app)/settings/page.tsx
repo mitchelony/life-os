@@ -22,8 +22,8 @@ export default function SettingsPage() {
       <Panel>
         <SectionHeading
           eyebrow="Settings"
-          title="Setup, guardrails, and app preferences"
-          description="This is where you update the numbers and settings the app uses."
+          title="Your numbers and rules"
+          description="Update the balances, buffers, and guardrails the app should use."
           action={
             <button
               type="button"

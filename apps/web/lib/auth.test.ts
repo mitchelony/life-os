@@ -147,4 +147,13 @@ describe("browser auth callback handling", () => {
     const authorizeUrl = new URL((window.location.assign as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]);
     expect(authorizeUrl.searchParams.get("redirect_to")).toBe("https://app.lifeos.money/auth/callback");
   });
+
+  it("sanitizes a configured app origin that incorrectly includes a path", () => {
+    process.env.NEXT_PUBLIC_APP_ORIGIN = "https://mitchel-life-os.vercel.app/login";
+
+    startGoogleSignIn();
+
+    const authorizeUrl = new URL((window.location.assign as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]);
+    expect(authorizeUrl.searchParams.get("redirect_to")).toBe("https://mitchel-life-os.vercel.app/auth/callback");
+  });
 });

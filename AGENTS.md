@@ -73,6 +73,14 @@ This file is the build contract for Codex agents and human contributors working 
 - Roadmap should feel like a centered planning surface, not a sparse editor.
 - When a page feels empty, fill the primary content area first before adding sidecar chrome.
 
+## Brand Voice Rules
+
+- Speak directly to the user as "you".
+- Keep copy calm, plain, and short.
+- Prefer clear guidance over descriptive system language.
+- Avoid copy that sounds like internal notes, implementation narration, or generic productivity jargon.
+- The tone should feel private, steady, and action-first.
+
 ## Available Spend Rules
 
 - The formula must remain explainable.
@@ -116,6 +124,7 @@ This file is the build contract for Codex agents and human contributors working 
   - sign up
   - Google sign-in
   - OAuth callback completion
+- If the rendered local UI does not match the current checkout, verify the active dev server path and stale build state before patching the wrong surface.
 - New auth/onboarding guidance should not reintroduce a dead-end login-only flow.
 - Roadmap should keep the `Focus / Goals / Strategy` mode switch visible and strategy JSON input accessible.
 - Onboarding completion must be decided from API-backed onboarding state, not from generic local setup persistence.

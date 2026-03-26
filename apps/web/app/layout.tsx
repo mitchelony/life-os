@@ -13,6 +13,14 @@ export const metadata: Metadata = {
   description: "A simple place to keep track of your money, bills, and next steps.",
   applicationName: "Life OS",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", type: "image/x-icon" },
+      { url: "/icon", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: [{ url: "/apple-icon", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {

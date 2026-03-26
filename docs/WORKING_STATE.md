@@ -6,6 +6,8 @@ This file is the compact handoff for new threads.
 
 - Only use `/Users/MAC/GitHub/life-os`.
 - Ignore the old iCloud-backed repo at `/Users/MAC/Documents/GitHub/life-os`.
+- If the project is reopened from the wrong path, stop and reopen `/Users/MAC/GitHub/life-os` before making changes.
+- If a local server is already running, confirm it is serving this repo before trusting what the browser shows.
 
 ## Current Product State
 
@@ -31,6 +33,8 @@ This file is the compact handoff for new threads.
 - Supabase Google OAuth is supported.
 - Auth callback route: `/auth/callback`
 - Production auth callback URLs should come from `NEXT_PUBLIC_APP_ORIGIN`, not from a LAN browser origin.
+- `NEXT_PUBLIC_APP_ORIGIN` must be set as a bare origin such as `https://mitchel-life-os.vercel.app`, not a route like `https://mitchel-life-os.vercel.app/login`.
+- The web callback builder now sanitizes accidental path segments in `NEXT_PUBLIC_APP_ORIGIN` back to the origin so Google OAuth does not fall through to `/login/auth/callback`.
 - First successful auth returns to `/`, then the home gate decides:
   - incomplete onboarding -> `/settings`
   - completed onboarding -> `/dashboard`
@@ -207,3 +211,8 @@ python3 -m playwright --help
 - Keep repo docs aligned with real hosted-project behavior after each substantial pass.
 - Keep polishing primary surfaces around their core question instead of adding more panels.
 - Keep local setup mirroring and API-backed onboarding state separate so fresh-session routing stays consistent.
+- Next major product slice after the current auth/mobile work:
+  - in-app editing and adjustment for debts
+  - obligations
+  - income
+  - expenses/transactions

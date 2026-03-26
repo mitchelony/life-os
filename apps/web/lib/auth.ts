@@ -32,7 +32,14 @@ function getSupabaseAnonKey() {
 }
 
 function getConfiguredAppOrigin() {
-  return process.env.NEXT_PUBLIC_APP_ORIGIN?.trim().replace(/\/$/, "") ?? "";
+  const raw = process.env.NEXT_PUBLIC_APP_ORIGIN?.trim() ?? "";
+  if (!raw) return "";
+
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return raw.replace(/\/$/, "");
+  }
 }
 
 function isLoopbackHost(hostname: string) {

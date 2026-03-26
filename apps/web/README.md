@@ -113,6 +113,9 @@ Important:
 - API-backed persistence is now the preferred path for dashboard, quick add, settings, and roadmap data
 - browser storage is still used as a mirror/fallback, not the primary saved truth
 - production auth callbacks should use `NEXT_PUBLIC_APP_ORIGIN`, not the current browser's LAN address
+- `NEXT_PUBLIC_APP_ORIGIN` must be a bare origin, not a route like `https://app.yourdomain.com/login`
+- the auth callback builder now strips accidental paths from `NEXT_PUBLIC_APP_ORIGIN`, but the env should still be set correctly
+- if a local run shows UI that does not match `apps/web` in this repo, verify the dev server path and clear stale builds before patching the wrong checkout
 - mobile shell behavior should keep desktop parity for navigation and session controls
 - every desktop destination should remain reachable from the mobile menu
 - mobile must expose a direct path to log out without forcing the user through settings
@@ -203,6 +206,9 @@ Important:
 - calm, explainable finance UI
 - auth screens should follow the Life OS visual system even when using a more editorial split layout
 - on phones, auth should be form-first and compact; supporting preview content must not push the first input fields below an oversized hero
+- mobile controls should keep comfortable touch-target sizing and avoid iOS zoom-on-focus
+- full-screen setup or editing flows may hide the bottom nav on mobile when it would crowd the viewport
+- the mobile entry surface should put the first real action above oversized preview content
 - the web app should ship a real branded tab icon:
   - `/icon` and `/apple-icon` should match the current app mark
   - `app/favicon.ico` should exist for browser tabs and bookmarks

@@ -34,6 +34,7 @@ Key references:
 
 - [Product requirements](/Users/MAC/GitHub/life-os/docs/PRD.md)
 - [Architecture notes](/Users/MAC/GitHub/life-os/docs/ARCHITECTURE.md)
+- [Current working state](/Users/MAC/GitHub/life-os/docs/WORKING_STATE.md)
 - [Contributor contract](/Users/MAC/GitHub/life-os/AGENTS.md)
 
 ## Tech Stack
