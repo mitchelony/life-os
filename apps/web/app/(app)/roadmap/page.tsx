@@ -1,8 +1,9 @@
 "use client";
 
-import { AlertTriangle, Check, Plus, RefreshCw, Sparkles } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Button, InlineField, Input, Panel, SectionHeading, Select, Textarea } from "@/components/ui";
+import { ExpectedIncomeManager } from "@/components/expected-income-manager";
 import { api, type BackendDebt, type BackendObligation } from "@/lib/api";
 import { notifyDecisionChanged, useDecisionSnapshot } from "@/lib/decision";
 import { formatMoney } from "@/lib/finance";
@@ -598,6 +599,8 @@ export default function RoadmapPage() {
         )}
       </section>
 
+      <ExpectedIncomeManager onChanged={refresh} />
+
       <section className="space-y-3">
         <SectionHeading eyebrow="Goals" title="Active outcomes with real step progress" description="Goals stay here only if they change what you need to do with money next." />
         {snapshot?.roadmap.goals.length ? (
@@ -632,43 +635,6 @@ export default function RoadmapPage() {
         )}
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-        <Panel className="space-y-4">
-          <SectionHeading eyebrow="Advanced" title="Fresh planning memory" description="This resets planning state, actions, roadmap, progress history, recent updates, transactions, and income history while preserving accounts, debts, and obligations." />
-          <div className="rounded-[20px] border border-[rgba(165,57,42,0.18)] bg-[rgba(165,57,42,0.06)] p-4">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-4 w-4 text-[#8a3022]" />
-              <p className="text-sm leading-6 text-ink">Use this when you want the product to relaunch from clean planning memory without touching your core financial records.</p>
-            </div>
-            <Button className="mt-4" disabled={pending} onClick={() => void sync(() => api.relaunchPlanning())}>
-              <RefreshCw className="h-4 w-4" />
-              Relaunch planning memory
-            </Button>
-          </div>
-        </Panel>
-
-        <Panel className="space-y-4">
-          <SectionHeading eyebrow="Planner boundary" title="Leave room for the future cloud planner" description="Recommendations can become smarter later without silently taking control." />
-          <div className="rounded-[20px] border border-line bg-[rgba(244,241,233,0.8)] p-4">
-            <div className="flex items-start gap-3">
-              <Sparkles className="mt-0.5 h-4 w-4 text-accent" />
-              <div>
-                <p className="text-sm font-medium text-ink">Human-approved roadmap only</p>
-                <p className="mt-2 text-sm leading-6 text-muted">The system is ready for planner-owned drafts later, but live roadmap changes still happen only when you approve them.</p>
-              </div>
-            </div>
-          </div>
-          <div className="rounded-[20px] border border-line bg-white/72 p-4">
-            <div className="flex items-start gap-3">
-              <Check className="mt-0.5 h-4 w-4 text-accent" />
-              <div>
-                <p className="text-sm font-medium text-ink">What this page owns now</p>
-                <p className="mt-2 text-sm leading-6 text-muted">Focus, paycheck order, linked goals, and explicit action-producing steps. No more fuzzy strategy matching and no more browser-only roadmap memory.</p>
-              </div>
-            </div>
-          </div>
-        </Panel>
-      </section>
     </div>
   );
 }

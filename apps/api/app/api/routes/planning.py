@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_owner_id
+from app.schemas.domain import ContextExportPayload
+from app.services.context_export import ContextExportService
 from app.services.planning_reset import PlanningResetService
 
 router = APIRouter(prefix="/planning", tags=["planning"])
@@ -12,3 +14,8 @@ router = APIRouter(prefix="/planning", tags=["planning"])
 def relaunch_planning(db: Session = Depends(get_db), owner_id: str = Depends(get_owner_id)):
     PlanningResetService(db, owner_id).relaunch()
     return None
+
+
+@router.get("/context-export", response_model=ContextExportPayload)
+def export_context(db: Session = Depends(get_db), owner_id: str = Depends(get_owner_id)) -> ContextExportPayload:
+    return ContextExportService(db, owner_id).build()
