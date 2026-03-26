@@ -1,8 +1,11 @@
 from datetime import date, datetime, timedelta, timezone
 
+from sqlalchemy.exc import ProgrammingError
+
 from app.models.domain import (
     Account,
     ActionItem,
+    ActivityEvent,
     AppSetting,
     Debt,
     IncomeEntry,
@@ -169,6 +172,58 @@ def test_decision_snapshot_prioritizes_overdue_obligation_and_reports_progress_d
     assert snapshot.progress_summary.seven_day.completed_actions_delta == 1
 
 
+def test_decision_snapshot_pushes_done_skipped_and_blocked_actions_to_the_end(db_session) -> None:
+    owner_id = "owner-actions-order"
+    today = date.today()
+
+    db_session.add_all(
+        [
+            Account(owner_id=owner_id, name="Checking", type="checking", balance=900),
+            ActionItem(owner_id=owner_id, title="Done item", status="done", lane="do_now", source="manual", due_on=today),
+            ActionItem(owner_id=owner_id, title="Blocked item", status="blocked", lane="this_week", source="manual", due_on=today),
+            ActionItem(owner_id=owner_id, title="Skipped item", status="skipped", lane="manual", source="manual", due_on=today),
+            ActionItem(owner_id=owner_id, title="Live item", status="todo", lane="this_week", source="manual", due_on=today),
+            ActionItem(owner_id=owner_id, title="Started item", status="in_progress", lane="do_now", source="manual", due_on=today),
+        ]
+    )
+    db_session.commit()
+
+    snapshot = DecisionEngineService(db_session, owner_id).build()
+
+    assert snapshot.focus.primary_action.title == "Started item"
+    assert [item.title for item in snapshot.ordered_action_queue[:2]] == ["Started item", "Live item"]
+    assert [item.status for item in snapshot.ordered_action_queue[-3:]] == ["done", "blocked", "skipped"]
+
+
+def test_decision_snapshot_archives_system_actions_for_closed_underlying_items(db_session) -> None:
+    owner_id = "owner-system-cleanup"
+    today = date.today()
+
+    db_session.add_all(
+        [
+            Account(owner_id=owner_id, name="Checking", type="checking", balance=900),
+            Obligation(owner_id=owner_id, name="Rent", amount=700, due_on=today, is_paid=True),
+            Debt(owner_id=owner_id, name="Card", balance=0, minimum_payment=40, due_on=today, status="paid_off"),
+        ]
+    )
+    db_session.flush()
+    rent = db_session.query(Obligation).filter(Obligation.owner_id == owner_id).one()
+    card = db_session.query(Debt).filter(Debt.owner_id == owner_id).one()
+    db_session.add_all(
+        [
+            ActionItem(owner_id=owner_id, title="Pay Rent", status="todo", lane="do_now", source="system", linked_type="obligation", linked_id=rent.id),
+            ActionItem(owner_id=owner_id, title="Pay Card minimum", status="todo", lane="this_week", source="system", linked_type="debt", linked_id=card.id),
+        ]
+    )
+    db_session.commit()
+
+    snapshot = DecisionEngineService(db_session, owner_id).build()
+
+    assert snapshot.ordered_action_queue == []
+    archived_actions = db_session.query(ActionItem).filter(ActionItem.owner_id == owner_id).order_by(ActionItem.created_at.asc()).all()
+    assert all(action.is_archived for action in archived_actions)
+
+
 def test_decision_snapshot_uses_transactions_for_cashflow_and_recent_updates(db_session) -> None:
     owner_id = "owner-3"
     today = date.today()
@@ -190,3 +245,40 @@ def test_decision_snapshot_uses_transactions_for_cashflow_and_recent_updates(db_
     assert snapshot.cashflow_glance.trailing_30_net == 770
     assert snapshot.cashflow_glance.next_14_planned_inflow == 420
     assert snapshot.recent_updates[0].event_type in {"transaction_income", "transaction_expense", "expected_income"}
+
+
+def test_decision_snapshot_falls_back_when_new_planning_tables_are_missing(db_session, monkeypatch) -> None:
+    owner_id = "owner-legacy-schema"
+    today = date.today()
+    db_session.add_all(
+        [
+            Account(owner_id=owner_id, name="Checking", type="checking", balance=600),
+            AppSetting(owner_id=owner_id, key="protected_cash_buffer", value="100"),
+            IncomeEntry(owner_id=owner_id, source_name="Contract work", amount=420, status="expected", expected_on=today + timedelta(days=3)),
+            Transaction(owner_id=owner_id, kind=TransactionKind.income, amount=950, occurred_on=today - timedelta(days=4)),
+            Obligation(owner_id=owner_id, name="Rent", amount=800, due_on=today + timedelta(days=2), is_paid=False),
+        ]
+    )
+    db_session.commit()
+
+    original_query = db_session.query
+    missing_models = {ActionItem, ActivityEvent, IncomePlan, IncomePlanAllocation, ProgressSnapshot, RoadmapGoal, RoadmapStep}
+
+    def guarded_query(model, *args, **kwargs):
+        if model in missing_models:
+            raise ProgrammingError(
+                f"SELECT * FROM {model.__tablename__}",
+                {},
+                Exception(f'relation "{model.__tablename__}" does not exist'),
+            )
+        return original_query(model, *args, **kwargs)
+
+    monkeypatch.setattr(db_session, "query", guarded_query)
+
+    snapshot = DecisionEngineService(db_session, owner_id).build()
+
+    assert snapshot.cashflow_glance.trailing_30_inflow == 950
+    assert snapshot.cashflow_glance.next_14_planned_inflow == 420
+    assert snapshot.roadmap_summary.goals == []
+    assert snapshot.roadmap_summary.plans == []
+    assert snapshot.ordered_action_queue == []
