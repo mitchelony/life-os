@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { BadgeDollarSign, Banknote, BellRing, CalendarCheck2, LayoutDashboard, Map, Settings2, SquarePen } from "lucide-react";
+import { BadgeDollarSign, Banknote, BellRing, CalendarCheck2, Coins, LayoutDashboard, Map, Settings2, SquarePen } from "lucide-react";
 
 export type AppNavItem = {
   href: string;
@@ -15,6 +15,7 @@ export const navItems: AppNavItem[] = [
   { href: "/obligations", label: "Obligations", mobileLabel: "Bills", icon: CalendarCheck2 },
   { href: "/debts", label: "Debts", mobileLabel: "Debts", icon: BadgeDollarSign },
   { href: "/roadmap", label: "Roadmap", mobileLabel: "Roadmap", icon: Map },
+  { href: "/income", label: "Income", mobileLabel: "Income", icon: Coins },
   { href: "/tasks", label: "Actions", mobileLabel: "Actions", icon: BellRing },
   { href: "/settings", label: "Settings", mobileLabel: "Settings", icon: Settings2 },
 ];
