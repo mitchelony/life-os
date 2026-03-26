@@ -27,7 +27,7 @@ This file is the build contract for Codex agents and human contributors working 
 
 ## Active Workspace Rules
 
-- The active repo is `/Users/MAC/GitHub/life-os`.
+- The active repo is `/Users/MAC/Github/life-os`.
 - Ignore the old iCloud-backed repo at `/Users/MAC/Documents/GitHub/life-os`.
 - Do all new work only in the clean repo unless the user explicitly says otherwise.
 - When verifying or editing files, prefer the clean repo paths in responses and tooling.
@@ -48,6 +48,11 @@ This file is the build contract for Codex agents and human contributors working 
 - Do not use `http://127.0.0.1:3000` for browser auth validation unless CORS is updated first.
 - `SUPABASE_URL`, `DATABASE_URL`, and `SUPABASE_DB_URL` must point at the same hosted project.
 - API startup should fail fast if Supabase auth and database project refs do not match.
+- Hosted validation should default to read-only unless the task explicitly requires writes.
+- If hosted writes are required, use a disposable owner/test account whenever possible instead of the real owner account.
+- Do not leave test accounts, fake roadmap imports, exploratory planner rows, or throwaway actions in hosted Supabase after validation.
+- Hosted cleanup must remove the test identity and all linked owner-scoped rows before the task ends.
+- If cleanup cannot be completed, call that out explicitly before ending the thread.
 
 ## UX Rules
 
@@ -72,6 +77,9 @@ This file is the build contract for Codex agents and human contributors working 
 - Secondary details should be pushed lower on the page instead of competing with the primary decision path.
 - Roadmap should feel like a centered planning surface, not a sparse editor.
 - When a page feels empty, fill the primary content area first before adding sidecar chrome.
+- Bulk roadmap setup should live outside onboarding as a first-class settings workflow.
+- The canonical one-shot roadmap seed format is roadmap import schema `v2`.
+- GPT-facing import flows should preserve explicit ids and tolerate common paste issues like smart quotes when safe to do so.
 
 ## Brand Voice Rules
 
@@ -138,6 +146,8 @@ This file is the build contract for Codex agents and human contributors working 
 - Seed data should help local development without pretending to be production data.
 - Treat migrations as the source of truth for hosted schema.
 - Keep owner-scoped uniqueness aligned across migrations, ORM metadata, and bootstrap logic.
+- If a feature needs new persisted fields, ship the migration in the same pass rather than relying on implicit runtime tables.
+- Do not leave the repo in a state where local tests pass but hosted Postgres cannot store the new fields.
 
 ## Testing Rules
 
@@ -163,6 +173,10 @@ This file is the build contract for Codex agents and human contributors working 
 - If a validation pass creates or mutates hosted Supabase data, clean it up before ending the pass.
 - Hosted cleanup is part of the task, not an optional follow-up.
 - If hosted cleanup cannot be completed, call that out explicitly before ending the thread.
+- Prefer the local in-memory or local test database for feature validation unless the task specifically requires hosted verification.
+- For hosted verification, use a disposable owner/test account and delete the account plus all linked owner-scoped rows afterward.
+- If you apply a hosted migration for validation, verify only what is needed and avoid seeding junk records.
+- Before ending a task, state whether validation was local-only or whether hosted data was touched.
 
 ## Sub-Agent Ownership Guidance
 
@@ -199,6 +213,9 @@ This file is the build contract for Codex agents and human contributors working 
 - If Playwright browser binaries are missing, install them explicitly before retrying:
   - `python3 -m playwright install <browser>`
   - do not keep retrying the same broken wrapper path
+- Roadmap import schema `v2` is the preferred one-shot planning seed format.
+- Frontend roadmap import should live in Settings rather than being hidden inside onboarding.
+- Import payloads may contain richer advisory fields than the current UI uses; the backend importer is the contract boundary for what is actually persisted.
 
 ## What To Avoid
 

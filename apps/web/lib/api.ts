@@ -507,6 +507,31 @@ export type BackendRoadmapImportResult = {
   income_plan_ids: Record<string, string>;
 };
 
+export type BackendRoadmapImportV2Payload = {
+  version: 2;
+  reset_planning_first?: boolean;
+  goals: Array<Record<string, unknown>>;
+  income_plans: Array<Record<string, unknown>>;
+  cash_reserves: Array<Record<string, unknown>>;
+  expected_income_entries: Array<Record<string, unknown>>;
+  obligations: Array<Record<string, unknown>>;
+  debts: Array<Record<string, unknown>>;
+  actions: Array<Record<string, unknown>>;
+  allowed_values?: Record<string, unknown>;
+};
+
+export type BackendRoadmapImportV2Result = {
+  goals_created: number;
+  steps_created: number;
+  income_plans_created: number;
+  allocations_created: number;
+  cash_reserves_created: number;
+  expected_income_entries_created: number;
+  obligations_created: number;
+  debts_created: number;
+  actions_created: number;
+};
+
 export type BackendDebt = {
   id: string;
   owner_id: string;
@@ -1007,6 +1032,23 @@ export function createApiClient(options: ApiClientOptions = {}) {
         income_plan_ids: {},
       }, { required: true }),
     getPlanningContextExport: () => get<BackendPlanningContextExport | null>("/planning/context-export", null, { required: true }),
+    importRoadmapV2: (payload: BackendRoadmapImportV2Payload) =>
+      post<BackendRoadmapImportV2Result>(
+        "/roadmap/import",
+        payload,
+        {
+          goals_created: 0,
+          steps_created: 0,
+          income_plans_created: 0,
+          allocations_created: 0,
+          cash_reserves_created: 0,
+          expected_income_entries_created: 0,
+          obligations_created: 0,
+          debts_created: 0,
+          actions_created: 0,
+        },
+        { required: true },
+      ),
     relaunchPlanning: () => post<void>("/planning/relaunch", {}, undefined, { required: true }),
     submitQuickAdd: (draft: QuickAddDraft) =>
       post(

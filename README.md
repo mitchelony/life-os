@@ -32,10 +32,10 @@ supabase/     Migrations, hosted setup reference, and optional local Supabase as
 
 Key references:
 
-- [Product requirements](/Users/MAC/GitHub/life-os/docs/PRD.md)
-- [Architecture notes](/Users/MAC/GitHub/life-os/docs/ARCHITECTURE.md)
-- [Current working state](/Users/MAC/GitHub/life-os/docs/WORKING_STATE.md)
-- [Contributor contract](/Users/MAC/GitHub/life-os/AGENTS.md)
+- [Product requirements](/Users/MAC/Github/life-os/docs/PRD.md)
+- [Architecture notes](/Users/MAC/Github/life-os/docs/ARCHITECTURE.md)
+- [Current working state](/Users/MAC/Github/life-os/docs/WORKING_STATE.md)
+- [Contributor contract](/Users/MAC/Github/life-os/AGENTS.md)
 
 ## Tech Stack
 
@@ -143,7 +143,7 @@ npm install
 In one terminal:
 
 ```bash
-cd /Users/MAC/GitHub/life-os
+cd /Users/MAC/Github/life-os
 source .venv/bin/activate
 npm run dev:api
 ```
@@ -153,7 +153,7 @@ npm run dev:api
 In another terminal:
 
 ```bash
-cd /Users/MAC/GitHub/life-os
+cd /Users/MAC/Github/life-os
 source ~/.nvm/nvm.sh
 nvm use 20
 npm run dev:web
@@ -209,6 +209,32 @@ Current auth behavior:
 - logout returns directly to `/login`
 - onboarding/profile bootstrap is defensive against duplicate historical owner rows instead of crashing with `500`
 
+## Roadmap Import V2
+
+The preferred one-shot planning seed path is now roadmap import schema `v2`.
+
+Use it from `Settings` in the web app or post directly to:
+
+```text
+POST /api/roadmap/import
+```
+
+Notes:
+
+- the frontend import box normalizes smart quotes from GPT output before parsing
+- use real persisted ids for linked accounts, debts, obligations, and income records
+- temp ids are for import-file relationships only
+- `remaining_unallocated_amount` is accepted for GPT context but treated as advisory, not persisted truth
+
+## Hosted Validation and Cleanup
+
+When validating against hosted Supabase:
+
+- prefer read-only checks unless the task requires writes
+- if writes are required, use a disposable owner/test account when possible
+- remove the test account and all linked owner-scoped rows before ending the task
+- do not leave exploratory roadmap imports, planner drafts, actions, or auth test users in the hosted project
+
 ## Deployment
 
 Production deployment uses:
@@ -223,7 +249,7 @@ Use the runbook in [docs/DEPLOYMENT.md](/Users/MAC/Github/life-os/docs/DEPLOYMEN
 
 Hosted Supabase is the normal path right now.
 
-Use [supabase/README.md](/Users/MAC/GitHub/life-os/supabase/README.md) for:
+Use [supabase/README.md](/Users/MAC/Github/life-os/supabase/README.md) for:
 
 - hosted project setup
 - schema application
@@ -255,8 +281,8 @@ This app handles sensitive financial information. Keep the following in mind:
 
 Before making major changes, read:
 
-- [AGENTS.md](/Users/MAC/GitHub/life-os/AGENTS.md)
-- [docs/PRD.md](/Users/MAC/GitHub/life-os/docs/PRD.md)
-- [docs/ARCHITECTURE.md](/Users/MAC/GitHub/life-os/docs/ARCHITECTURE.md)
+- [AGENTS.md](/Users/MAC/Github/life-os/AGENTS.md)
+- [docs/PRD.md](/Users/MAC/Github/life-os/docs/PRD.md)
+- [docs/ARCHITECTURE.md](/Users/MAC/Github/life-os/docs/ARCHITECTURE.md)
 
 These documents define the product scope, architecture, and UX constraints for the MVP.

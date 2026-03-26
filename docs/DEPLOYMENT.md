@@ -84,11 +84,12 @@ If you use a non-`app` subdomain, use the real production web origin everywhere 
 ## Go-Live Order
 
 1. Confirm hosted Supabase env values and production auth URLs.
-2. Deploy the API to Render.
-3. Verify `https://api.<your-domain>/healthz`.
-4. Set Vercel production env vars to the real API and Supabase values.
-5. Deploy the web app to Vercel.
-6. Test production flows:
+2. Apply the latest Supabase migrations before deploying app code, including additive roadmap import schema `v2` fields.
+3. Deploy the API to Render.
+4. Verify `https://api.<your-domain>/healthz`.
+5. Set Vercel production env vars to the real API and Supabase values.
+6. Deploy the web app to Vercel.
+7. Test production flows:
    - sign in
    - sign up
    - Google sign-in
@@ -97,6 +98,7 @@ If you use a non-`app` subdomain, use the real production web origin everywhere 
    - logout
    - sign back in
    - roadmap save/load
+   - roadmap import `v2`
 
 ## Production Smoke Test Checklist
 

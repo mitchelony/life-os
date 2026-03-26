@@ -141,6 +141,8 @@ Roadmap should support:
 - strategy-backed guidance
 - next-income payment plans
 - focus mode with one clear next move
+- one-shot import through roadmap schema `v2`
+- expected income, cash reserves, obligations, debts, and actions in the same planning import
 
 ## 7. Available Spend Logic
 
@@ -216,6 +218,7 @@ The second number may include expected, reliable income before the current plann
 The roadmap strategy layer should:
 
 - accept a strict JSON planning schema
+- prefer roadmap import schema `v2` for bulk setup
 - guide payment order and debt/obligation handling
 - influence guidance across the dashboard, debts, obligations, and tasks
 - stay advisory only during MVP

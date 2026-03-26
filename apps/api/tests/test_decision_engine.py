@@ -224,6 +224,30 @@ def test_decision_snapshot_archives_system_actions_for_closed_underlying_items(d
     assert all(action.is_archived for action in archived_actions)
 
 
+def test_decision_snapshot_derives_live_action_lanes_from_current_date(db_session) -> None:
+    owner_id = "owner-action-lanes"
+    today = date.today()
+
+    db_session.add_all(
+        [
+            Account(owner_id=owner_id, name="Checking", type="checking", balance=900),
+            ActionItem(owner_id=owner_id, title="Due today", status="todo", lane="this_week", source="manual", due_on=today),
+            ActionItem(owner_id=owner_id, title="Due soon", status="todo", lane="manual", source="manual", due_on=today + timedelta(days=3)),
+            ActionItem(owner_id=owner_id, title="Later this month", status="todo", lane="this_week", source="manual", due_on=today + timedelta(days=14)),
+            ActionItem(owner_id=owner_id, title="Paycheck step", status="todo", lane="when_income_lands", source="manual", due_on=today + timedelta(days=2)),
+        ]
+    )
+    db_session.commit()
+
+    snapshot = DecisionEngineService(db_session, owner_id).build()
+    lanes = {item.title: item.lane for item in snapshot.ordered_action_queue}
+
+    assert lanes["Due today"] == "do_now"
+    assert lanes["Due soon"] == "this_week"
+    assert lanes["Later this month"] == "manual"
+    assert lanes["Paycheck step"] == "when_income_lands"
+
+
 def test_decision_snapshot_uses_transactions_for_cashflow_and_recent_updates(db_session) -> None:
     owner_id = "owner-3"
     today = date.today()

@@ -254,6 +254,12 @@ class IncomeEntryBase(BaseModel):
     expected_on: date | None = None
     received_on: date | None = None
     account_id: str | None = None
+    is_reliable: bool = True
+    category: str | None = None
+    linked_obligation_id: str | None = None
+    linked_debt_id: str | None = None
+    is_partial: bool = False
+    parent_income_entry_id: str | None = None
     notes: str | None = None
 
 
@@ -292,6 +298,11 @@ class ObligationBase(BaseModel):
     frequency: ObligationFrequency = ObligationFrequency.one_time
     is_paid: bool = False
     is_recurring: bool = False
+    is_externally_covered: bool = False
+    coverage_source_label: str | None = None
+    minimum_due: float | None = None
+    past_due_amount: float = 0
+    target_payoff_date: date | None = None
     notes: str | None = None
 
 
@@ -319,6 +330,12 @@ class DebtBase(BaseModel):
     minimum_payment: float = 0
     due_on: date | None = None
     status: DebtStatus = DebtStatus.active
+    apr: float | None = None
+    statement_balance: float | None = None
+    minimum_met: bool = False
+    minimum_met_on: date | None = None
+    available_credit: float | None = None
+    no_new_spend_mode: bool = False
     notes: str | None = None
 
 
@@ -370,6 +387,11 @@ class ReserveBase(BaseModel):
     amount: float
     kind: ReserveKind = ReserveKind.manual
     is_active: bool = True
+    purpose_type: str | None = None
+    linked_type: str | None = None
+    linked_id: str | None = None
+    account_id: str | None = None
+    created_on: date | None = None
     notes: str | None = None
 
 
@@ -526,11 +548,19 @@ class DecisionActionRead(DecisionActionBase):
 class RoadmapGoalBase(BaseModel):
     title: str
     description: str = ""
+    category: str = "finances"
     status: str = "active"
     priority: str = "medium"
     target_date: date | None = None
+    target_amount: float | None = None
+    current_amount: float | None = None
+    blocked_reason: str | None = None
+    recommended_next_step: str | None = None
+    sort_order: int = 0
+    depends_on_goal_ids: list[str] = Field(default_factory=list)
     linked_type: str | None = None
     linked_id: str | None = None
+    notes: str | None = None
     metric_kind: str | None = None
     metric_start_value: float | None = None
     metric_current_value: float | None = None
@@ -571,6 +601,11 @@ class RoadmapStepBase(BaseModel):
     status: str = "todo"
     due_on: date | None = None
     sort_order: int = 0
+    amount: float | None = None
+    recommended_action: str | None = None
+    depends_on_step_ids: list[str] = Field(default_factory=list)
+    is_financial_step: bool = False
+    completed_at: datetime | None = None
     linked_type: str | None = None
     linked_id: str | None = None
     notes: str | None = None
@@ -600,6 +635,12 @@ class IncomePlanBase(BaseModel):
     expected_on: date | None = None
     is_reliable: bool = True
     status: str = "planned"
+    priority: str = "medium"
+    rolls_up_to_goal_id: str | None = None
+    recommended_step: str | None = None
+    is_partial: bool = False
+    parent_income_plan_id: str | None = None
+    source_income_entry_id: str | None = None
     notes: str | None = None
 
 
@@ -625,9 +666,17 @@ class IncomePlanAllocationBase(BaseModel):
     label: str
     allocation_type: str
     amount: float
+    percent_of_income: float | None = None
     sort_order: int = 0
+    is_required: bool = False
+    goal_id: str | None = None
     linked_type: str | None = None
     linked_id: str | None = None
+    account_source_id: str | None = None
+    account_destination_id: str | None = None
+    status: str = "planned"
+    executed_amount: float | None = None
+    executed_on: datetime | None = None
     notes: str | None = None
 
 
@@ -647,6 +696,192 @@ class IncomePlanAllocationUpdate(BaseModel):
 
 class IncomePlanAllocationRead(TimestampedRead, IncomePlanAllocationBase):
     pass
+
+
+class RoadmapImportV2Step(BaseModel):
+    temp_id: str
+    title: str
+    status: Literal["todo", "in_progress", "blocked", "done"] = "todo"
+    due_on: date | None = None
+    sort_order: int = 0
+    amount: float | None = None
+    recommended_action: str | None = None
+    depends_on_step_temp_ids: list[str] = Field(default_factory=list)
+    is_financial_step: bool = False
+    linked_type: str | None = None
+    linked_id: str | None = None
+    notes: str | None = None
+    completed_at: datetime | None = None
+
+
+class RoadmapImportV2Goal(BaseModel):
+    temp_id: str
+    title: str
+    description: str = ""
+    category: Literal["finances", "school", "career", "admin", "health", "personal"] = "finances"
+    status: Literal["active", "planned", "blocked", "completed"] = "active"
+    priority: Literal["low", "medium", "high", "critical"] = "medium"
+    target_date: date | None = None
+    target_amount: float | None = None
+    current_amount: float | None = None
+    blocked_reason: str | None = None
+    recommended_next_step: str | None = None
+    sort_order: int = 0
+    depends_on_goal_temp_ids: list[str] = Field(default_factory=list)
+    linked_type: str | None = None
+    linked_id: str | None = None
+    notes: str | None = None
+    steps: list[RoadmapImportV2Step] = Field(default_factory=list)
+
+
+class RoadmapImportV2Allocation(BaseModel):
+    temp_id: str
+    label: str
+    allocation_type: Literal["obligation_payment", "debt_payment", "buffer", "essentials", "manual"]
+    amount: float
+    percent_of_income: float | None = None
+    sort_order: int = 0
+    is_required: bool = False
+    goal_temp_id: str | None = None
+    linked_type: str | None = None
+    linked_id: str | None = None
+    account_source_id: str | None = None
+    account_destination_id: str | None = None
+    status: Literal["planned", "reserved", "paid", "skipped", "changed"] = "planned"
+    executed_amount: float | None = None
+    executed_on: datetime | None = None
+    notes: str | None = None
+
+
+class RoadmapImportV2IncomePlan(BaseModel):
+    temp_id: str
+    label: str
+    amount: float
+    expected_on: date | None = None
+    is_reliable: bool = True
+    status: Literal["planned", "cancelled", "received"] = "planned"
+    priority: Literal["low", "medium", "high", "critical"] = "medium"
+    rolls_up_to_goal_temp_id: str | None = None
+    recommended_step: str | None = None
+    remaining_unallocated_amount: float | None = None
+    is_partial: bool = False
+    parent_income_plan_temp_id: str | None = None
+    source_income_entry_id: str | None = None
+    notes: str | None = None
+    allocations: list[RoadmapImportV2Allocation] = Field(default_factory=list)
+
+
+class RoadmapImportV2CashReserve(BaseModel):
+    temp_id: str
+    label: str
+    amount: float
+    purpose_type: Literal["taxes", "buffer", "debt", "utilities", "essentials", "custom"]
+    linked_type: str | None = None
+    linked_id: str | None = None
+    account_id: str | None = None
+    created_on: date | None = None
+    notes: str | None = None
+
+
+class RoadmapImportV2ExpectedIncomeEntry(BaseModel):
+    source_name: str
+    amount: float
+    status: Literal["expected", "received", "missed"] = "expected"
+    expected_on: date | None = None
+    received_on: date | None = None
+    account_id: str | None = None
+    is_reliable: bool = True
+    category: Literal["paycheck", "side_gig", "refund", "family_support", "scholarship", "other"] = "other"
+    linked_obligation_id: str | None = None
+    linked_debt_id: str | None = None
+    is_partial: bool = False
+    parent_income_entry_id: str | None = None
+    notes: str | None = None
+
+
+class RoadmapImportV2Obligation(BaseModel):
+    name: str
+    amount: float
+    due_on: date
+    frequency: Literal["one_time", "weekly", "biweekly", "monthly", "yearly"] = "one_time"
+    is_paid: bool = False
+    is_recurring: bool = False
+    is_externally_covered: bool = False
+    coverage_source_label: str | None = None
+    minimum_due: float | None = None
+    past_due_amount: float = 0
+    target_payoff_date: date | None = None
+    notes: str | None = None
+
+
+class RoadmapImportV2Debt(BaseModel):
+    name: str
+    balance: float
+    minimum_payment: float = 0
+    due_on: date | None = None
+    status: Literal["active", "paused", "paid_off"] = "active"
+    apr: float | None = None
+    statement_balance: float | None = None
+    minimum_met: bool = False
+    minimum_met_on: date | None = None
+    available_credit: float | None = None
+    no_new_spend_mode: bool = False
+    notes: str | None = None
+
+
+class RoadmapImportV2Action(BaseModel):
+    title: str
+    detail: str | None = None
+    status: Literal["todo", "in_progress", "blocked", "done", "skipped"] = "todo"
+    lane: Literal["do_now", "this_week", "when_income_lands", "manual"] = "manual"
+    source: Literal["system", "manual", "goal"] = "manual"
+    due_on: date | None = None
+    linked_type: str | None = None
+    linked_id: str | None = None
+
+
+class RoadmapImportV2AllowedValues(BaseModel):
+    goal_categories: list[str] = Field(default_factory=list)
+    goal_statuses: list[str] = Field(default_factory=list)
+    goal_priorities: list[str] = Field(default_factory=list)
+    step_statuses: list[str] = Field(default_factory=list)
+    linked_types: list[str] = Field(default_factory=list)
+    income_plan_statuses: list[str] = Field(default_factory=list)
+    income_allocation_types: list[str] = Field(default_factory=list)
+    allocation_statuses: list[str] = Field(default_factory=list)
+    cash_reserve_purpose_types: list[str] = Field(default_factory=list)
+    income_statuses: list[str] = Field(default_factory=list)
+    income_categories: list[str] = Field(default_factory=list)
+    obligation_frequencies: list[str] = Field(default_factory=list)
+    debt_statuses: list[str] = Field(default_factory=list)
+    action_statuses: list[str] = Field(default_factory=list)
+    action_lanes: list[str] = Field(default_factory=list)
+    action_sources: list[str] = Field(default_factory=list)
+
+
+class RoadmapImportV2Payload(BaseModel):
+    version: Literal[2]
+    reset_planning_first: bool = False
+    goals: list[RoadmapImportV2Goal] = Field(default_factory=list)
+    income_plans: list[RoadmapImportV2IncomePlan] = Field(default_factory=list)
+    cash_reserves: list[RoadmapImportV2CashReserve] = Field(default_factory=list)
+    expected_income_entries: list[RoadmapImportV2ExpectedIncomeEntry] = Field(default_factory=list)
+    obligations: list[RoadmapImportV2Obligation] = Field(default_factory=list)
+    debts: list[RoadmapImportV2Debt] = Field(default_factory=list)
+    actions: list[RoadmapImportV2Action] = Field(default_factory=list)
+    allowed_values: RoadmapImportV2AllowedValues | None = None
+
+
+class RoadmapImportV2Result(BaseModel):
+    goals_created: int = 0
+    steps_created: int = 0
+    income_plans_created: int = 0
+    allocations_created: int = 0
+    cash_reserves_created: int = 0
+    expected_income_entries_created: int = 0
+    obligations_created: int = 0
+    debts_created: int = 0
+    actions_created: int = 0
 
 
 class RecentUpdate(BaseModel):

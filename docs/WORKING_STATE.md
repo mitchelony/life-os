@@ -4,9 +4,9 @@ This file is the compact handoff for new threads.
 
 ## Active Repo
 
-- Only use `/Users/MAC/GitHub/life-os`.
+- Only use `/Users/MAC/Github/life-os`.
 - Ignore the old iCloud-backed repo at `/Users/MAC/Documents/GitHub/life-os`.
-- If the project is reopened from the wrong path, stop and reopen `/Users/MAC/GitHub/life-os` before making changes.
+- If the project is reopened from the wrong path, stop and reopen `/Users/MAC/Github/life-os` before making changes.
 - If a local server is already running, confirm it is serving this repo before trusting what the browser shows.
 
 ## Current Product State
@@ -111,6 +111,10 @@ This file is the compact handoff for new threads.
 - Strategy JSON input must remain accessible in `Strategy` mode.
 - The page should feel centered and full, not sparse.
 - Secondary detail belongs lower on the page, not above the main decision content.
+- Bulk roadmap setup should be available in `Settings`, not buried inside onboarding.
+- The canonical bulk seed contract is roadmap import schema `v2`.
+- GPT-pasted roadmap JSON may contain smart quotes; the frontend import flow should normalize them before parse when safe to do so.
+- Import files should preserve explicit linked ids for real records and use temp ids only for in-file dependencies.
 
 ## Icon State
 
@@ -135,6 +139,8 @@ This file is the compact handoff for new threads.
   - the last live blocker came from local env drift, not from current hosted schema drift
 - Any hosted validation pass that creates test users or owner-scoped rows must delete them before the pass is considered complete.
 - Hosted cleanup is required even for throwaway Playwright or auth-flow users.
+- Prefer local test DB validation by default. Use hosted writes only when the task actually requires them.
+- If hosted writes are required, use a disposable owner/test account where possible and remove it with all linked rows before ending the pass.
 
 ## Backend Stability Notes
 
@@ -150,7 +156,7 @@ This file is the compact handoff for new threads.
 Web tests:
 
 ```bash
-cd /Users/MAC/GitHub/life-os
+cd /Users/MAC/Github/life-os
 source ~/.nvm/nvm.sh
 nvm use 20
 npm --workspace apps/web run test
@@ -159,7 +165,7 @@ npm --workspace apps/web run test
 Focused onboarding/local-state web tests:
 
 ```bash
-cd /Users/MAC/GitHub/life-os
+cd /Users/MAC/Github/life-os
 source ~/.nvm/nvm.sh
 nvm use 20
 npm --workspace apps/web run test -- lib/onboarding.test.ts lib/auth.test.ts lib/local-state.test.ts
@@ -168,7 +174,7 @@ npm --workspace apps/web run test -- lib/onboarding.test.ts lib/auth.test.ts lib
 Web typecheck:
 
 ```bash
-cd /Users/MAC/GitHub/life-os
+cd /Users/MAC/Github/life-os
 source ~/.nvm/nvm.sh
 nvm use 20
 npm --workspace apps/web run typecheck
@@ -177,7 +183,7 @@ npm --workspace apps/web run typecheck
 API tests:
 
 ```bash
-cd /Users/MAC/GitHub/life-os/apps/api
+cd /Users/MAC/Github/life-os/apps/api
 source ../../.venv/bin/activate
 python3 -m pytest
 ```
@@ -185,7 +191,7 @@ python3 -m pytest
 Playwright/browser validation on this machine:
 
 ```bash
-cd /Users/MAC/GitHub/life-os
+cd /Users/MAC/Github/life-os
 python3 -m playwright install webkit
 python3 -m playwright --help
 ```

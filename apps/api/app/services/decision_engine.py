@@ -64,6 +64,22 @@ def _is_missing_relation_error(error: ProgrammingError) -> bool:
     return "does not exist" in str(error).lower()
 
 
+def _lane_from_due_date(due_on: date | None, today: date, fallback: str = "manual") -> str:
+    if due_on is None:
+        return fallback
+    if due_on <= today:
+        return "do_now"
+    if due_on <= today + timedelta(days=6):
+        return "this_week"
+    return "manual"
+
+
+def _live_action_lane(action: ActionItem, today: date) -> str:
+    if action.lane == "when_income_lands":
+        return "when_income_lands"
+    return _lane_from_due_date(action.due_on, today, fallback=action.lane or "manual")
+
+
 @dataclass(slots=True)
 class DecisionEngineService:
     db: Session
@@ -243,7 +259,7 @@ class DecisionEngineService:
             key = ("obligation", obligation.id)
             active_keys.add(key)
             title = f"Pay {obligation.name}"
-            lane = "do_now" if obligation.due_on < today else "this_week"
+            lane = _lane_from_due_date(obligation.due_on, today)
             if key not in existing:
                 action = ActionItem(
                     owner_id=self.owner_id,
@@ -268,7 +284,7 @@ class DecisionEngineService:
             key = ("debt", debt.id)
             active_keys.add(key)
             title = f"Pay {debt.name} minimum"
-            lane = "do_now" if debt.due_on and debt.due_on <= today + timedelta(days=3) else "this_week"
+            lane = _lane_from_due_date(debt.due_on, today)
             if key not in existing:
                 action = ActionItem(
                     owner_id=self.owner_id,
@@ -393,6 +409,7 @@ class DecisionEngineService:
         return RoadmapGoalSummary(goals=sorted_goals, plans=plans)
 
     def _action_queue(self, actions: list[ActionItem]) -> list[DecisionActionRead]:
+        today = _start_of_today()
         priority_order = {"do_now": 0, "this_week": 1, "when_income_lands": 2, "manual": 3}
         status_order = {"in_progress": 0, "todo": 1}
         return [
@@ -401,7 +418,7 @@ class DecisionEngineService:
                 title=action.title,
                 detail=action.detail,
                 status=action.status,
-                lane=action.lane,
+                lane=_live_action_lane(action, today),
                 source=action.source,
                 due_on=action.due_on,
                 linked_type=action.linked_type,
@@ -411,7 +428,7 @@ class DecisionEngineService:
                 actions,
                 key=lambda item: (
                     1 if item.status in INACTIVE_ACTION_STATUSES else 0,
-                    priority_order.get(item.lane, 99),
+                    priority_order.get(_live_action_lane(item, today), 99),
                     status_order.get(item.status, 99),
                     item.due_on or date.max,
                     item.created_at,

@@ -51,6 +51,10 @@ supabase/     Migrations, hosted setup reference, and optional local database se
 - `strategyDocument`
   - advisory planning layer used by the roadmap workspace
   - includes goal guidance, expected income, and next-income payment plans
+- `roadmap_goals`, `roadmap_steps`, `income_plans`, and `income_plan_allocations`
+  - normalized planning entities used by the decision engine
+- `reserves`
+  - actual earmarked cash state, including manual reserve intent
 
 ## System Responsibilities
 
@@ -97,6 +101,7 @@ Supabase Postgres is now the intended local and hosted database path.
 Current important API surfaces include:
 
 - `GET /api/dashboard`
+- `POST /api/roadmap/import`
 - `GET /api/available-spend/explain`
 - `POST /api/available-spend/explain`
 - `GET /api/auth/whoami`
@@ -160,6 +165,8 @@ This means:
 
 - site truth is still the saved financial records
 - strategy truth is the recommended way to handle them
+- roadmap import schema `v2` is the preferred bulk planning contract for GPT-assisted setup
+- temp ids exist for import dependency resolution only; persisted records still use real ids
 
 ## Auth Model
 

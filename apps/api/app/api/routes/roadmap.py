@@ -10,8 +10,8 @@ from app.schemas.domain import (
     RoadmapGoalEntityRead,
     RoadmapGoalSummary,
     RoadmapGoalUpdate,
-    RoadmapImportPayload,
-    RoadmapImportResult,
+    RoadmapImportV2Payload,
+    RoadmapImportV2Result,
     RoadmapStepCreate,
     RoadmapStepRead,
     RoadmapStepUpdate,
@@ -28,13 +28,13 @@ def get_roadmap(db: Session = Depends(get_db), owner_id: str = Depends(get_owner
     return DecisionEngineService(db, owner_id).build().roadmap_summary
 
 
-@router.post("/import", response_model=RoadmapImportResult)
+@router.post("/import", response_model=RoadmapImportV2Result)
 def import_roadmap(
-    payload: RoadmapImportPayload,
+    payload: RoadmapImportV2Payload,
     db: Session = Depends(get_db),
     owner_id: str = Depends(get_owner_id),
-) -> RoadmapImportResult:
-    return RoadmapImportService(db, owner_id).run(payload)
+) -> RoadmapImportV2Result:
+    return RoadmapImportService(db, owner_id).import_v2(payload)
 
 
 goals_router = build_crud_router(

@@ -294,4 +294,45 @@ describe("createApiClient", () => {
     expect(calls[0]?.[1]?.method).toBe("POST");
     expect(calls[0]?.[1]?.body).toBe(JSON.stringify({ account_id: "account-1", received_on: "2026-03-29" }));
   });
+
+  it("posts roadmap import v2 payloads to the roadmap import endpoint", async () => {
+    vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          goals_created: 1,
+          steps_created: 2,
+          income_plans_created: 1,
+          allocations_created: 1,
+          cash_reserves_created: 1,
+          expected_income_entries_created: 1,
+          obligations_created: 0,
+          debts_created: 0,
+          actions_created: 1,
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = createApiClient({
+      baseUrl: "http://localhost:8000/api",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    const result = await client.importRoadmapV2({
+      version: 2,
+      reset_planning_first: true,
+      goals: [],
+      income_plans: [],
+      cash_reserves: [],
+      expected_income_entries: [],
+      obligations: [],
+      debts: [],
+      actions: [],
+    });
+
+    const calls = fetchImpl.mock.calls as unknown as Array<[string, RequestInit | undefined]>;
+    expect(calls[0]?.[0]).toBe("http://localhost:8000/api/roadmap/import");
+    expect(calls[0]?.[1]?.method).toBe("POST");
+    expect(result.goals_created).toBe(1);
+  });
 });
