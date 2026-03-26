@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Panel, cn } from "@/components/ui";
-import { hasAuthSession } from "@/lib/auth";
+import { hasAuthSession, signOut } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/finance";
+import { getHomeGateActionIds } from "@/lib/home-gate";
 import { getInitialAppRoute } from "@/lib/onboarding";
 import { sampleDashboard } from "@/lib/sample-data";
 
@@ -15,6 +16,7 @@ export function HomeGate() {
   const router = useRouter();
   const [routeError, setRouteError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
+  const actionIds = getHomeGateActionIds(Boolean(routeError));
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +62,15 @@ export function HomeGate() {
     };
   }, [router, retryNonce]);
 
+  async function handleSignOut() {
+    await signOut();
+    if (typeof window !== "undefined") {
+      window.location.assign("/login");
+      return;
+    }
+    router.replace("/login");
+  }
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl items-center px-4 py-8">
       <Panel className="w-full overflow-hidden p-0">
@@ -78,7 +89,7 @@ export function HomeGate() {
               </div>
             ) : null}
             <div className="mt-8 flex flex-wrap gap-3">
-              {routeError ? (
+              {actionIds.includes("retry") ? (
                 <button
                   type="button"
                   onClick={() => setRetryNonce((current) => current + 1)}
@@ -86,7 +97,19 @@ export function HomeGate() {
                 >
                   Retry check
                 </button>
-              ) : (
+              ) : null}
+              {actionIds.includes("logout") ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleSignOut();
+                  }}
+                  className="inline-flex items-center justify-center rounded-full border border-line bg-transparent px-4 py-2.5 text-sm font-medium text-ink transition duration-200 hover:-translate-y-0.5 hover:bg-black/5"
+                >
+                  Log out
+                </button>
+              ) : null}
+              {actionIds.includes("setup") || actionIds.includes("dashboard") ? (
                 <>
                   <button
                     type="button"
@@ -105,7 +128,7 @@ export function HomeGate() {
                     Open dashboard
                   </button>
                 </>
-              )}
+              ) : null}
             </div>
           </div>
 

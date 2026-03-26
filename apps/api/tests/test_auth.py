@@ -115,3 +115,22 @@ def test_dashboard_preflight_allows_local_web_origin(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+
+
+def test_dashboard_preflight_allows_legacy_allowed_origin(monkeypatch) -> None:
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001")
+    monkeypatch.setenv("ALLOWED_ORIGIN", "http://192.168.1.162:3000")
+    get_settings.cache_clear()
+
+    client = _client(monkeypatch)
+    response = client.options(
+        "/api/dashboard",
+        headers={
+            "Origin": "http://192.168.1.162:3000",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization,content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://192.168.1.162:3000"

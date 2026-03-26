@@ -80,9 +80,16 @@ source .venv/bin/activate
 npm run dev:api
 ```
 
-Default local address:
+Default bind and local addresses:
 
+- `http://0.0.0.0:8000`
 - `http://127.0.0.1:8000`
+- `http://<your-mac-lan-ip>:8000`
+
+Why this matters:
+
+- mobile auth and onboarding checks hit the API through your LAN IP when the web app is opened on a phone
+- if the API only binds to `127.0.0.1`, the phone cannot reach `/api/onboarding/start` after Google auth
 
 Startup guardrails:
 
@@ -108,6 +115,7 @@ Common local variables:
 - `AUTH_STRATEGY`
 - `ALLOW_DEV_LOGIN`
 - `CORS_ALLOWED_ORIGINS`
+- `ALLOWED_ORIGIN` - optional legacy single-origin fallback, still honored for local LAN testing
 
 Notes:
 
@@ -116,6 +124,7 @@ Notes:
 - `DEV_OWNER_TOKEN` is now optional local fallback only
 - `ALLOW_DEV_LOGIN` should stay `false` unless you explicitly need the fallback
 - browser requests should come from `http://localhost:3000` or `http://localhost:3001` unless you also update `CORS_ALLOWED_ORIGINS`
+- the API also honors legacy `ALLOWED_ORIGIN` so an existing root `.env` can open CORS for a single LAN origin like `http://192.168.1.162:3000`
 
 ## Tests
 

@@ -97,6 +97,16 @@ Important:
 - the web app signs in the owner through Supabase email/password or Google and sends the bearer token to the backend
 - API-backed persistence is now the preferred path for dashboard, quick add, settings, and roadmap data
 - browser storage is still used as a mirror/fallback, not the primary saved truth
+- mobile shell behavior should keep desktop parity for navigation and session controls
+- every desktop destination should remain reachable from the mobile menu
+- mobile must expose a direct path to log out without forcing the user through settings
+- the mobile header menu trigger should be obviously labeled, not an easy-to-miss icon-only control
+- the mobile menu sheet should support touch scrolling and leave enough bottom clearance above the fixed bottom nav
+- Settings should include its own direct log out action as a second clear path
+- signed-in recovery screens must also expose a log out path so mobile users are never trapped behind a failed onboarding or API check
+- for phone or LAN testing, Supabase must allow the exact callback URL such as `http://192.168.1.162:3000/auth/callback`
+- for phone or LAN testing, the API must allow the exact browser origin such as `http://192.168.1.162:3000` in `CORS_ALLOWED_ORIGINS`
+- the web client rewrites loopback API URLs like `http://localhost:8000/api` to the current browser host for LAN testing, but hosted auth redirect settings still need the exact callback URL
 
 ## Auth Flow
 
@@ -163,6 +173,7 @@ Current tests focus on:
 - amount-first input for quick add
 - calm, explainable finance UI
 - auth screens should follow the Life OS visual system even when using a more editorial split layout
+- on phones, auth should be form-first and compact; supporting preview content must not push the first input fields below an oversized hero
 
 ## Notes for Developers
 

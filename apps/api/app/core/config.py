@@ -15,6 +15,7 @@ class Settings(BaseSettings):
         default="http://localhost:3000,http://localhost:3001",
         alias="CORS_ALLOWED_ORIGINS",
     )
+    allowed_origin: str = Field(default="", alias="ALLOWED_ORIGIN")
     default_currency: str = Field(default="USD", alias="DEFAULT_CURRENCY")
     supabase_url: str | None = Field(default=None, alias="SUPABASE_URL")
     supabase_anon_key: str | None = Field(default=None, alias="SUPABASE_ANON_KEY")
@@ -26,7 +27,15 @@ class Settings(BaseSettings):
     allow_dev_login: bool = Field(default=True, alias="ALLOW_DEV_LOGIN")
 
     def get_cors_allowed_origins(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
+        origins: list[str] = []
+
+        for value in [self.cors_allowed_origins, self.allowed_origin]:
+            for origin in value.split(","):
+                normalized = origin.strip()
+                if normalized and normalized not in origins:
+                    origins.append(normalized)
+
+        return origins
 
     def get_supabase_project_ref(self) -> str | None:
         parsed = urlparse(self.supabase_url or "")

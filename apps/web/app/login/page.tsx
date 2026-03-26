@@ -5,7 +5,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FormEvent, ReactNode } from "react";
 import { cn, Panel } from "@/components/ui";
-import { hasAuthSession, signInWithPassword, signUpWithPassword, startGoogleSignIn } from "@/lib/auth";
+import {
+  getBrowserAuthCallbackUrl,
+  hasAuthSession,
+  isRemoteBrowserAuthHost,
+  signInWithPassword,
+  signUpWithPassword,
+  startGoogleSignIn,
+} from "@/lib/auth";
 
 function GoogleMark() {
   return (
@@ -34,7 +41,7 @@ function AuthField({
 }
 
 const fieldClassName =
-  "w-full rounded-2xl border border-line bg-white/88 px-4 py-3 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent";
+  "w-full rounded-2xl border border-line bg-white/88 px-4 py-3 text-base text-ink outline-none transition placeholder:text-muted/70 focus:border-accent md:text-sm";
 
 const previewSlides = [
   {
@@ -87,6 +94,9 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [browserCallbackUrl, setBrowserCallbackUrl] = useState("");
+  const [browserOrigin, setBrowserOrigin] = useState("");
+  const [remoteBrowserHost, setRemoteBrowserHost] = useState(false);
 
   useEffect(() => {
     if (hasAuthSession()) {
@@ -99,6 +109,12 @@ export default function LoginPage() {
       setActivePreview((current) => (current + 1) % previewSlides.length);
     }, 4200);
     return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    setBrowserCallbackUrl(getBrowserAuthCallbackUrl());
+    setBrowserOrigin(typeof window === "undefined" ? "" : window.location.origin);
+    setRemoteBrowserHost(isRemoteBrowserAuthHost());
   }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -133,10 +149,10 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[1380px] items-center px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1380px] items-start px-4 py-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:py-8 lg:items-center lg:px-8">
       <Panel className="w-full overflow-hidden p-0">
         <div className="grid gap-0 lg:grid-cols-[1.12fr_0.88fr]">
-          <div className="relative overflow-hidden border-b border-line bg-[linear-gradient(180deg,rgba(61,111,94,0.16),rgba(255,255,255,0.38))] p-5 sm:p-6 lg:min-h-[820px] lg:border-b-0 lg:border-r lg:p-7">
+          <div className="relative hidden overflow-hidden border-b border-line bg-[linear-gradient(180deg,rgba(61,111,94,0.16),rgba(255,255,255,0.38))] p-5 sm:p-6 lg:block lg:min-h-[820px] lg:border-b-0 lg:border-r lg:p-7">
             <div className="relative h-full overflow-hidden rounded-[28px] border border-line bg-[linear-gradient(180deg,rgba(61,111,94,0.24),rgba(255,255,255,0.2))] p-6 shadow-soft sm:p-7">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.3),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(61,111,94,0.16),transparent_26%)]" />
               <div className="absolute inset-x-8 top-24 h-36 rounded-[32px] bg-[radial-gradient(circle_at_top,rgba(61,111,94,0.14),transparent_70%)] blur-2xl" />
@@ -160,12 +176,12 @@ export default function LoginPage() {
                 <div className="mt-10 max-w-lg">
                   <p className="text-[10px] uppercase tracking-[0.24em] text-muted md:text-[11px] md:tracking-[0.28em]">Money view</p>
                   <p className="mt-4 text-4xl font-semibold tracking-tight text-ink sm:text-5xl">
-                    Clear the noise.
+                    Keep your money clear.
                     <br />
                     Keep the next move obvious.
                   </p>
                   <p className="mt-4 text-base leading-7 text-muted">
-                    The preview cycles through the same patterns the app uses every day: safe-to-spend, paycheck order, and roadmap focus.
+                    See the same three things the app keeps in view every day: what is safe now, what the next check needs to cover, and what to do first.
                   </p>
                 </div>
 
@@ -236,29 +252,66 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="bg-[linear-gradient(180deg,rgba(255,255,255,0.74),rgba(255,255,255,0.56))] p-6 sm:p-8 lg:p-12 xl:p-14">
+          <div className="bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(255,255,255,0.56))] p-4 sm:p-8 lg:p-12 xl:p-14">
             <div className="mx-auto flex h-full max-w-[620px] items-center">
               <div className="w-full">
+                <div className="lg:hidden">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[1.55rem] font-semibold tracking-[0.18em] text-ink">LIFE OS</p>
+                      <p className="mt-1 text-sm text-muted">Private money system</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/")}
+                      className="inline-flex min-h-[2.75rem] items-center gap-2 rounded-full border border-line bg-white/82 px-3.5 text-[13px] text-ink transition hover:bg-white"
+                    >
+                      Back
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
                 <p className="text-[10px] uppercase tracking-[0.24em] text-muted md:text-[11px] md:tracking-[0.28em]">Owner Access</p>
-                <h1 className="mt-4 text-4xl font-semibold tracking-tight text-ink sm:text-5xl xl:text-[3.7rem]">
-                  {mode === "signin" ? "Sign in" : "Create an account"}
+                <h1 className="mt-3 text-[2.35rem] font-semibold leading-[0.92] tracking-tight text-ink sm:text-5xl xl:text-[3.7rem]">
+                  {mode === "signin" ? "Welcome back" : "Create your account"}
                 </h1>
-                <p className="mt-4 max-w-xl text-base leading-7 text-muted">
-                  {mode === "signin" ? "Need an account?" : "Already have an account?"}{" "}
+                <p className="mt-3 max-w-xl text-[0.98rem] leading-6 text-muted">
+                  {mode === "signin" ? "Sign in to get back to what your money needs next." : "Start with the basics now. You can fill in the rest after you are in."}
+                </p>
+
+                <div className="mt-5 grid grid-cols-2 gap-2 rounded-[22px] border border-line bg-white/70 p-1">
                   <button
                     type="button"
                     onClick={() => {
-                      setMode(mode === "signin" ? "signup" : "signin");
+                      setMode("signin");
                       setError("");
                       setMessage("");
                     }}
-                    className="font-medium text-ink underline underline-offset-4 transition hover:text-accent"
+                    className={cn(
+                      "rounded-full px-3 py-2.5 text-sm font-medium transition",
+                      mode === "signin" ? "bg-ink text-bg shadow-sm" : "text-muted hover:text-ink",
+                    )}
                   >
-                    {mode === "signin" ? "Create one" : "Log in"}
+                    Sign in
                   </button>
-                </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("signup");
+                      setError("");
+                      setMessage("");
+                    }}
+                    className={cn(
+                      "rounded-full px-3 py-2.5 text-sm font-medium transition",
+                      mode === "signup" ? "bg-ink text-bg shadow-sm" : "text-muted hover:text-ink",
+                    )}
+                  >
+                    Create account
+                  </button>
+                </div>
 
-                <form className="mt-10 space-y-5 xl:mt-12 xl:space-y-6" onSubmit={handleSubmit}>
+                <form className="mt-6 space-y-4 sm:mt-8 xl:mt-10 xl:space-y-5" onSubmit={handleSubmit}>
                   {mode === "signup" ? (
                     <AuthField label="Name">
                       <input
@@ -304,12 +357,12 @@ export default function LoginPage() {
                   </AuthField>
 
                   {mode === "signup" ? (
-                    <label className="flex items-center gap-3 pt-1 text-sm text-muted">
+                    <label className="flex items-start gap-3 pt-1 text-sm leading-6 text-muted">
                       <input
                         checked={agreed}
                         onChange={(event) => setAgreed(event.target.checked)}
                         type="checkbox"
-                        className="h-5 w-5 rounded border border-line bg-white accent-[#102018]"
+                        className="mt-0.5 h-5 w-5 rounded border border-line bg-white accent-[#102018]"
                       />
                       <span>
                         I agree to the <span className="font-medium text-ink underline underline-offset-4">Terms &amp; Conditions</span>
@@ -321,7 +374,7 @@ export default function LoginPage() {
                   {error ? <p className="text-sm text-[color:#9f2d2d]">{error}</p> : null}
 
                   <button
-                    className="inline-flex w-full items-center justify-center rounded-full bg-accent px-4 py-4 text-base font-medium text-white shadow-[0_16px_28px_rgba(61,111,94,0.18)] transition hover:-translate-y-0.5 hover:bg-[#315a4c] disabled:cursor-not-allowed disabled:opacity-70"
+                    className="inline-flex min-h-[3.35rem] w-full items-center justify-center rounded-full bg-accent px-4 py-4 text-base font-medium text-white shadow-[0_16px_28px_rgba(61,111,94,0.18)] transition hover:-translate-y-0.5 hover:bg-[#315a4c] disabled:cursor-not-allowed disabled:opacity-70"
                     disabled={saving}
                     type="submit"
                   >
@@ -329,13 +382,13 @@ export default function LoginPage() {
                   </button>
                 </form>
 
-                <div className="mt-8 flex items-center gap-4 text-sm text-muted/80">
+                <div className="mt-6 flex items-center gap-4 text-sm text-muted/80">
                   <span className="h-px flex-1 bg-black/10" />
                   <span>or continue with</span>
                   <span className="h-px flex-1 bg-black/10" />
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -358,8 +411,49 @@ export default function LoginPage() {
                 </div>
 
                 <p className="mt-4 text-xs leading-5 text-muted">
-                  Google sign-in works after you enable the Google provider and add this app’s callback URL in Supabase.
+                  {remoteBrowserHost && browserCallbackUrl
+                    ? `For phone testing, add ${browserCallbackUrl} to Supabase Auth redirect URLs and add ${browserOrigin} to API CORS allowed origins.`
+                    : "Google sign-in works after you enable the Google provider and add this app’s callback URL in Supabase."}
                 </p>
+
+                <p className="mt-4 text-sm leading-6 text-muted">
+                  {mode === "signin" ? "Need an account?" : "Already have an account?"}{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode(mode === "signin" ? "signup" : "signin");
+                      setError("");
+                      setMessage("");
+                    }}
+                    className="font-medium text-ink underline underline-offset-4 transition hover:text-accent"
+                  >
+                    {mode === "signin" ? "Create one" : "Log in"}
+                  </button>
+                </p>
+
+                <div className="mt-5 rounded-[24px] border border-line bg-[linear-gradient(180deg,rgba(61,111,94,0.08),rgba(255,255,255,0.92))] p-4 lg:hidden">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.22em] text-muted">{previewSlides[activePreview].eyebrow}</p>
+                      <p className="mt-2 text-sm font-medium leading-6 text-ink">{previewSlides[activePreview].title}</p>
+                    </div>
+                    <div className="rounded-[18px] border border-line bg-white/88 px-3 py-2 text-right">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted">{previewSlides[activePreview].primaryLabel}</p>
+                      <p className="mt-1 text-sm font-semibold tracking-tight text-ink tabular-nums">{previewSlides[activePreview].primaryValue}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center gap-2">
+                    {previewSlides.map((slide, index) => (
+                      <button
+                        key={slide.eyebrow}
+                        type="button"
+                        onClick={() => setActivePreview(index)}
+                        className={cn("h-1.5 rounded-full transition-all", index === activePreview ? "w-10 bg-accent" : "w-6 bg-black/10")}
+                        aria-label={`Show ${slide.eyebrow}`}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

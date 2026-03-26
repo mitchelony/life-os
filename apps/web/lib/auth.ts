@@ -31,9 +31,18 @@ function getSupabaseAnonKey() {
   return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 }
 
-function getCallbackUrl() {
+function isLoopbackHost(hostname: string) {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0";
+}
+
+export function getBrowserAuthCallbackUrl() {
   if (typeof window === "undefined") return "";
   return `${window.location.origin}/auth/callback`;
+}
+
+export function isRemoteBrowserAuthHost() {
+  if (typeof window === "undefined") return false;
+  return !isLoopbackHost(window.location.hostname);
 }
 
 function emitAuthChanged() {
@@ -158,7 +167,7 @@ export async function signUpWithPassword(email: string, password: string, displa
 export function startGoogleSignIn() {
   const supabaseUrl = getSupabaseUrl();
   const supabaseAnonKey = getSupabaseAnonKey();
-  const callbackUrl = getCallbackUrl();
+  const callbackUrl = getBrowserAuthCallbackUrl();
   if (!supabaseUrl || !supabaseAnonKey || !callbackUrl) {
     throw new Error("Supabase auth is not configured in the web env");
   }

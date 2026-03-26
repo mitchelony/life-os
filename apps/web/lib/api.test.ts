@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApiClient } from "@/lib/api";
 import * as auth from "@/lib/auth";
 
@@ -6,7 +6,31 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("createApiClient", () => {
+  it("rewrites localhost API URLs to the current browser host for LAN testing", async () => {
+    vi.spyOn(auth, "getAccessToken").mockResolvedValue(null);
+    vi.stubGlobal("window", {
+      location: {
+        hostname: "192.168.1.162",
+        protocol: "http:",
+      },
+    } as unknown as Window);
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    const client = createApiClient({
+      baseUrl: "http://localhost:8000/api",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    await client.getCategories();
+
+    const calls = fetchImpl.mock.calls as unknown as Array<[string, RequestInit | undefined]>;
+    expect(calls[0]?.[0]).toBe("http://192.168.1.162:8000/api/categories");
+  });
+
   it("does not attach auth headers to GET requests when no session exists", async () => {
     vi.spyOn(auth, "getAccessToken").mockResolvedValue(null);
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));

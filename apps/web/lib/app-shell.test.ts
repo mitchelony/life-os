@@ -3,6 +3,7 @@ import {
   getPullToRefreshDistance,
   getPullToRefreshProgress,
   getActiveNavItem,
+  getMobileMenuNavItems,
   getMobilePrimaryNavItems,
   getMobileSecondaryNavItems,
   isMobileSecondaryRoute,
@@ -24,6 +25,11 @@ describe("app-shell mobile helpers", () => {
     const secondary = getMobileSecondaryNavItems(navItems);
     expect(secondary.map((item) => item.href)).toEqual(["/accounts", "/obligations", "/debts", "/settings"]);
     expect(isMobileSecondaryRoute("/debts", navItems)).toBe(true);
+  });
+
+  it("keeps every desktop destination reachable from the mobile menu", () => {
+    const mobileMenuItems = getMobileMenuNavItems(navItems);
+    expect(mobileMenuItems.map((item) => item.href)).toEqual(navItems.map((item) => item.href));
   });
 
   it("clamps pull-to-refresh drag distance to a positive range", () => {

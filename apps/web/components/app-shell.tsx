@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpRight, Compass, LogOut, Plus, RefreshCw, Settings2, X } from "lucide-react";
+import { ArrowUpRight, LogOut, Menu, Plus, RefreshCw, X } from "lucide-react";
 import type { ReactNode, TouchEvent as ReactTouchEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { cn, Button } from "@/components/ui";
@@ -12,8 +12,8 @@ import {
   getPullToRefreshDistance,
   getPullToRefreshProgress,
   getActiveNavItem,
+  getMobileMenuNavItems,
   getMobilePrimaryNavItems,
-  getMobileSecondaryNavItems,
   isMobileSecondaryRoute,
   navItems,
   shouldTriggerPullToRefresh,
@@ -32,7 +32,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   const pullStartYRef = useRef<number | null>(null);
   const refreshTimeoutRef = useRef<number | null>(null);
   const mobilePrimaryItems = getMobilePrimaryNavItems(navItems);
-  const mobileSecondaryItems = getMobileSecondaryNavItems(navItems);
+  const mobileMenuItems = getMobileMenuNavItems(navItems);
   const mobileMoreActive = isMobileSecondaryRoute(pathname, navItems);
   const showMobileSummary = activePath === "/dashboard";
   const showMobileQuickAddButton = !["/quick-add", "/roadmap", "/settings"].includes(activePath);
@@ -201,8 +201,33 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
                 >
                   <Plus className="h-4.5 w-4.5" />
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(true)}
+                  className={cn(
+                    "inline-flex h-11 items-center justify-center gap-2 rounded-full border border-line bg-white/92 px-4 text-sm font-medium text-ink shadow-[0_10px_22px_rgba(16,32,24,0.08)] transition hover:bg-white",
+                    (mobileMoreActive || mobileMenuOpen) && "border-transparent bg-accent-soft text-accent",
+                  )}
+                  aria-label="Open menu"
+                >
+                  <Menu className="h-4.5 w-4.5" />
+                  <span>Menu</span>
+                </button>
               </div>
-            ) : null}
+            ) : (
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(true)}
+                className={cn(
+                  "inline-flex h-11 items-center justify-center gap-2 rounded-full border border-line bg-white/92 px-4 text-sm font-medium text-ink shadow-[0_10px_22px_rgba(16,32,24,0.08)] transition hover:bg-white md:hidden",
+                  (mobileMoreActive || mobileMenuOpen) && "border-transparent bg-accent-soft text-accent",
+                )}
+                aria-label="Open menu"
+              >
+                <Menu className="h-4.5 w-4.5" />
+                <span>Menu</span>
+              </button>
+            )}
           </div>
           <div className="hidden items-center gap-2 md:flex">
             <Link href="/quick-add" className={cn("inline-flex items-center justify-center rounded-full px-4 py-2.5 text-sm font-medium transition duration-200 ease-out bg-accent text-white hover:-translate-y-0.5 hover:bg-[#315a4c]")}>
@@ -221,13 +246,14 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         {mobileMenuOpen ? (
           <div className="fixed inset-0 z-40 bg-[rgba(16,32,24,0.28)] backdrop-blur-[2px] lg:hidden" onClick={() => setMobileMenuOpen(false)}>
             <div
-              className="absolute inset-x-0 bottom-0 rounded-t-[32px] border border-line bg-[rgba(255,255,255,0.98)] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-22px_50px_rgba(16,32,24,0.16)]"
+              className="absolute inset-x-0 bottom-0 max-h-[calc(100svh-1rem)] overflow-y-auto overscroll-contain rounded-t-[32px] border border-line bg-[rgba(255,255,255,0.98)] px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-22px_50px_rgba(16,32,24,0.16)] [touch-action:pan-y]"
+              style={{ WebkitOverflowScrolling: "touch" }}
               onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.24em] text-muted">Browse</p>
-                  <h2 className="mt-1 text-lg font-semibold tracking-tight text-ink">More pages</h2>
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-muted">Menu</p>
+                  <h2 className="mt-1 text-lg font-semibold tracking-tight text-ink">Everything in one place</h2>
                 </div>
                 <button
                   type="button"
@@ -239,8 +265,17 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
                 </button>
               </div>
 
-              <div className="mt-4 grid gap-2">
-                {mobileSecondaryItems.map((item) => {
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <Button variant="ghost" className="h-11 rounded-full" onClick={() => router.refresh()}>
+                  <RefreshCw className="h-3.5 w-3.5" /> Refresh
+                </Button>
+                <Button variant="ghost" className="h-11 rounded-full" onClick={handleSignOut}>
+                  <LogOut className="h-3.5 w-3.5" /> Log out
+                </Button>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                {mobileMenuItems.map((item) => {
                   const Icon = item.icon;
                   const active = activePath === item.href;
                   return (
@@ -248,7 +283,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "flex items-center justify-between rounded-[20px] border px-4 py-3 text-sm transition",
+                        "flex min-h-[4.6rem] flex-col items-start justify-between rounded-[20px] border px-4 py-3 text-sm transition",
                         active
                           ? "border-transparent bg-ink text-bg shadow-[0_12px_24px_rgba(16,32,24,0.14)]"
                           : "border-line bg-white/92 text-ink",
@@ -258,7 +293,10 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
                         <Icon className="h-4 w-4" />
                         {item.label}
                       </span>
-                      <ArrowUpRight className="h-4 w-4 opacity-70" />
+                      <span className="mt-2 inline-flex items-center gap-1 text-[11px] uppercase tracking-[0.18em] opacity-70">
+                        Open
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                      </span>
                     </Link>
                   );
                 })}
@@ -272,12 +310,6 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
                 <p className="mt-1 text-sm text-muted">
                   Through next income <span className="font-semibold tabular-nums text-ink">{formatMoney(dashboard.availableSpend.availableThroughNextIncome)}</span>
                 </p>
-                <Button variant="ghost" className="mt-4 h-10 w-full rounded-full" onClick={() => router.refresh()}>
-                  <RefreshCw className="h-3.5 w-3.5" /> Refresh snapshot
-                </Button>
-                <Button variant="ghost" className="mt-2 h-10 w-full rounded-full" onClick={handleSignOut}>
-                  <LogOut className="h-3.5 w-3.5" /> Log out
-                </Button>
               </div>
             </div>
           </div>
@@ -311,8 +343,8 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
                   mobileMoreActive || mobileMenuOpen ? "bg-accent-soft text-accent" : "text-ink/78 hover:bg-white hover:text-ink",
                 )}
               >
-                <Compass className="h-[0.95rem] w-[0.95rem]" />
-                <span className="text-center">Browse</span>
+                <Menu className="h-[0.95rem] w-[0.95rem]" />
+                <span className="text-center">Menu</span>
               </button>
             </div>
           </div>

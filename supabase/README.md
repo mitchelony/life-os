@@ -39,6 +39,7 @@ Recommended flow:
 5. Add redirect URLs:
    - `http://localhost:3000/auth/callback`
    - `http://localhost:3001/auth/callback`
+   - for phone or LAN testing, also add your current network callback URL, for example `http://192.168.1.162:3000/auth/callback`
 6. Create the owner user through Auth or sign up through the app
 7. Point repo `.env` and `apps/web/.env.local` at the same hosted project
 
@@ -49,6 +50,8 @@ Notes:
 - hosted SQL should be treated as the real schema path; do not depend on runtime `create_all()`
 - repo `.env` and `apps/web/.env.local` must all target the same hosted project; do not mix one project's `SUPABASE_URL` with another project's pooler URL
 - local browser validation should use `http://localhost:3000` or `http://localhost:3001` unless API CORS is expanded
+- if you test auth on a phone over LAN, Supabase must allow that exact network callback URL or it will fall back to the hosted auth site URL, which is often still `localhost`
+- phone or LAN web testing also requires `CORS_ALLOWED_ORIGINS` to include the exact browser origin, for example `http://192.168.1.162:3000`
 
 ## Optional Local Supabase Setup
 

@@ -147,6 +147,8 @@ source .venv/bin/activate
 npm run dev:api
 ```
 
+`dev:api` now binds to `0.0.0.0:8000` by default so phones on your LAN can reach the backend during mobile auth and onboarding checks.
+
 In another terminal:
 
 ```bash
@@ -178,6 +180,13 @@ source .venv/bin/activate
 npm run dev:api
 ```
 
+- default bind address for the dev API is now `0.0.0.0:8000`
+- override with exported shell vars if needed:
+
+```bash
+API_HOST=127.0.0.1 API_PORT=8010 npm run dev:api
+```
+
 - Tests:
 
 ```bash
@@ -198,6 +207,16 @@ Current auth behavior:
 - completed onboarding goes to `Dashboard`
 - logout returns directly to `/login`
 - onboarding/profile bootstrap is defensive against duplicate historical owner rows instead of crashing with `500`
+
+## Deployment
+
+Production deployment uses:
+
+- Vercel for `apps/web`
+- Render for `apps/api`
+- hosted Supabase for Postgres and Auth
+
+Use the runbook in [docs/DEPLOYMENT.md](/Users/MAC/Github/life-os/docs/DEPLOYMENT.md).
 
 ## Database and Supabase
 

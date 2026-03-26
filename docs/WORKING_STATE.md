@@ -11,6 +11,10 @@ This file is the compact handoff for new threads.
 
 - The app is single-user and private.
 - Hosted Supabase is the active database and auth target.
+- Production deployment target is:
+  - Vercel for `apps/web`
+  - Render for `apps/api`
+  - hosted Supabase for Postgres and Auth
 - The frontend prefers API-backed persistence for:
   - dashboard
   - quick add
@@ -33,6 +37,28 @@ This file is the compact handoff for new threads.
 - Generic local setup persistence must not mark onboarding complete on its own.
 - Logout should always return to `/login`.
 - Browser auth validation should use `http://localhost:3000` or `http://localhost:3001`, not `127.0.0.1`, because API CORS is scoped to explicit localhost origins.
+- Phone or LAN auth testing needs extra hosted config:
+  - add the exact LAN callback URL, for example `http://192.168.1.162:3000/auth/callback`, to Supabase Auth redirect URLs
+  - add the exact LAN origin, for example `http://192.168.1.162:3000`, to API `CORS_ALLOWED_ORIGINS`
+- If hosted Supabase does not allow the exact LAN callback URL, OAuth will often bounce back to the project's default site URL, which may still be `http://localhost:3000`.
+- `npm run dev:api` now binds to `0.0.0.0:8000` by default so phone-based onboarding checks can reach the backend over LAN.
+- The `/login` screen now uses a mobile form-first layout:
+  - brand header
+  - short auth copy
+  - sign in / create account switch
+  - fields and primary action
+  - social sign-in
+  - compact supporting preview below
+- Do not let the mobile auth screen drift back into a tall hero-first layout.
+- Mobile app navigation should preserve desktop capability parity:
+  - every desktop destination must remain reachable from mobile
+  - the mobile menu should expose all app pages, not just overflow pages
+  - logout must be reachable on mobile without hunting through settings
+  - route access should not dead-end on mobile-only shells
+- The mobile menu sheet should be touch-scrollable on iPhone Safari and leave enough bottom padding to clear the fixed bottom nav.
+- Settings should always expose a direct logout action, including on mobile.
+- Signed-in recovery states must also expose logout:
+  - the `/` home gate error state should never trap a signed-in mobile user with only `Retry check`
 
 ## Dashboard UX State
 
@@ -62,6 +88,7 @@ This file is the compact handoff for new threads.
 - Backend CORS should allow:
   - `http://localhost:3000`
   - `http://localhost:3001`
+- The API now also honors legacy `ALLOWED_ORIGIN` for single-origin LAN testing, so an existing root `.env` can allow a phone origin without renaming the variable first.
 - `SUPABASE_URL`, `DATABASE_URL`, and `SUPABASE_DB_URL` must all target the same hosted project.
 - API startup now fails fast if Supabase auth and database env vars point at different project refs.
 - The active hosted `life-os` project schema is currently clean:

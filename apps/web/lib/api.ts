@@ -188,6 +188,34 @@ function requestErrorMessage(path: string) {
   return `Request failed for ${path}`;
 }
 
+function resolveBrowserAwareBaseUrl(baseUrl: string) {
+  if (!baseUrl || typeof window === "undefined") return baseUrl;
+
+  try {
+    const parsed = new URL(baseUrl);
+    const currentHost = window.location.hostname;
+    const currentProtocol = window.location.protocol;
+    const isLoopbackTarget =
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "0.0.0.0";
+    const isLoopbackViewer =
+      currentHost === "localhost" ||
+      currentHost === "127.0.0.1" ||
+      currentHost === "0.0.0.0";
+
+    if (isLoopbackTarget && !isLoopbackViewer) {
+      parsed.hostname = currentHost;
+      parsed.protocol = currentProtocol;
+      return parsed.toString().replace(/\/$/, "");
+    }
+
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return baseUrl;
+  }
+}
+
 async function safeJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
     throw new Error(`Request failed with ${response.status}`);
@@ -196,7 +224,7 @@ async function safeJson<T>(response: Response): Promise<T> {
 }
 
 export function createApiClient(options: ApiClientOptions = {}) {
-  const baseUrl = options.baseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+  const baseUrl = resolveBrowserAwareBaseUrl(options.baseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "");
   const fetchImpl = options.fetchImpl ?? fetch;
 
   const getHeaders = async (extraHeaders?: HeadersInit) => {

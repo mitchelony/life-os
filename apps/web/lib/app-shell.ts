@@ -31,6 +31,10 @@ export function getMobileSecondaryNavItems(items = navItems) {
   return items.filter((item) => !mobilePrimaryNavHrefs.includes(item.href as (typeof mobilePrimaryNavHrefs)[number]));
 }
 
+export function getMobileMenuNavItems(items = navItems) {
+  return [...items];
+}
+
 export function isMobileSecondaryRoute(pathname: string, items = navItems) {
   const activeItem = getActiveNavItem(pathname, items);
   return !mobilePrimaryNavHrefs.includes(activeItem.href as (typeof mobilePrimaryNavHrefs)[number]);
