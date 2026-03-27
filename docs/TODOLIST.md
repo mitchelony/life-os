@@ -1,0 +1,1 @@
+- [x] Quick add income doesnt update the account balance by returning effective account balances from the accounts API. (Added By Project Maintenance Agent)

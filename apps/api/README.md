@@ -116,6 +116,13 @@ Common local variables:
 - `ALLOW_DEV_LOGIN`
 - `CORS_ALLOWED_ORIGINS`
 - `ALLOWED_ORIGIN` - optional legacy single-origin fallback, still honored for local LAN testing
+- `AI_PLANNER_PROVIDER` - `heuristic`, `openai`, or `openai_compatible`
+- `AI_PLANNER_MODEL` - planner model name when model-backed drafts are enabled
+- `AI_PLANNER_BASE_URL` - defaults to `https://api.openai.com`, or point it at an OpenAI-compatible provider
+- `AI_PLANNER_API_KEY` - optional provider key override
+- `OPENAI_API_KEY` - fallback key when `AI_PLANNER_PROVIDER=openai`
+- `AI_PLANNER_TIMEOUT_SECONDS`
+- `AI_PLANNER_MAX_OUTPUT_TOKENS`
 
 Notes:
 
@@ -123,6 +130,8 @@ Notes:
 - `DATABASE_URL` should point at hosted or local Supabase Postgres
 - `DEV_OWNER_TOKEN` is now optional local fallback only
 - `ALLOW_DEV_LOGIN` should stay `false` unless you explicitly need the fallback
+- if `AI_PLANNER_PROVIDER` is left at `heuristic`, roadmap copilot stays deterministic
+- model-backed drafts still go through the same schema validation and approval flow before import
 - browser requests should come from `http://localhost:3000` or `http://localhost:3001` unless you also update `CORS_ALLOWED_ORIGINS`
 - the API also honors legacy `ALLOWED_ORIGIN` so an existing root `.env` can open CORS for a single LAN origin like `http://192.168.1.162:3000`
 

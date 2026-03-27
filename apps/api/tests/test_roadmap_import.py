@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from app.models.domain import (
     Account,
@@ -446,3 +446,48 @@ def test_roadmap_import_v2_resolves_top_level_temp_ids_for_debts_obligations_and
     assert income_entries[0].linked_obligation_id == obligation.id
     assert income_entries[0].linked_debt_id == debt.id
     assert income_entries[1].parent_income_entry_id == income_entries[0].id
+
+
+def test_roadmap_import_v2_reset_preserves_existing_income_entries_when_new_payload_does_not_replace_them(db_session) -> None:
+    owner_id = "owner-import-preserve-income"
+    today = date.today()
+    db_session.add(
+        IncomeEntry(
+            owner_id=owner_id,
+            source_name="Payroll",
+            amount=900,
+            status="expected",
+            expected_on=today + timedelta(days=3),
+        )
+    )
+    db_session.commit()
+
+    payload = RoadmapImportV2Payload.model_validate(
+        {
+            "version": 2,
+            "reset_planning_first": True,
+            "goals": [
+                {
+                    "temp_id": "goal_rent",
+                    "title": "Cover rent first",
+                    "description": "",
+                    "category": "finances",
+                    "status": "active",
+                    "priority": "critical",
+                    "steps": [],
+                }
+            ],
+            "income_plans": [],
+            "cash_reserves": [],
+            "expected_income_entries": [],
+            "obligations": [],
+            "debts": [],
+            "actions": [],
+        }
+    )
+
+    RoadmapImportService(db_session, owner_id).import_v2(payload)
+
+    incomes = db_session.query(IncomeEntry).filter(IncomeEntry.owner_id == owner_id).all()
+    assert len(incomes) == 1
+    assert incomes[0].source_name == "Payroll"

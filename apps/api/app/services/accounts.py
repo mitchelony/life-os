@@ -46,6 +46,18 @@ def _linked_record_count(db: Session, owner_id: str, account_id: str) -> int:
     return int(sum(counts))
 
 
+def _effective_balance(db: Session, owner_id: str, account: Account) -> float:
+    balance = float(account.balance)
+    transactions = db.query(Transaction).filter(Transaction.owner_id == owner_id, Transaction.account_id == account.id).all()
+    for transaction in transactions:
+        amount = float(transaction.amount)
+        if transaction.kind.value == "income":
+            balance += amount
+        elif transaction.kind.value == "expense":
+            balance -= amount
+    return balance
+
+
 def _serialize_account(db: Session, owner_id: str, account: Account) -> AccountRead:
     linked_record_count = _linked_record_count(db, owner_id, account.id)
     return AccountRead.model_validate(
@@ -57,7 +69,7 @@ def _serialize_account(db: Session, owner_id: str, account: Account) -> AccountR
             "name": account.name,
             "type": account.type,
             "institution": account.institution,
-            "balance": float(account.balance),
+            "balance": _effective_balance(db, owner_id, account),
             "is_active": account.is_active,
             "notes": account.notes,
             "linked_record_count": linked_record_count,

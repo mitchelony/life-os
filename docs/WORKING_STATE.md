@@ -90,6 +90,7 @@ This file is the compact handoff for new threads.
 ## Accounts UX State
 
 - The Accounts page is now the control surface for account balances, not just a read-only summary.
+- The Accounts API now returns effective balances from the stored account balance plus linked income and expense transactions, so manual quick add income and expense show up on the Accounts surface without waiting for a separate balance rewrite. (Added By Project Maintenance Agent)
 - You can:
   - add accounts
   - edit name, institution, type, and balance
@@ -191,14 +192,15 @@ This file is the compact handoff for new threads.
   - activity history
   - progress snapshots
   - transactions
-  - expected income entries
   - merchants
-  - income sources
   - reserves
 - Planning relaunch currently preserves:
   - accounts
   - debts
   - obligations
+  - expected income entries
+  - income sources
+- Planning relaunch now preserves expected income entries and income sources while clearing planning history, so income planning survives a fresh roadmap reset. (Added By Project Maintenance Agent)
 - The roadmap importer writes `ActivityEvent` rows so recent updates can reflect bulk setup activity.
 
 ## Current Progress Snapshot

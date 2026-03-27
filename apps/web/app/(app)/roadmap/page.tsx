@@ -2,6 +2,7 @@
 
 import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { RoadmapCopilotPanel } from "@/components/roadmap-copilot-panel";
 import { Badge, Button, InlineField, Input, Panel, SectionHeading, Select, Textarea } from "@/components/ui";
 import { api, type BackendDebt, type BackendObligation } from "@/lib/api";
 import { notifyDecisionChanged, useDecisionSnapshot } from "@/lib/decision";
@@ -565,6 +566,13 @@ export default function RoadmapPage() {
           </div>
         ) : null}
       </Panel>
+
+      <RoadmapCopilotPanel
+        onPlanningChanged={async () => {
+          notifyDecisionChanged();
+          await refresh();
+        }}
+      />
 
       <section className="space-y-3">
         <SectionHeading eyebrow="Paycheck plans" title="Put expected income in order before it lands" description="Each plan should show how the next reliable money gets committed." />

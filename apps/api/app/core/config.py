@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     dev_owner_token: str = Field(alias="DEV_OWNER_TOKEN")
     auth_strategy: str = Field(default="supabase", alias="AUTH_STRATEGY")
     allow_dev_login: bool = Field(default=True, alias="ALLOW_DEV_LOGIN")
+    ai_planner_provider: str = Field(default="heuristic", alias="AI_PLANNER_PROVIDER")
+    ai_planner_model: str | None = Field(default=None, alias="AI_PLANNER_MODEL")
+    ai_planner_base_url: str = Field(default="https://api.openai.com", alias="AI_PLANNER_BASE_URL")
+    ai_planner_api_key: str | None = Field(default=None, alias="AI_PLANNER_API_KEY")
+    ai_planner_timeout_seconds: float = Field(default=25.0, alias="AI_PLANNER_TIMEOUT_SECONDS")
+    ai_planner_max_output_tokens: int = Field(default=4000, alias="AI_PLANNER_MAX_OUTPUT_TOKENS")
+    openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
 
     def get_cors_allowed_origins(self) -> list[str]:
         origins: list[str] = []

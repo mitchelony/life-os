@@ -445,4 +445,197 @@ describe("createApiClient", () => {
     expect(calls[1]?.[1]?.method).toBe("PUT");
     expect(calls[1]?.[1]?.body).toBe(JSON.stringify({ value: "false" }));
   });
+
+  it("reads, revises, approves, and clears roadmap copilot drafts through the roadmap endpoints", async () => {
+    vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input);
+      if (path.endsWith("/roadmap/copilot/current")) {
+        return new Response(JSON.stringify({ draft: null }), { status: 200 });
+      }
+      if (path.endsWith("/roadmap/copilot/draft")) {
+        return new Response(
+          JSON.stringify({
+            draft_id: "draft-1",
+            status: "draft",
+            summary: "Refocus on rent and the next paycheck.",
+            rationale: "Rent is due first.",
+            warnings: [],
+            preview: { goals: [], income_plans: [], actions: [], preserved_income_entries: 1 },
+            payload: {
+              version: 2,
+              reset_planning_first: true,
+              goals: [],
+              income_plans: [],
+              cash_reserves: [],
+              expected_income_entries: [],
+              obligations: [],
+              debts: [],
+              actions: [],
+            },
+            message: "Help me rework the roadmap.",
+            planner_source: "copilot",
+          }),
+          { status: 200 },
+        );
+      }
+      if (path.endsWith("/roadmap/copilot/revise")) {
+        return new Response(
+          JSON.stringify({
+            draft_id: "draft-2",
+            status: "draft",
+            summary: "Utilities first, then rent.",
+            rationale: "Utilities were raised in the revision note.",
+            warnings: [],
+            preview: { goals: [], income_plans: [], actions: [], preserved_income_entries: 1 },
+            payload: {
+              version: 2,
+              reset_planning_first: true,
+              goals: [],
+              income_plans: [],
+              cash_reserves: [],
+              expected_income_entries: [],
+              obligations: [],
+              debts: [],
+              actions: [],
+            },
+            message: "Revision applied.",
+            planner_source: "copilot-revision",
+          }),
+          { status: 200 },
+        );
+      }
+      if (path.endsWith("/roadmap/copilot/approve")) {
+        return new Response(
+          JSON.stringify({
+            draft: {
+              draft_id: "draft-2",
+              status: "approved",
+              summary: "Utilities first, then rent.",
+              rationale: "Approved.",
+              warnings: [],
+              preview: { goals: [], income_plans: [], actions: [], preserved_income_entries: 1 },
+              payload: {
+                version: 2,
+                reset_planning_first: true,
+                goals: [],
+                income_plans: [],
+                cash_reserves: [],
+                expected_income_entries: [],
+                obligations: [],
+                debts: [],
+                actions: [],
+              },
+              message: "Revision applied.",
+              planner_source: "copilot-revision",
+            },
+            import_result: {
+              goals_created: 1,
+              steps_created: 2,
+              income_plans_created: 1,
+              allocations_created: 2,
+              cash_reserves_created: 0,
+              expected_income_entries_created: 0,
+              obligations_created: 0,
+              debts_created: 0,
+              actions_created: 2,
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (path.endsWith("/roadmap/copilot/deny")) {
+        return new Response(JSON.stringify({ draft: null }), { status: 200 });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    const client = createApiClient({
+      baseUrl: "http://localhost:8000/api",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    const current = await client.getRoadmapCopilotCurrent();
+    const draft = await client.createRoadmapCopilotDraft("Help me rework the roadmap.");
+    const revised = await client.reviseRoadmapCopilotDraft("draft-1", "Put utilities first.");
+    const approved = await client.approveRoadmapCopilotDraft("draft-2");
+    const denied = await client.denyRoadmapCopilotDraft("draft-2");
+
+    expect(current.draft).toBeNull();
+    expect(draft.draft_id).toBe("draft-1");
+    expect(revised.draft_id).toBe("draft-2");
+    expect(approved.import_result.goals_created).toBe(1);
+    expect(denied.draft).toBeNull();
+
+    const calls = fetchImpl.mock.calls as unknown as Array<[string, RequestInit | undefined]>;
+    expect(calls[0]?.[0]).toBe("http://localhost:8000/api/roadmap/copilot/current");
+    expect(calls[1]?.[0]).toBe("http://localhost:8000/api/roadmap/copilot/draft");
+    expect(calls[2]?.[0]).toBe("http://localhost:8000/api/roadmap/copilot/revise");
+    expect(calls[3]?.[0]).toBe("http://localhost:8000/api/roadmap/copilot/approve");
+    expect(calls[4]?.[0]).toBe("http://localhost:8000/api/roadmap/copilot/deny");
+    const headers = calls[1]?.[1]?.headers as Headers;
+    expect(headers.get("Authorization")).toBe("Bearer session-token");
+  });
+
+  it("posts emergency expense replans through the roadmap copilot endpoint", async () => {
+    vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/roadmap/copilot/emergency-expense")) {
+        return new Response(
+          JSON.stringify({
+            quick_add: {
+              ok: true,
+              transaction_id: "txn-1",
+              obligation_id: null,
+              income_entry_id: null,
+            },
+            draft: {
+              draft_id: "draft-emergency",
+              status: "draft",
+              summary: "Rework the roadmap around the emergency hit.",
+              rationale: "The transaction was recorded before replanning.",
+              warnings: ["Available now is below zero at $25.00."],
+              preview: { goals: [], income_plans: [], actions: [], preserved_income_entries: 1 },
+              payload: {
+                version: 2,
+                reset_planning_first: true,
+                goals: [],
+                income_plans: [],
+                cash_reserves: [],
+                expected_income_entries: [],
+                obligations: [],
+                debts: [],
+                actions: [],
+              },
+              message: "Car repair came in.",
+              planner_source: "copilot-emergency",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    const client = createApiClient({
+      baseUrl: "http://localhost:8000/api",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    const response = await client.submitRoadmapCopilotEmergencyExpense({
+      message: "Car repair came in.",
+      amount: 275,
+      title: "Emergency car repair",
+      merchant_or_source: "City Garage",
+      category: "Auto",
+      account: "Checking",
+      date: "2026-03-26",
+      notes: "Paid immediately.",
+    });
+
+    expect(response.quick_add.transaction_id).toBe("txn-1");
+    expect(response.draft.draft_id).toBe("draft-emergency");
+    const calls = fetchImpl.mock.calls as unknown as Array<[string, RequestInit | undefined]>;
+    expect(calls[0]?.[0]).toBe("http://localhost:8000/api/roadmap/copilot/emergency-expense");
+  });
 });

@@ -1,9 +1,22 @@
 from datetime import date
 
+from fastapi.testclient import TestClient
+
+from app.core.database import get_db
+from app.core.deps import get_owner_id
+from app.main import create_app
 from app.models.domain import Account, IncomeEntry, Obligation, Transaction
 from app.models.enums import AccountType, IncomeStatus, ObligationFrequency, TransactionKind
 from app.schemas.domain import QuickAddRequest
 from app.services.quick_add import QuickAddService
+
+
+def _client(db_session, monkeypatch, owner_id: str) -> TestClient:
+    monkeypatch.setattr("app.main.init_db", lambda: None)
+    app = create_app()
+    app.dependency_overrides[get_db] = lambda: db_session
+    app.dependency_overrides[get_owner_id] = lambda: owner_id
+    return TestClient(app)
 
 
 def test_quick_add_service_creates_transaction_and_upcoming_obligation(db_session) -> None:
@@ -71,3 +84,35 @@ def test_quick_add_service_creates_expected_income_without_touching_transactions
     assert income_entries[0].source_name == "Tutoring paycheck"
     assert float(income_entries[0].amount) == 250
     assert income_entries[0].account_id == account.id
+
+
+def test_quick_add_income_updates_the_returned_account_balance_through_the_accounts_api(db_session, monkeypatch) -> None:
+    owner_id = "owner-quick-add-income"
+    account = Account(owner_id=owner_id, name="Checking", type=AccountType.checking, institution="Bank", balance=500)
+    db_session.add(account)
+    db_session.commit()
+    client = _client(db_session, monkeypatch, owner_id)
+
+    quick_add = client.post(
+        "/api/quick-add",
+        json={
+            "kind": "income",
+            "amount": 250,
+            "title": "Tutoring",
+            "merchant_or_source": "Tutoring paycheck",
+            "category": "Income",
+            "account": "Checking",
+            "date": "2026-03-27",
+            "notes": "",
+            "status": "received",
+            "recurrence": "one-time",
+        },
+    )
+    accounts = client.get("/api/accounts")
+
+    assert quick_add.status_code == 200
+    assert quick_add.json()["transaction_id"]
+    assert accounts.status_code == 200
+    body = accounts.json()
+    assert len(body) == 1
+    assert float(body[0]["balance"]) == 750

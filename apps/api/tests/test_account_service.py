@@ -67,3 +67,38 @@ def test_account_service_refuses_to_delete_linked_accounts(db_session) -> None:
     assert found is True
     assert linked_record_count == 2
     assert db_session.query(Account).filter(Account.owner_id == owner_id).count() == 1
+
+
+def test_account_service_reports_effective_balance_with_linked_transactions(db_session) -> None:
+    owner_id = "owner-effective-balance"
+    account = Account(owner_id=owner_id, name="Checking", type=AccountType.checking, balance=500)
+    db_session.add(account)
+    db_session.flush()
+    db_session.add_all(
+        [
+            Transaction(
+                owner_id=owner_id,
+                kind=TransactionKind.income,
+                amount=250,
+                account_id=account.id,
+                occurred_on=date(2026, 3, 27),
+            ),
+            Transaction(
+                owner_id=owner_id,
+                kind=TransactionKind.expense,
+                amount=40,
+                account_id=account.id,
+                occurred_on=date(2026, 3, 27),
+            ),
+        ]
+    )
+    db_session.commit()
+
+    service = AccountService(db_session, owner_id)
+    listed = service.list()
+    fetched = service.get(account.id)
+
+    assert len(listed) == 1
+    assert float(listed[0].balance) == 710
+    assert fetched is not None
+    assert float(fetched.balance) == 710

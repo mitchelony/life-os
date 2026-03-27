@@ -213,7 +213,8 @@ This file is the build contract for Codex agents and human contributors working 
   - onboarding edits
   - planning relaunch
 - Expected income now has its own `Income` route and can be confirmed into real income transactions.
-- Planning relaunch currently clears expected income, transactions, merchants, income sources, reserves, roadmap state, actions, and progress history while preserving accounts, debts, and obligations.
+- The Accounts API now returns effective balances from the stored account balance plus linked income and expense transactions, so manual quick add income and expense are reflected on the Accounts surface without a separate account-balance write. (Added By Project Maintenance Agent)
+- Planning relaunch now clears transactions, merchants, reserves, roadmap state, actions, and progress history while preserving accounts, debts, obligations, expected income entries, and income sources. (Added By Project Maintenance Agent)
 - Actions are API-backed, date-aware, and inactive action states should stop feeding dashboard priority.
 - Browser and hosted-db validation should use disposable test identities and remove them, plus any linked owner-scoped rows, before the pass is considered complete.
 - When updating docs or setup steps, keep them aligned with the active hosted-Supabase flow and the clean repo path.

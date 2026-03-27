@@ -541,6 +541,78 @@ export type BackendRoadmapImportV2Result = {
   actions_created: number;
 };
 
+export type BackendQuickAddResponse = {
+  ok: boolean;
+  transaction_id?: string | null;
+  obligation_id?: string | null;
+  income_entry_id?: string | null;
+};
+
+export type BackendRoadmapCopilotPreviewGoal = {
+  title: string;
+  priority: string;
+  step_count: number;
+};
+
+export type BackendRoadmapCopilotPreviewIncomePlan = {
+  label: string;
+  amount: number;
+  allocation_count: number;
+};
+
+export type BackendRoadmapCopilotPreviewAction = {
+  title: string;
+  lane: string;
+};
+
+export type BackendRoadmapCopilotPreview = {
+  goals: BackendRoadmapCopilotPreviewGoal[];
+  income_plans: BackendRoadmapCopilotPreviewIncomePlan[];
+  actions: BackendRoadmapCopilotPreviewAction[];
+  preserved_income_entries: number;
+};
+
+export type BackendRoadmapCopilotDraftResponse = {
+  draft_id: string;
+  status: string;
+  summary: string;
+  rationale: string;
+  warnings: string[];
+  preview: BackendRoadmapCopilotPreview;
+  payload: BackendRoadmapImportV2Payload;
+  message: string;
+  planner_source: string;
+};
+
+export type BackendRoadmapCopilotCurrentResponse = {
+  draft: BackendRoadmapCopilotDraftResponse | null;
+};
+
+export type BackendRoadmapCopilotApproveResponse = {
+  draft: BackendRoadmapCopilotDraftResponse;
+  import_result: BackendRoadmapImportV2Result;
+};
+
+export type BackendRoadmapCopilotDenyResponse = {
+  draft: BackendRoadmapCopilotDraftResponse | null;
+};
+
+export type BackendRoadmapCopilotEmergencyExpenseRequest = {
+  message: string;
+  amount: number;
+  title: string;
+  merchant_or_source: string;
+  category: string;
+  account: string;
+  date: string;
+  notes?: string;
+};
+
+export type BackendRoadmapCopilotEmergencyExpenseResponse = {
+  quick_add: BackendQuickAddResponse;
+  draft: BackendRoadmapCopilotDraftResponse;
+};
+
 export type BackendDebt = {
   id: string;
   owner_id: string;
@@ -1124,6 +1196,168 @@ export function createApiClient(options: ApiClientOptions = {}) {
           obligations_created: 0,
           debts_created: 0,
           actions_created: 0,
+        },
+        { required: true },
+      ),
+    getRoadmapCopilotCurrent: () =>
+      get<BackendRoadmapCopilotCurrentResponse>(
+        "/roadmap/copilot/current",
+        { draft: null },
+        { required: true },
+      ),
+    createRoadmapCopilotDraft: (message: string) =>
+      post<BackendRoadmapCopilotDraftResponse>(
+        "/roadmap/copilot/draft",
+        { message },
+        {
+          draft_id: "copilot-draft",
+          status: "draft",
+          summary: "",
+          rationale: "",
+          warnings: [],
+          preview: {
+            goals: [],
+            income_plans: [],
+            actions: [],
+            preserved_income_entries: 0,
+          },
+          payload: {
+            version: 2,
+            reset_planning_first: true,
+            goals: [],
+            income_plans: [],
+            cash_reserves: [],
+            expected_income_entries: [],
+            obligations: [],
+            debts: [],
+            actions: [],
+          },
+          message,
+          planner_source: "copilot",
+        },
+        { required: true },
+      ),
+    reviseRoadmapCopilotDraft: (draftId: string, revisionNote: string) =>
+      post<BackendRoadmapCopilotDraftResponse>(
+        "/roadmap/copilot/revise",
+        { draft_id: draftId, revision_note: revisionNote },
+        {
+          draft_id: draftId,
+          status: "draft",
+          summary: "",
+          rationale: "",
+          warnings: [],
+          preview: {
+            goals: [],
+            income_plans: [],
+            actions: [],
+            preserved_income_entries: 0,
+          },
+          payload: {
+            version: 2,
+            reset_planning_first: true,
+            goals: [],
+            income_plans: [],
+            cash_reserves: [],
+            expected_income_entries: [],
+            obligations: [],
+            debts: [],
+            actions: [],
+          },
+          message: revisionNote,
+          planner_source: "copilot-revision",
+        },
+        { required: true },
+      ),
+    approveRoadmapCopilotDraft: (draftId: string) =>
+      post<BackendRoadmapCopilotApproveResponse>(
+        "/roadmap/copilot/approve",
+        { draft_id: draftId },
+        {
+          draft: {
+            draft_id: draftId,
+            status: "approved",
+            summary: "",
+            rationale: "",
+            warnings: [],
+            preview: {
+              goals: [],
+              income_plans: [],
+              actions: [],
+              preserved_income_entries: 0,
+            },
+            payload: {
+              version: 2,
+              reset_planning_first: true,
+              goals: [],
+              income_plans: [],
+              cash_reserves: [],
+              expected_income_entries: [],
+              obligations: [],
+              debts: [],
+              actions: [],
+            },
+            message: "",
+            planner_source: "copilot",
+          },
+          import_result: {
+            goals_created: 0,
+            steps_created: 0,
+            income_plans_created: 0,
+            allocations_created: 0,
+            cash_reserves_created: 0,
+            expected_income_entries_created: 0,
+            obligations_created: 0,
+            debts_created: 0,
+            actions_created: 0,
+          },
+        },
+        { required: true },
+      ),
+    denyRoadmapCopilotDraft: (draftId: string) =>
+      post<BackendRoadmapCopilotDenyResponse>(
+        "/roadmap/copilot/deny",
+        { draft_id: draftId },
+        { draft: null },
+        { required: true },
+      ),
+    submitRoadmapCopilotEmergencyExpense: (payload: BackendRoadmapCopilotEmergencyExpenseRequest) =>
+      post<BackendRoadmapCopilotEmergencyExpenseResponse>(
+        "/roadmap/copilot/emergency-expense",
+        payload,
+        {
+          quick_add: {
+            ok: true,
+            transaction_id: null,
+            obligation_id: null,
+            income_entry_id: null,
+          },
+          draft: {
+            draft_id: "copilot-emergency",
+            status: "draft",
+            summary: "",
+            rationale: "",
+            warnings: [],
+            preview: {
+              goals: [],
+              income_plans: [],
+              actions: [],
+              preserved_income_entries: 0,
+            },
+            payload: {
+              version: 2,
+              reset_planning_first: true,
+              goals: [],
+              income_plans: [],
+              cash_reserves: [],
+              expected_income_entries: [],
+              obligations: [],
+              debts: [],
+              actions: [],
+            },
+            message: payload.message,
+            planner_source: "copilot-emergency",
+          },
         },
         { required: true },
       ),

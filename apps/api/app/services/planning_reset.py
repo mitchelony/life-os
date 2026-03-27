@@ -10,10 +10,8 @@ from app.models.domain import (
     ActionItem,
     ActivityEvent,
     Debt,
-    IncomeEntry,
     IncomePlan,
     IncomePlanAllocation,
-    IncomeSource,
     Merchant,
     Obligation,
     PlannerDraft,
@@ -38,7 +36,6 @@ class PlanningResetService:
         for model in (
             IncomePlanAllocation,
             IncomePlan,
-            PlannerDraft,
             ActivityEvent,
             ProgressSnapshot,
             RoadmapStep,
@@ -47,10 +44,9 @@ class PlanningResetService:
             Task,
             RoadmapItem,
             StrategyDocument,
+            PlannerDraft,
             Transaction,
-            IncomeEntry,
             Merchant,
-            IncomeSource,
             Reserve,
         ):
             self.db.execute(delete(model).where(model.owner_id == self.owner_id))
@@ -103,8 +99,8 @@ class PlanningResetService:
                 owner_id=self.owner_id,
                 event_type="relaunch",
                 title="Planning memory reset",
-                detail="Preserved accounts, debts, and obligations. Cleared planning history for a fresh start.",
-                payload={"preserved": ["accounts", "debts", "obligations"]},
+                detail="Preserved accounts, debts, obligations, income entries, and income sources. Cleared planning history for a fresh start.",
+                payload={"preserved": ["accounts", "debts", "obligations", "income_entries", "income_sources"]},
             )
         )
         self.db.commit()

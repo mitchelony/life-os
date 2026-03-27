@@ -57,9 +57,9 @@ def test_relaunch_preserves_accounts_debts_and_obligations_but_resets_planning_l
     assert db_session.query(RoadmapItem).filter(RoadmapItem.owner_id == owner_id).count() == 0
     assert db_session.query(StrategyDocument).filter(StrategyDocument.owner_id == owner_id).count() == 0
     assert db_session.query(Transaction).filter(Transaction.owner_id == owner_id).count() == 0
-    assert db_session.query(IncomeEntry).filter(IncomeEntry.owner_id == owner_id).count() == 0
+    assert db_session.query(IncomeEntry).filter(IncomeEntry.owner_id == owner_id).count() == 1
     assert db_session.query(Merchant).filter(Merchant.owner_id == owner_id).count() == 0
-    assert db_session.query(IncomeSource).filter(IncomeSource.owner_id == owner_id).count() == 0
+    assert db_session.query(IncomeSource).filter(IncomeSource.owner_id == owner_id).count() == 1
     assert db_session.query(Reserve).filter(Reserve.owner_id == owner_id).count() == 0
     assert db_session.query(RoadmapGoal).filter(RoadmapGoal.owner_id == owner_id).count() == 0
 

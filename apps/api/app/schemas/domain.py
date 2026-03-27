@@ -892,6 +892,88 @@ class RoadmapImportV2Result(BaseModel):
     actions_created: int = 0
 
 
+class RoadmapCopilotPreviewGoal(BaseModel):
+    title: str
+    priority: str
+    step_count: int = 0
+
+
+class RoadmapCopilotPreviewIncomePlan(BaseModel):
+    label: str
+    amount: float
+    allocation_count: int = 0
+
+
+class RoadmapCopilotPreviewAction(BaseModel):
+    title: str
+    lane: str
+
+
+class RoadmapCopilotPreview(BaseModel):
+    goals: list[RoadmapCopilotPreviewGoal] = Field(default_factory=list)
+    income_plans: list[RoadmapCopilotPreviewIncomePlan] = Field(default_factory=list)
+    actions: list[RoadmapCopilotPreviewAction] = Field(default_factory=list)
+    preserved_income_entries: int = 0
+
+
+class RoadmapCopilotDraftRequest(BaseModel):
+    message: str
+
+
+class RoadmapCopilotReviseRequest(BaseModel):
+    draft_id: str
+    revision_note: str
+
+
+class RoadmapCopilotApproveRequest(BaseModel):
+    draft_id: str
+
+
+class RoadmapCopilotDenyRequest(BaseModel):
+    draft_id: str
+
+
+class RoadmapCopilotDraftResponse(BaseModel):
+    draft_id: str
+    status: str
+    summary: str
+    rationale: str
+    warnings: list[str] = Field(default_factory=list)
+    preview: RoadmapCopilotPreview
+    payload: RoadmapImportV2Payload
+    message: str
+    planner_source: str | None = None
+
+
+class RoadmapCopilotCurrentResponse(BaseModel):
+    draft: RoadmapCopilotDraftResponse | None = None
+
+
+class RoadmapCopilotApproveResponse(BaseModel):
+    draft: RoadmapCopilotDraftResponse
+    import_result: RoadmapImportV2Result
+
+
+class RoadmapCopilotDenyResponse(BaseModel):
+    draft: RoadmapCopilotDraftResponse | None = None
+
+
+class RoadmapCopilotEmergencyExpenseRequest(BaseModel):
+    message: str
+    amount: float
+    title: str = ""
+    merchant_or_source: str = ""
+    category: str = ""
+    account: str = ""
+    date: date
+    notes: str = ""
+
+
+class RoadmapCopilotEmergencyExpenseResponse(BaseModel):
+    quick_add: QuickAddResponse
+    draft: RoadmapCopilotDraftResponse
+
+
 class RecentUpdate(BaseModel):
     id: str
     event_type: str

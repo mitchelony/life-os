@@ -13,7 +13,6 @@ from app.models.domain import (
     IncomePlan,
     IncomePlanAllocation,
     Obligation,
-    PlannerDraft,
     ProgressSnapshot,
     Reserve,
     RoadmapGoal,
@@ -339,7 +338,6 @@ class RoadmapImportService:
         for model in (
             IncomePlanAllocation,
             IncomePlan,
-            PlannerDraft,
             ActivityEvent,
             ProgressSnapshot,
             RoadmapStep,
@@ -353,7 +351,7 @@ class RoadmapImportService:
 
         if payload.cash_reserves or payload.reset_planning_first:
             self.db.execute(delete(Reserve).where(Reserve.owner_id == self.owner_id))
-        if payload.expected_income_entries or payload.reset_planning_first:
+        if payload.expected_income_entries:
             self.db.execute(delete(IncomeEntry).where(IncomeEntry.owner_id == self.owner_id))
         if payload.obligations:
             self.db.execute(delete(Obligation).where(Obligation.owner_id == self.owner_id))

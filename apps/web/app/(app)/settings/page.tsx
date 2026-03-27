@@ -71,7 +71,7 @@ export default function SettingsPage() {
         <SectionHeading
           eyebrow="Settings"
           title="Choose what you want to change"
-          description="Roadmap setup is built for easy GPT copy and paste. Onboarding edits the baseline records. Useful settings holds reset and session controls."
+          description="Roadmap copilot now lives on the Roadmap page. Settings keeps the manual JSON workflow, onboarding edits, and utility controls."
           tone="inverse"
         />
         <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -112,24 +112,24 @@ export default function SettingsPage() {
           <Panel className="space-y-4">
             <SectionHeading
               eyebrow="Roadmap setup"
-              title="Copy current context, let GPT draft, then paste the roadmap back"
-              description="This flow is built for quick bulk setup. Export gives GPT the real ids and allowed values. Import takes the drafted roadmap JSON in one shot."
+              title="Keep the manual roadmap JSON flow as a fallback"
+              description="The Roadmap page is now the primary copilot surface. Use this export/import flow when you want an explicit manual JSON handoff."
             />
             <div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-[20px] border border-line bg-[rgba(244,241,233,0.82)] p-4">
                 <p className="text-[10px] uppercase tracking-[0.22em] text-muted">1</p>
-                <p className="mt-2 text-sm font-medium text-ink">Generate the context export</p>
-                <p className="mt-2 text-sm leading-6 text-muted">Copy the exact ids, statuses, expected income, debts, obligations, accounts, and actions.</p>
+                <p className="mt-2 text-sm font-medium text-ink">Export exact live context</p>
+                <p className="mt-2 text-sm leading-6 text-muted">Copy the real ids, statuses, expected income, debts, obligations, accounts, and actions when you want a manual AI handoff.</p>
               </div>
               <div className="rounded-[20px] border border-line bg-[rgba(244,241,233,0.82)] p-4">
                 <p className="text-[10px] uppercase tracking-[0.22em] text-muted">2</p>
-                <p className="mt-2 text-sm font-medium text-ink">Have GPT draft the roadmap JSON</p>
-                <p className="mt-2 text-sm leading-6 text-muted">The export includes strict shapes and allowed values so GPT can update the right records without guessing names.</p>
+                <p className="mt-2 text-sm font-medium text-ink">Have the model draft JSON</p>
+                <p className="mt-2 text-sm leading-6 text-muted">The export includes strict shapes and allowed values so the model can target the right records without guessing names.</p>
               </div>
               <div className="rounded-[20px] border border-line bg-[rgba(244,241,233,0.82)] p-4">
                 <p className="text-[10px] uppercase tracking-[0.22em] text-muted">3</p>
-                <p className="mt-2 text-sm font-medium text-ink">Paste and import</p>
-                <p className="mt-2 text-sm leading-6 text-muted">Bring goals, steps, paycheck plans, and allocations in together instead of rebuilding the roadmap one field at a time.</p>
+                <p className="mt-2 text-sm font-medium text-ink">Paste and import manually</p>
+                <p className="mt-2 text-sm leading-6 text-muted">Bring goals, steps, paycheck plans, and allocations in together when you want direct control over the payload.</p>
               </div>
             </div>
           </Panel>
@@ -197,7 +197,7 @@ export default function SettingsPage() {
             <SectionHeading
               eyebrow="Planning memory"
               title="Relaunch planning without touching core records"
-              description="This clears planning state, roadmap, actions, progress history, recent updates, transactions, and income history while preserving accounts, debts, and obligations."
+              description="This clears planning state, roadmap, actions, progress history, recent updates, and transactions while preserving accounts, debts, obligations, and expected income."
             />
             <div className="rounded-[20px] border border-[rgba(165,57,42,0.18)] bg-[rgba(165,57,42,0.06)] p-4">
               <p className="text-sm leading-6 text-ink">Use this when you want a clean planning restart but do not want to lose your core financial records.</p>
@@ -212,13 +212,13 @@ export default function SettingsPage() {
             <Panel className="space-y-4">
               <SectionHeading
                 eyebrow="Planner boundary"
-                title="Keep roadmap control manual"
-                description="The app can support smarter planner-owned drafts later, but live roadmap changes still happen only when you approve them."
+                title="Keep roadmap control approval-first"
+                description="Roadmap copilot can draft smarter replacements, but live roadmap changes still happen only when you approve them."
               />
               <div className="rounded-[20px] border border-line bg-[rgba(244,241,233,0.82)] p-4">
                 <div className="flex items-start gap-3">
                   <Sparkles className="mt-0.5 h-4 w-4 text-accent" />
-                  <p className="text-sm leading-6 text-muted">Future cloud planning stays recommendation-first. Nothing silently rewrites your live roadmap.</p>
+                  <p className="text-sm leading-6 text-muted">Nothing silently rewrites your live roadmap or ledger truth. Drafts stay recommendation-first until you approve them.</p>
                 </div>
               </div>
             </Panel>
