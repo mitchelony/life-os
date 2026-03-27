@@ -271,6 +271,128 @@ def test_decision_snapshot_uses_transactions_for_cashflow_and_recent_updates(db_
     assert snapshot.recent_updates[0].event_type in {"transaction_income", "transaction_expense", "expected_income"}
 
 
+def test_decision_snapshot_uses_effective_cash_counts_expected_income_and_keeps_overdue_debt_minimums_in_pressure(db_session) -> None:
+    owner_id = "owner-free-cash-accuracy"
+    today = date.today()
+
+    checking = Account(owner_id=owner_id, name="Checking", type="checking", balance=100)
+    db_session.add_all(
+        [
+            checking,
+            Obligation(owner_id=owner_id, name="Internet", amount=20, due_on=today + timedelta(days=2), is_paid=False),
+            Debt(owner_id=owner_id, name="Card", balance=800, minimum_payment=75, due_on=today - timedelta(days=1), status="active"),
+            IncomeEntry(owner_id=owner_id, source_name="Payroll", amount=200, status="expected", expected_on=today + timedelta(days=3)),
+        ]
+    )
+    db_session.flush()
+    db_session.add_all(
+        [
+            Transaction(
+                owner_id=owner_id,
+                account_id=checking.id,
+                kind=TransactionKind.income,
+                amount=400,
+                occurred_on=today - timedelta(days=2),
+            ),
+            Transaction(
+                owner_id=owner_id,
+                account_id=checking.id,
+                kind=TransactionKind.expense,
+                amount=50,
+                occurred_on=today - timedelta(days=1),
+            ),
+        ]
+    )
+    db_session.commit()
+
+    snapshot = DecisionEngineService(db_session, owner_id).build()
+
+    assert snapshot.free_now.amount == 355
+    assert snapshot.free_now.breakdown.liquid_cash == 450
+    assert snapshot.free_now.breakdown.debt_minimums_due_within_horizon == 75
+    assert snapshot.free_after_planned_income.amount == 555
+    assert snapshot.free_after_planned_income.breakdown.expected_income_within_horizon == 200
+
+
+def test_decision_snapshot_subtracts_next_income_obligation_allocations_not_already_in_current_pressure(db_session) -> None:
+    owner_id = "owner-next-income-obligation"
+    today = date.today()
+
+    db_session.add_all(
+        [
+            Account(owner_id=owner_id, name="Checking", type="checking", balance=1000),
+            Obligation(owner_id=owner_id, name="Insurance", amount=300, due_on=today + timedelta(days=10), is_paid=False),
+            IncomePlan(
+                owner_id=owner_id,
+                label="Paycheck",
+                amount=500,
+                expected_on=today + timedelta(days=3),
+                is_reliable=True,
+                status="planned",
+            ),
+        ]
+    )
+    db_session.flush()
+
+    plan = db_session.query(IncomePlan).filter(IncomePlan.owner_id == owner_id).one()
+    obligation = db_session.query(Obligation).filter(Obligation.owner_id == owner_id).one()
+    db_session.add(
+        IncomePlanAllocation(
+            owner_id=owner_id,
+            income_plan_id=plan.id,
+            label="Insurance payment",
+            allocation_type="obligation_payment",
+            amount=300,
+            sort_order=1,
+            linked_type="obligation",
+            linked_id=obligation.id,
+        )
+    )
+    db_session.commit()
+
+    snapshot = DecisionEngineService(db_session, owner_id).build()
+
+    assert snapshot.free_now.amount == 1000
+    assert snapshot.free_after_planned_income.amount == 1200
+    assert snapshot.free_after_planned_income.breakdown.extra_allocations_within_horizon == 300
+
+
+def test_decision_snapshot_dedupes_income_plan_when_linked_to_expected_income_entry(db_session) -> None:
+    owner_id = "owner-linked-income-dedupe"
+    today = date.today()
+
+    db_session.add(Account(owner_id=owner_id, name="Checking", type="checking", balance=100))
+    db_session.flush()
+    income_entry = IncomeEntry(
+        owner_id=owner_id,
+        source_name="Payroll",
+        amount=500,
+        status="expected",
+        expected_on=today + timedelta(days=3),
+    )
+    db_session.add(income_entry)
+    db_session.flush()
+    db_session.add(
+        IncomePlan(
+            owner_id=owner_id,
+            label="Payroll plan",
+            amount=500,
+            expected_on=today + timedelta(days=3),
+            is_reliable=True,
+            status="planned",
+            source_income_entry_id=income_entry.id,
+        )
+    )
+    db_session.commit()
+
+    snapshot = DecisionEngineService(db_session, owner_id).build()
+
+    assert snapshot.free_now.amount == 100
+    assert snapshot.free_after_planned_income.amount == 600
+    assert snapshot.free_after_planned_income.breakdown.reliable_income_within_horizon == 500
+    assert snapshot.free_after_planned_income.breakdown.expected_income_within_horizon == 0
+
+
 def test_decision_snapshot_falls_back_when_new_planning_tables_are_missing(db_session, monkeypatch) -> None:
     owner_id = "owner-legacy-schema"
     today = date.today()

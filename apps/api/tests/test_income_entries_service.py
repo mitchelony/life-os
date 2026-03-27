@@ -3,6 +3,7 @@ from datetime import date
 from sqlalchemy.exc import ProgrammingError
 
 from app.models.domain import Account, ActivityEvent, IncomeEntry
+from app.services.accounts import AccountService
 from app.services.income_entries import IncomeEntryService
 
 
@@ -27,7 +28,9 @@ def test_confirm_expected_income_marks_received_and_creates_income_transaction(d
     assert result.income_entry.received_on == date.today()
     assert result.transaction_id is not None
     db_session.refresh(account)
-    assert float(account.balance) == 600
+    assert float(account.balance) == 100
+    listed = AccountService(db_session, owner_id).list()
+    assert float(listed[0].balance) == 600
 
 
 def test_confirm_expected_income_still_succeeds_when_activity_events_table_is_missing(db_session, monkeypatch) -> None:
@@ -62,4 +65,6 @@ def test_confirm_expected_income_still_succeeds_when_activity_events_table_is_mi
     assert result is not None
     assert result.income_entry.status == "received"
     db_session.refresh(account)
-    assert float(account.balance) == 600
+    assert float(account.balance) == 100
+    listed = AccountService(db_session, owner_id).list()
+    assert float(listed[0].balance) == 600

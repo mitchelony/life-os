@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { findLinkedAction, getGoalOpenStepCount, getPlanAllocatedAmount, getPlanRemainingAmount } from "./planning-view";
+import {
+  findLinkedAction,
+  getGoalOpenStepCount,
+  getGoalSections,
+  getPlanAllocatedAmount,
+  getPlanRemainingAmount,
+} from "./planning-view";
 
 describe("findLinkedAction", () => {
   it("prefers the highest-priority open action for a linked entity", () => {
@@ -61,5 +67,70 @@ describe("getGoalOpenStepCount", () => {
         ],
       }),
     ).toBe(2);
+  });
+});
+
+describe("getGoalSections", () => {
+  it("keeps active work first, planned work second, and completed work last", () => {
+    const sections = getGoalSections([
+      {
+        id: "goal-1",
+        title: "Catch up utilities",
+        description: "",
+        status: "planned",
+        priority: "high",
+        progress: 0,
+        steps: [],
+      },
+      {
+        id: "goal-2",
+        title: "Pay rent first",
+        description: "",
+        status: "active",
+        priority: "critical",
+        progress: 40,
+        steps: [],
+      },
+      {
+        id: "goal-3",
+        title: "Clean up card",
+        description: "",
+        status: "blocked",
+        priority: "medium",
+        progress: 35,
+        steps: [],
+      },
+      {
+        id: "goal-4",
+        title: "Build starter buffer",
+        description: "",
+        status: "completed",
+        priority: "medium",
+        progress: 100,
+        steps: [],
+      },
+    ]);
+
+    expect(sections.map((section) => ({ key: section.key, ids: section.goals.map((goal) => goal.id) }))).toEqual([
+      { key: "active", ids: ["goal-2", "goal-3"] },
+      { key: "planned", ids: ["goal-1"] },
+      { key: "completed", ids: ["goal-4"] },
+    ]);
+  });
+
+  it("omits empty sections", () => {
+    const sections = getGoalSections([
+      {
+        id: "goal-1",
+        title: "Pay rent first",
+        description: "",
+        status: "active",
+        priority: "critical",
+        progress: 40,
+        steps: [],
+      },
+    ]);
+
+    expect(sections.map((section) => section.key)).toEqual(["active"]);
   });
 });

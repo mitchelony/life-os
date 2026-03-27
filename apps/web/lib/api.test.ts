@@ -32,6 +32,26 @@ describe("createApiClient", () => {
     expect(calls[0]?.[0]).toBe("http://192.168.1.162:8000/api/categories");
   });
 
+  it("rewrites 0.0.0.0 API URLs to localhost for loopback browser sessions", async () => {
+    vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
+    vi.stubGlobal("window", {
+      location: {
+        hostname: "localhost",
+        protocol: "http:",
+      },
+    } as unknown as Window);
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ state: { is_complete: false } }), { status: 200 }));
+    const client = createApiClient({
+      baseUrl: "http://0.0.0.0:8000/api",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    await client.startOnboarding();
+
+    const calls = fetchImpl.mock.calls as unknown as Array<[string, RequestInit | undefined]>;
+    expect(calls[0]?.[0]).toBe("http://localhost:8000/api/onboarding/start");
+  });
+
   it("does not rewrite loopback API URLs in production mode", async () => {
     const calls: Array<Parameters<typeof fetch>> = [];
     vi.spyOn(auth, "getAccessToken").mockResolvedValue(null);
@@ -233,6 +253,80 @@ describe("createApiClient", () => {
     await expect(client.startOnboarding()).rejects.toThrow("Request failed with 500");
   });
 
+  it("updates obligations through the obligation patch endpoint", async () => {
+    vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          id: "obligation-1",
+          owner_id: "owner-1",
+          created_at: "2026-03-27T00:00:00Z",
+          updated_at: "2026-03-27T00:00:00Z",
+          name: "Electric bill",
+          amount: 94.21,
+          due_on: "2026-03-30",
+          frequency: "monthly",
+          is_paid: false,
+          is_recurring: true,
+          notes: "Pay before rent.",
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = createApiClient({
+      baseUrl: "http://localhost:8000/api",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    await client.updateObligation("obligation-1", {
+      amount: 94.21,
+      due_on: "2026-03-30",
+      frequency: "monthly",
+      notes: "Pay before rent.",
+    });
+
+    const calls = fetchImpl.mock.calls as unknown as Array<[string, RequestInit | undefined]>;
+    expect(calls[0]?.[0]).toBe("http://localhost:8000/api/obligations/obligation-1");
+    expect(calls[0]?.[1]?.method).toBe("PATCH");
+  });
+
+  it("updates debts through the debt patch endpoint", async () => {
+    vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          id: "debt-1",
+          owner_id: "owner-1",
+          created_at: "2026-03-27T00:00:00Z",
+          updated_at: "2026-03-27T00:00:00Z",
+          name: "Capital One",
+          balance: 318.49,
+          minimum_payment: 55,
+          due_on: "2026-03-31",
+          status: "active",
+          notes: "No new spend.",
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = createApiClient({
+      baseUrl: "http://localhost:8000/api",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    await client.updateDebt("debt-1", {
+      balance: 318.49,
+      minimum_payment: 55,
+      due_on: "2026-03-31",
+      status: "active",
+      notes: "No new spend.",
+    });
+
+    const calls = fetchImpl.mock.calls as unknown as Array<[string, RequestInit | undefined]>;
+    expect(calls[0]?.[0]).toBe("http://localhost:8000/api/debts/debt-1");
+    expect(calls[0]?.[1]?.method).toBe("PATCH");
+  });
+
   it("throws when setup persistence fails", async () => {
     vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
     const client = createApiClient({
@@ -257,6 +351,16 @@ describe("createApiClient", () => {
     ).rejects.toThrow("Request failed with 500");
 
     await expect(client.completeOnboarding()).rejects.toThrow("Request failed with 500");
+  });
+
+  it("treats successful empty responses as null instead of throwing on JSON parsing", async () => {
+    vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
+    const client = createApiClient({
+      baseUrl: "http://localhost:8000/api",
+      fetchImpl: vi.fn(async () => new Response(null, { status: 204 })) as unknown as typeof fetch,
+    });
+
+    await expect(client.deleteAccount("account-1")).resolves.toBeUndefined();
   });
 
   it("confirms expected income through the dedicated confirm endpoint", async () => {

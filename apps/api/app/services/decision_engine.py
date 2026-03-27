@@ -64,6 +64,24 @@ def _is_missing_relation_error(error: ProgrammingError) -> bool:
     return "does not exist" in str(error).lower()
 
 
+def _effective_liquid_cash(accounts: list[Account], transactions: list[Transaction]) -> float:
+    liquid_types = {"checking", "savings", "cash"}
+    balances = {
+        account.id: float(account.balance)
+        for account in accounts
+        if account.type.value in liquid_types
+    }
+    for item in transactions:
+        if item.account_id not in balances:
+            continue
+        amount = float(item.amount)
+        if item.kind == TransactionKind.income:
+            balances[item.account_id] += amount
+        elif item.kind == TransactionKind.expense:
+            balances[item.account_id] -= amount
+    return _money(sum(balances.values()))
+
+
 def _lane_from_due_date(due_on: date | None, today: date, fallback: str = "manual") -> str:
     if due_on is None:
         return fallback
@@ -121,7 +139,18 @@ class DecisionEngineService:
         snapshots = self._safe_query_all(ProgressSnapshot, ProgressSnapshot.owner_id == self.owner_id, order_by=ProgressSnapshot.snapshot_date.desc())
 
         horizon = self._planning_horizon(income_plans, income_entries, obligations, debts)
-        free_now, free_after = self._free_cash(accounts, obligations, debts, reserves, settings, income_plans, allocations, horizon)
+        free_now, free_after = self._free_cash(
+            accounts,
+            obligations,
+            debts,
+            reserves,
+            settings,
+            income_entries,
+            income_plans,
+            allocations,
+            transactions,
+            horizon,
+        )
         synced_actions = self._sync_system_actions(actions, obligations, debts)
         goal_reads = self._goal_reads(goals, steps)
         roadmap = self._roadmap_summary(goal_reads, income_plans, allocations)
@@ -177,20 +206,26 @@ class DecisionEngineService:
         debts: list[Debt],
         reserves: list[Reserve],
         settings: dict[str, str],
+        income_entries: list[IncomeEntry],
         income_plans: list[IncomePlan],
         allocations: list[IncomePlanAllocation],
+        transactions: list[Transaction],
         horizon: date,
     ) -> tuple[FreeCashAmount, FreeCashAmount]:
         today = _start_of_today()
         active_plan_ids = {plan.id for plan in income_plans if plan.status not in INACTIVE_PLAN_STATUSES}
-        liquid_cash = _money(sum(float(account.balance) for account in accounts if account.type.value in {"checking", "savings", "cash"}))
+        liquid_cash = _effective_liquid_cash(accounts, transactions)
         protected_buffer = _money(_setting(settings, "protected_cash_buffer"))
         active_reserves = _money(sum(float(reserve.amount) for reserve in reserves if reserve.kind.value == "manual"))
         essentials_reserve = _money(_setting(settings, "essential_spend_target"))
         overdue_obligations = _money(sum(float(item.amount) for item in obligations if not item.is_paid and item.due_on < today))
         obligations_due = _money(sum(float(item.amount) for item in obligations if not item.is_paid and today <= item.due_on <= horizon))
         debt_minimums = _money(
-            sum(float(item.minimum_payment) for item in debts if item.status == DebtStatus.active and item.due_on and today <= item.due_on <= horizon)
+            sum(
+                float(item.minimum_payment)
+                for item in debts
+                if item.status == DebtStatus.active and (item.due_on is None or item.due_on <= horizon)
+            )
         )
         free_now_amount = _money(liquid_cash - protected_buffer - active_reserves - overdue_obligations - obligations_due - debt_minimums - essentials_reserve)
 
@@ -201,21 +236,61 @@ class DecisionEngineService:
                 if plan.is_reliable and plan.status not in INACTIVE_PLAN_STATUSES and plan.expected_on and today <= plan.expected_on <= horizon
             )
         )
+        linked_expected_income_ids = {
+            plan.source_income_entry_id
+            for plan in income_plans
+            if plan.is_reliable
+            and plan.status not in INACTIVE_PLAN_STATUSES
+            and plan.expected_on
+            and today <= plan.expected_on <= horizon
+            and plan.source_income_entry_id
+        }
+        expected_income = _money(
+            sum(
+                float(entry.amount)
+                for entry in income_entries
+                if entry.status == IncomeStatus.expected
+                and entry.expected_on
+                and today <= entry.expected_on <= horizon
+                and entry.id not in linked_expected_income_ids
+            )
+        )
         debt_lookup = {item.id: item for item in debts}
         obligation_lookup = {item.id: item for item in obligations}
+        remaining_obligation_pressure = {
+            item.id: float(item.amount)
+            for item in obligations
+            if not item.is_paid and item.due_on <= horizon
+        }
+        remaining_debt_minimum_pressure = {
+            item.id: float(item.minimum_payment)
+            for item in debts
+            if item.status == DebtStatus.active and (item.due_on is None or item.due_on <= horizon)
+        }
         extra_allocations = 0.0
         for allocation in allocations:
             if allocation.income_plan_id not in active_plan_ids:
                 continue
+            amount = float(allocation.amount)
             if allocation.linked_type == "obligation" and allocation.linked_id in obligation_lookup:
+                covered = min(amount, remaining_obligation_pressure.get(allocation.linked_id, 0.0))
+                remaining_obligation_pressure[allocation.linked_id] = max(
+                    remaining_obligation_pressure.get(allocation.linked_id, 0.0) - covered,
+                    0.0,
+                )
+                extra_allocations += amount - covered
                 continue
             if allocation.linked_type == "debt" and allocation.linked_id in debt_lookup:
-                minimum = float(debt_lookup[allocation.linked_id].minimum_payment)
-                extra_allocations += max(float(allocation.amount) - minimum, 0)
+                covered = min(amount, remaining_debt_minimum_pressure.get(allocation.linked_id, 0.0))
+                remaining_debt_minimum_pressure[allocation.linked_id] = max(
+                    remaining_debt_minimum_pressure.get(allocation.linked_id, 0.0) - covered,
+                    0.0,
+                )
+                extra_allocations += amount - covered
                 continue
-            extra_allocations += float(allocation.amount)
+            extra_allocations += amount
         extra_allocations = _money(extra_allocations)
-        free_after_amount = _money(free_now_amount + reliable_income - extra_allocations)
+        free_after_amount = _money(free_now_amount + reliable_income + expected_income - extra_allocations)
 
         free_now = FreeCashAmount(
             amount=free_now_amount,
@@ -228,6 +303,7 @@ class DecisionEngineService:
                 debt_minimums_due_within_horizon=debt_minimums,
                 essentials_reserve_within_horizon=essentials_reserve,
                 reliable_income_within_horizon=0,
+                expected_income_within_horizon=0,
                 extra_allocations_within_horizon=0,
             ),
         )
@@ -242,6 +318,7 @@ class DecisionEngineService:
                 debt_minimums_due_within_horizon=debt_minimums,
                 essentials_reserve_within_horizon=essentials_reserve,
                 reliable_income_within_horizon=reliable_income,
+                expected_income_within_horizon=expected_income,
                 extra_allocations_within_horizon=extra_allocations,
             ),
         )

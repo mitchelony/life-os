@@ -7,6 +7,9 @@ type LinkedAction = {
 };
 
 type GoalLike = {
+  id?: string;
+  title?: string;
+  status?: string;
   steps: Array<{
     status: string;
   }>;
@@ -47,4 +50,23 @@ export function getPlanRemainingAmount<T extends PlanLike>(plan: T) {
 
 export function getGoalOpenStepCount<T extends GoalLike>(goal: T) {
   return goal.steps.filter((step) => step.status !== "done").length;
+}
+
+export function getGoalSections<T extends GoalLike>(goals: T[]) {
+  const sections = [
+    {
+      key: "active",
+      goals: goals.filter((goal) => goal.status === "active" || goal.status === "blocked"),
+    },
+    {
+      key: "planned",
+      goals: goals.filter((goal) => goal.status === "planned"),
+    },
+    {
+      key: "completed",
+      goals: goals.filter((goal) => goal.status === "completed"),
+    },
+  ] as const;
+
+  return sections.filter((section) => section.goals.length);
 }

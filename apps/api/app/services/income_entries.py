@@ -6,7 +6,7 @@ from datetime import date
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import Session
 
-from app.models.domain import Account, ActivityEvent, IncomeEntry, IncomeSource, Transaction
+from app.models.domain import ActivityEvent, IncomeEntry, IncomeSource, Transaction
 from app.models.enums import IncomeStatus, TransactionKind
 from app.schemas.domain import IncomeEntryConfirmResponse
 
@@ -55,15 +55,6 @@ class IncomeEntryService:
             is_cleared=True,
         )
         self.db.add(transaction)
-
-        if effective_account_id:
-            account = (
-                self.db.query(Account)
-                .filter(Account.owner_id == self.owner_id, Account.id == effective_account_id)
-                .one_or_none()
-            )
-            if account is not None:
-                account.balance = float(account.balance) + float(income_entry.amount)
 
         income_entry.status = IncomeStatus.received
         income_entry.received_on = effective_received_on

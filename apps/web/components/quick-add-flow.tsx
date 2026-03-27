@@ -190,8 +190,8 @@ export function QuickAddFlow() {
   }
 
   return (
-    <div className="grid gap-4 pb-24 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pb-6">
-      <Panel className="space-y-6">
+    <div className="grid gap-4 pb-24 lg:grid-cols-[1.08fr_0.92fr] lg:gap-6 lg:pb-6">
+      <Panel className="space-y-6 overflow-hidden bg-[linear-gradient(180deg,rgba(255,255,255,0.86),rgba(246,250,248,0.7))]">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
             <SectionHeading
@@ -205,9 +205,12 @@ export function QuickAddFlow() {
 
         <Segment options={["expense", "income"]} value={kind} onChange={(value) => setKind(value as TransactionKind)} />
 
-        <div className="rounded-[26px] border border-line bg-[linear-gradient(180deg,rgba(255,255,255,0.85),rgba(255,255,255,0.62))] p-4 md:rounded-[32px] md:p-5">
-          <p className="text-[11px] uppercase tracking-[0.28em] text-muted">Amount</p>
-          <div className="mt-4 text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">{formatMoney(Number(amount || 0))}</div>
+        <div className="rounded-[28px] border border-line bg-[linear-gradient(180deg,rgba(20,35,29,0.98),rgba(49,88,77,0.94))] p-4 text-white md:rounded-[32px] md:p-5">
+          <p className="text-[11px] uppercase tracking-[0.28em] text-white/58">Amount</p>
+          <div className="mt-4 text-4xl font-semibold tracking-tight tabular-nums text-white sm:text-5xl">{formatMoney(Number(amount || 0))}</div>
+          <p className="mt-2 text-sm text-white/70">
+            {kind === "expense" ? "Log money out immediately, then add only the context you care about later." : "Capture income when it lands or schedule it if it is still expected."}
+          </p>
           <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4">
             {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "Clear"].map((key) => (
               <button
@@ -220,7 +223,7 @@ export function QuickAddFlow() {
                     appendDigit(key);
                   }
                 }}
-                className="h-14 rounded-[22px] border border-line bg-white/80 text-base font-medium text-ink transition hover:-translate-y-0.5 hover:bg-white sm:h-16 sm:rounded-3xl sm:text-lg"
+                className="h-14 rounded-[22px] border border-white/10 bg-white/10 text-base font-medium text-white transition hover:-translate-y-0.5 hover:bg-white/16 sm:h-16 sm:rounded-3xl sm:text-lg"
               >
                 {key}
               </button>
@@ -230,14 +233,14 @@ export function QuickAddFlow() {
             <button
               type="button"
               onClick={backspace}
-              className="flex-1 rounded-[22px] border border-line bg-white/80 px-4 py-3.5 text-sm font-medium text-ink transition hover:-translate-y-0.5 hover:bg-white sm:rounded-3xl sm:py-4"
+              className="flex-1 rounded-[22px] border border-white/10 bg-white/10 px-4 py-3.5 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:bg-white/16 sm:rounded-3xl sm:py-4"
             >
               <Delete className="mx-auto h-4 w-4" />
             </button>
             <button
               type="button"
               onClick={handleSubmit}
-              className="flex-[2] rounded-[22px] bg-ink px-4 py-3.5 text-bg transition hover:-translate-y-0.5 disabled:opacity-60 sm:rounded-3xl sm:py-4"
+              className="flex-[2] rounded-[22px] bg-white px-4 py-3.5 text-ink transition hover:-translate-y-0.5 disabled:opacity-60 sm:rounded-3xl sm:py-4"
               disabled={isPending}
             >
               <span className="inline-flex items-center gap-2">
@@ -248,7 +251,9 @@ export function QuickAddFlow() {
           </div>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-2 sm:gap-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.24em] text-muted">Reusable merchants and sources</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 sm:gap-3">
           {suggestions.map((suggestion) => (
             <button
               key={suggestion}
@@ -259,6 +264,7 @@ export function QuickAddFlow() {
               {suggestion}
             </button>
           ))}
+          </div>
         </div>
       </Panel>
 
@@ -268,6 +274,21 @@ export function QuickAddFlow() {
           title="Finish the record"
           description="Add just enough detail so you know what this was later."
         />
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-[20px] border border-line bg-[rgba(255,255,255,0.62)] p-4">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Type</p>
+            <p className="mt-2 text-sm font-medium text-ink">{kind}</p>
+          </div>
+          <div className="rounded-[20px] border border-line bg-[rgba(255,255,255,0.62)] p-4">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Cadence</p>
+            <p className="mt-2 text-sm font-medium text-ink">{recurrenceLabel(recurrence)}</p>
+          </div>
+          <div className="rounded-[20px] border border-line bg-[rgba(255,255,255,0.62)] p-4">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Account</p>
+            <p className="mt-2 text-sm font-medium text-ink">{account || "No account selected"}</p>
+          </div>
+        </div>
 
         <div className="grid gap-4">
           <InlineField label={kind === "expense" ? "Expense name" : "Income name"} helper="Required">

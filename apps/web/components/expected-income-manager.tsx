@@ -2,6 +2,7 @@
 
 import { Check, PencilLine, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useFeedback } from "@/components/feedback-provider";
 import { Badge, Button, InlineField, Input, Panel, SectionHeading, Select, Textarea } from "@/components/ui";
 import {
   api,
@@ -80,7 +81,7 @@ function IncomeEntryCard({
 }: {
   entry: BackendIncomeEntry;
   accounts: BackendAccount[];
-  onSaved: (entryId: string, draft: IncomeDraft) => Promise<void>;
+  onSaved: (entryId: string, draft: IncomeDraft) => Promise<boolean>;
   onDeleted: (entryId: string) => Promise<void>;
   onConfirmed: (entryId: string, accountId?: string) => Promise<void>;
 }) {
@@ -173,10 +174,17 @@ function IncomeEntryCard({
             <Textarea rows={3} value={draft.notes} onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))} />
           </InlineField>
           <div className="md:col-span-2 flex flex-wrap gap-2">
-            <Button disabled={pending || !draft.source_name.trim() || !draft.amount} onClick={() => run(async () => {
-              await onSaved(entry.id, draft);
-              setEditing(false);
-            })}>
+            <Button
+              disabled={pending || !draft.source_name.trim() || !draft.amount}
+              onClick={() =>
+                run(async () => {
+                  const saved = await onSaved(entry.id, draft);
+                  if (saved) {
+                    setEditing(false);
+                  }
+                })
+              }
+            >
               Save income
             </Button>
           </div>
@@ -204,6 +212,7 @@ function IncomeEntryCard({
 }
 
 export function ExpectedIncomeManager({ onChanged }: { onChanged?: () => Promise<void> | void }) {
+  const { pushFeedback } = useFeedback();
   const [entries, setEntries] = useState<BackendIncomeEntry[]>([]);
   const [accounts, setAccounts] = useState<BackendAccount[]>([]);
   const [pending, setPending] = useState(false);
@@ -225,19 +234,31 @@ export function ExpectedIncomeManager({ onChanged }: { onChanged?: () => Promise
     void load();
   }, []);
 
-  async function sync(task: () => Promise<unknown>) {
+  async function sync(task: () => Promise<unknown>, successTitle: string, errorTitle: string) {
     setPending(true);
     try {
       await task();
       await load();
       notifyDecisionChanged();
       await onChanged?.();
+      pushFeedback({ tone: "success", title: successTitle });
+      return true;
+    } catch (error) {
+      pushFeedback({
+        tone: "error",
+        title: errorTitle,
+        description: error instanceof Error ? error.message : "Try again.",
+      });
+      return false;
     } finally {
       setPending(false);
     }
   }
 
   const expectedCount = useMemo(() => entries.filter((item) => item.status === "expected").length, [entries]);
+  const expectedEntries = entries.filter((item) => item.status === "expected");
+  const receivedEntries = entries.filter((item) => item.status === "received");
+  const missedEntries = entries.filter((item) => item.status === "missed");
 
   return (
     <section className="space-y-3">
@@ -295,11 +316,16 @@ export function ExpectedIncomeManager({ onChanged }: { onChanged?: () => Promise
               <Textarea rows={3} value={draft.notes} onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))} />
             </InlineField>
             <div className="md:col-span-2">
-              <Button disabled={pending || !draft.source_name.trim() || !draft.amount} onClick={() => sync(async () => {
-                await api.createIncomeEntry(toCreatePayload(draft));
-                setDraft(emptyDraft);
-                setComposerOpen(false);
-              })}>
+              <Button
+                disabled={pending || !draft.source_name.trim() || !draft.amount}
+                onClick={async () => {
+                  const created = await sync(() => api.createIncomeEntry(toCreatePayload(draft)), "Expected income saved.", "Could not save expected income.");
+                  if (created) {
+                    setDraft(emptyDraft);
+                    setComposerOpen(false);
+                  }
+                }}
+              >
                 Save expected income
               </Button>
             </div>
@@ -308,23 +334,46 @@ export function ExpectedIncomeManager({ onChanged }: { onChanged?: () => Promise
       </Panel>
 
       {entries.length ? (
-        <div className="space-y-3">
-          {entries.map((entry) => (
-            <IncomeEntryCard
-              key={entry.id}
-              entry={entry}
-              accounts={accounts}
-              onSaved={async (entryId, nextDraft) => {
-                await sync(() => api.updateIncomeEntry(entryId, toUpdatePayload(nextDraft)));
-              }}
-              onDeleted={async (entryId) => {
-                await sync(() => api.deleteIncomeEntry(entryId));
-              }}
-              onConfirmed={async (entryId, accountId) => {
-                await sync(() => api.confirmIncomeEntry(entryId, { account_id: accountId ?? null }));
-              }}
-            />
-          ))}
+        <div className="space-y-4">
+          {[
+            { key: "expected", label: "Expected", description: "Upcoming money the plan is still waiting on.", items: expectedEntries },
+            { key: "received", label: "Received", description: "Entries already confirmed into real income.", items: receivedEntries },
+            { key: "missed", label: "Missed", description: "Expected income that did not land as planned.", items: missedEntries },
+          ]
+            .filter((section) => section.items.length)
+            .map((section) => (
+              <section key={section.key} className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.24em] text-muted">{section.label}</p>
+                    <p className="mt-1 text-sm text-muted">{section.description}</p>
+                  </div>
+                  <Badge>{section.items.length}</Badge>
+                </div>
+                <div className="space-y-3">
+                  {section.items.map((entry) => (
+                    <IncomeEntryCard
+                      key={entry.id}
+                      entry={entry}
+                      accounts={accounts}
+                      onSaved={(entryId, nextDraft) =>
+                        sync(() => api.updateIncomeEntry(entryId, toUpdatePayload(nextDraft)), "Income entry saved.", "Could not save income entry.")
+                      }
+                      onDeleted={async (entryId) => {
+                        await sync(() => api.deleteIncomeEntry(entryId), "Income entry deleted.", "Could not delete income entry.");
+                      }}
+                      onConfirmed={async (entryId, accountId) => {
+                        await sync(
+                          () => api.confirmIncomeEntry(entryId, { account_id: accountId ?? null }),
+                          "Income confirmed.",
+                          "Could not confirm income.",
+                        );
+                      }}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
         </div>
       ) : (
         <Panel className="border-dashed bg-white/56 text-sm text-muted">No expected income yet. Add the next paycheck or expected deposit here.</Panel>

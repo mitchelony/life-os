@@ -507,6 +507,7 @@ class FreeCashBreakdown(BaseModel):
     debt_minimums_due_within_horizon: float
     essentials_reserve_within_horizon: float
     reliable_income_within_horizon: float
+    expected_income_within_horizon: float = 0
     extra_allocations_within_horizon: float
 
 

@@ -2,6 +2,7 @@
 
 import { PencilLine, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useFeedback } from "@/components/feedback-provider";
 import { Badge, Button, InlineField, Input, Panel, SectionHeading, Select, StatCard } from "@/components/ui";
 import { api, type BackendAccount, type BackendAccountCreatePayload, type BackendAccountUpdatePayload } from "@/lib/api";
 import { notifyDecisionChanged } from "@/lib/decision";
@@ -75,7 +76,7 @@ function AccountEditorCard({
   onDelete,
 }: {
   account: BackendAccount;
-  onSave: (accountId: string, draft: AccountDraft) => Promise<void>;
+  onSave: (accountId: string, draft: AccountDraft) => Promise<boolean>;
   onDelete: (accountId: string) => Promise<void>;
 }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -180,8 +181,10 @@ function AccountEditorCard({
               disabled={pending || !draft.name.trim()}
               onClick={() =>
                 run(async () => {
-                  await onSave(account.id, draft);
-                  setIsEditing(false);
+                  const saved = await onSave(account.id, draft);
+                  if (saved) {
+                    setIsEditing(false);
+                  }
                 })
               }
             >
@@ -204,6 +207,7 @@ function AccountEditorCard({
 }
 
 export default function AccountsPage() {
+  const { pushFeedback } = useFeedback();
   const [accounts, setAccounts] = useState<BackendAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
@@ -225,15 +229,20 @@ export default function AccountsPage() {
     void load();
   }, []);
 
-  async function sync(task: () => Promise<unknown>) {
+  async function sync(task: () => Promise<unknown>, successTitle: string) {
     setPending(true);
     setError(null);
     try {
       await task();
       await load();
       notifyDecisionChanged();
+      pushFeedback({ tone: "success", title: successTitle });
+      return true;
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not save account changes.");
+      const message = caught instanceof Error ? caught.message : "Could not save account changes.";
+      setError(message);
+      pushFeedback({ tone: "error", title: "Could not save account changes.", description: message });
+      return false;
     } finally {
       setPending(false);
     }
@@ -246,14 +255,16 @@ export default function AccountsPage() {
     const trackedDebt = accounts.filter((item) => item.type === "credit_card" || item.type === "debt").reduce((sum, item) => sum + Math.abs(item.balance), 0);
     return { liquidCash, checking, savings, trackedDebt };
   }, [accounts]);
+  const liquidAccounts = accounts.filter((item) => item.type === "checking" || item.type === "savings" || item.type === "cash");
+  const debtAccounts = accounts.filter((item) => item.type === "credit_card" || item.type === "debt");
 
   async function addAccount() {
     if (!newAccount.name.trim()) return;
-    await sync(async () => {
-      await api.createAccount(toCreatePayload(newAccount));
+    const created = await sync(() => api.createAccount(toCreatePayload(newAccount)), "Account added.");
+    if (created) {
       setNewAccount(emptyDraft);
       setShowComposer(false);
-    });
+    }
   }
 
   if (loading) {
@@ -345,26 +356,69 @@ export default function AccountsPage() {
         </Panel>
       ) : null}
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        {accounts.length ? (
-          accounts.map((account) => (
-            <AccountEditorCard
-              key={account.id}
-              account={account}
-              onSave={(accountId, draft) => sync(() => api.updateAccount(accountId, toUpdatePayload(draft)))}
-              onDelete={(accountId) => sync(() => api.deleteAccount(accountId))}
-            />
-          ))
-        ) : (
-          <Panel className="lg:col-span-2">
-            <SectionHeading
-              eyebrow="No accounts yet"
-              title="Add the balances you want the app to watch"
-              description="Start with checking, savings, cash, or any credit card you want included in the picture."
-            />
-          </Panel>
-        )}
-      </section>
+      {accounts.length ? (
+        <div className="space-y-4">
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.24em] text-muted">Cash and reserves</p>
+                <p className="mt-1 text-sm text-muted">The balances that shape what is actually available to spend.</p>
+              </div>
+              <Badge>{liquidAccounts.length}</Badge>
+            </div>
+            {liquidAccounts.length ? (
+              <div className="grid gap-4 lg:grid-cols-2">
+                {liquidAccounts.map((account) => (
+                  <AccountEditorCard
+                    key={account.id}
+                    account={account}
+                    onSave={(accountId, draft) => sync(() => api.updateAccount(accountId, toUpdatePayload(draft)), "Account saved.")}
+                    onDelete={async (accountId) => {
+                      await sync(() => api.deleteAccount(accountId), "Account deleted.");
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Panel className="border-dashed bg-white/56 text-sm text-muted">No cash or reserve accounts yet.</Panel>
+            )}
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.24em] text-muted">Debt-linked accounts</p>
+                <p className="mt-1 text-sm text-muted">Keep cards and debt balances visible without mixing them into cash accounts.</p>
+              </div>
+              <Badge>{debtAccounts.length}</Badge>
+            </div>
+            {debtAccounts.length ? (
+              <div className="grid gap-4 lg:grid-cols-2">
+                {debtAccounts.map((account) => (
+                  <AccountEditorCard
+                    key={account.id}
+                    account={account}
+                    onSave={(accountId, draft) => sync(() => api.updateAccount(accountId, toUpdatePayload(draft)), "Account saved.")}
+                    onDelete={async (accountId) => {
+                      await sync(() => api.deleteAccount(accountId), "Account deleted.");
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Panel className="border-dashed bg-white/56 text-sm text-muted">No debt-linked accounts yet.</Panel>
+            )}
+          </section>
+        </div>
+      ) : (
+        <Panel>
+          <SectionHeading
+            eyebrow="No accounts yet"
+            title="Add the balances you want the app to watch"
+            description="Start with checking, savings, cash, or any credit card you want included in the picture."
+          />
+        </Panel>
+      )}
     </div>
   );
 }

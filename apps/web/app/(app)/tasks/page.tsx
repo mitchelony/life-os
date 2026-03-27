@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { Check, PauseCircle, Plus, RotateCcw, Slash, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useFeedback } from "@/components/feedback-provider";
 import { Badge, Button, InlineField, Input, Panel, SectionHeading, Select, Textarea } from "@/components/ui";
 import { api } from "@/lib/api";
 import { notifyDecisionChanged, type DecisionAction, useDecisionSnapshot } from "@/lib/decision";
-import { groupActionsByLane, isInactiveActionStatus } from "@/lib/decision-view";
+import { getActionLaneSummary, getVisibleActionLanes, groupActionsByLane, isInactiveActionStatus } from "@/lib/decision-view";
 
 const laneOptions = [
   { value: "do_now", label: "Do now" },
@@ -68,7 +70,7 @@ function ActionCard({
     status: string;
     dueOn?: string;
   };
-  onSave: (draft: ActionDraft) => Promise<void>;
+  onSave: (draft: ActionDraft) => Promise<boolean>;
   onStatusChange: (status: string) => Promise<void>;
   onDelete?: () => Promise<void>;
 }) {
@@ -140,8 +142,10 @@ function ActionCard({
               disabled={pending || !draft.title.trim()}
               onClick={() =>
                 run(async () => {
-                  await onSave(draft);
-                  setEditing(false);
+                  const saved = await onSave(draft);
+                  if (saved) {
+                    setEditing(false);
+                  }
                 })
               }
             >
@@ -196,7 +200,7 @@ function ActionLane({
   title: string;
   description: string;
   actions: DecisionAction[];
-  onSave: (actionId: string, draft: ActionDraft) => Promise<void>;
+  onSave: (actionId: string, draft: ActionDraft) => Promise<boolean>;
   onStatusChange: (actionId: string, status: string) => Promise<void>;
   onDelete: (actionId: string) => Promise<void>;
 }) {
@@ -229,20 +233,32 @@ function ActionLane({
 }
 
 export default function TasksPage() {
+  const { pushFeedback } = useFeedback();
   const { snapshot, loading, refresh } = useDecisionSnapshot();
   const [composerOpen, setComposerOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [draft, setDraft] = useState<ActionDraft>(emptyDraft);
 
   const grouped = useMemo(() => groupActionsByLane(snapshot?.orderedActionQueue ?? []), [snapshot?.orderedActionQueue]);
-  const inactiveCount = (snapshot?.orderedActionQueue ?? []).filter((item) => isInactiveActionStatus(item.status)).length;
+  const laneSummary = useMemo(() => getActionLaneSummary(snapshot?.orderedActionQueue ?? []), [snapshot?.orderedActionQueue]);
+  const visibleLanes = useMemo(() => getVisibleActionLanes(snapshot?.orderedActionQueue ?? []), [snapshot?.orderedActionQueue]);
+  const hasActiveWork = grouped.doNow.length + grouped.thisWeek.length + grouped.whenIncomeLands.length + grouped.manual.length > 0;
 
-  async function sync(task: () => Promise<unknown>) {
+  async function sync(task: () => Promise<unknown>, successTitle: string, errorTitle: string) {
     setPending(true);
     try {
       await task();
       notifyDecisionChanged();
       await refresh();
+      pushFeedback({ tone: "success", title: successTitle });
+      return true;
+    } catch (error) {
+      pushFeedback({
+        tone: "error",
+        title: errorTitle,
+        description: error instanceof Error ? error.message : "Try again in a moment.",
+      });
+      return false;
     } finally {
       setPending(false);
     }
@@ -250,18 +266,23 @@ export default function TasksPage() {
 
   async function createManualAction() {
     if (!draft.title.trim()) return;
-    await sync(() =>
-      api.createAction({
-        title: draft.title.trim(),
-        detail: draft.detail.trim() || null,
-        lane: draft.lane,
-        status: "todo",
-        source: "manual",
-        due_on: draft.dueOn || null,
-      }),
+    const created = await sync(
+      () =>
+        api.createAction({
+          title: draft.title.trim(),
+          detail: draft.detail.trim() || null,
+          lane: draft.lane,
+          status: "todo",
+          source: "manual",
+          due_on: draft.dueOn || null,
+        }),
+      "Action added.",
+      "Could not add action.",
     );
-    setDraft(emptyDraft);
-    setComposerOpen(false);
+    if (created) {
+      setDraft(emptyDraft);
+      setComposerOpen(false);
+    }
   }
 
   if (loading && !snapshot) {
@@ -289,18 +310,12 @@ export default function TasksPage() {
           }
         />
         <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <Panel className="bg-white/72">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Do now</p>
-            <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{grouped.doNow.length}</p>
-          </Panel>
-          <Panel className="bg-white/72">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-muted">This week</p>
-            <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{grouped.thisWeek.length}</p>
-          </Panel>
-          <Panel className="bg-white/72">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Inactive</p>
-            <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{inactiveCount}</p>
-          </Panel>
+          {laneSummary.map((item) => (
+            <Panel key={item.key} className="bg-white/72">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-muted">{item.label}</p>
+              <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{item.count}</p>
+            </Panel>
+          ))}
         </div>
 
         {composerOpen ? (
@@ -332,95 +347,110 @@ export default function TasksPage() {
         ) : null}
       </Panel>
 
-      <ActionLane
-        title="Do now"
-        description="The actions that should be resolved before anything else."
-        actions={grouped.doNow}
-        onSave={(actionId, nextDraft) =>
-          sync(() =>
-            api.updateAction(actionId, {
-              title: nextDraft.title.trim(),
-              detail: nextDraft.detail.trim() || null,
-              lane: nextDraft.lane,
-              due_on: nextDraft.dueOn || null,
-            }),
-          )
-        }
-        onStatusChange={(actionId, status) => sync(() => api.updateAction(actionId, { status }))}
-        onDelete={(actionId) => sync(() => api.deleteAction(actionId))}
-      />
+      {!hasActiveWork ? (
+        <Panel className="overflow-hidden bg-[linear-gradient(135deg,rgba(255,255,255,0.88),rgba(239,246,243,0.88))]">
+          <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.24em] text-muted">No live queue</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-ink">Nothing is competing for attention right now.</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
+                Use this page to add the next thing you do not want to forget, or go back to Roadmap if you need the app to rebuild the order for you.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-2">
+                <Button onClick={() => setComposerOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  Add manual action
+                </Button>
+                <Link
+                  href="/roadmap"
+                  className="inline-flex items-center justify-center rounded-full border border-line bg-white/72 px-4 py-2.5 text-sm font-medium text-ink transition duration-200 hover:-translate-y-0.5 hover:bg-white"
+                >
+                  Open roadmap
+                </Link>
+                <Link
+                  href="/quick-add"
+                  className="inline-flex items-center justify-center rounded-full border border-line bg-white/72 px-4 py-2.5 text-sm font-medium text-ink transition duration-200 hover:-translate-y-0.5 hover:bg-white"
+                >
+                  Log money
+                </Link>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+              <div className="rounded-[22px] border border-line bg-[rgba(255,255,255,0.7)] p-4">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Best use</p>
+                <p className="mt-2 text-sm leading-6 text-ink">Keep this screen for work you actually need to execute, not for storing every idea.</p>
+              </div>
+              <div className="rounded-[22px] border border-line bg-[rgba(255,255,255,0.7)] p-4">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-muted">When to use Roadmap</p>
+                <p className="mt-2 text-sm leading-6 text-ink">Go there when you need to decide what gets paid first when the next income lands.</p>
+              </div>
+            </div>
+          </div>
+        </Panel>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {visibleLanes
+            .filter((lane) => lane.key !== "inactive")
+            .map((lane) => (
+              <ActionLane
+                key={lane.key}
+                title={lane.label}
+                description={lane.description}
+                actions={lane.actions}
+                onSave={(actionId, nextDraft) =>
+                  sync(
+                    () =>
+                      api.updateAction(actionId, {
+                        title: nextDraft.title.trim(),
+                        detail: nextDraft.detail.trim() || null,
+                        lane: nextDraft.lane,
+                        due_on: nextDraft.dueOn || null,
+                      }),
+                    "Action updated.",
+                    "Could not update action.",
+                  )
+                }
+                onStatusChange={(actionId, status) =>
+                  (async () => {
+                    await sync(() => api.updateAction(actionId, { status }), "Action updated.", "Could not update action.");
+                  })()
+                }
+                onDelete={async (actionId) => {
+                  await sync(() => api.deleteAction(actionId), "Action removed.", "Could not remove action.");
+                }}
+              />
+            ))}
+        </div>
+      )}
 
-      <ActionLane
-        title="This week"
-        description="Important, but not the first move."
-        actions={grouped.thisWeek}
-        onSave={(actionId, nextDraft) =>
-          sync(() =>
-            api.updateAction(actionId, {
-              title: nextDraft.title.trim(),
-              detail: nextDraft.detail.trim() || null,
-              lane: nextDraft.lane,
-              due_on: nextDraft.dueOn || null,
-            }),
-          )
-        }
-        onStatusChange={(actionId, status) => sync(() => api.updateAction(actionId, { status }))}
-        onDelete={(actionId) => sync(() => api.deleteAction(actionId))}
-      />
-
-      <ActionLane
-        title="When income lands"
-        description="The ordered moves waiting on the next reliable inflow."
-        actions={grouped.whenIncomeLands}
-        onSave={(actionId, nextDraft) =>
-          sync(() =>
-            api.updateAction(actionId, {
-              title: nextDraft.title.trim(),
-              detail: nextDraft.detail.trim() || null,
-              lane: nextDraft.lane,
-              due_on: nextDraft.dueOn || null,
-            }),
-          )
-        }
-        onStatusChange={(actionId, status) => sync(() => api.updateAction(actionId, { status }))}
-        onDelete={(actionId) => sync(() => api.deleteAction(actionId))}
-      />
-
-      <ActionLane
-        title="Manual"
-        description="The tasks you added yourself so they can live inside the same operating system."
-        actions={grouped.manual}
-        onSave={(actionId, nextDraft) =>
-          sync(() =>
-            api.updateAction(actionId, {
-              title: nextDraft.title.trim(),
-              detail: nextDraft.detail.trim() || null,
-              lane: nextDraft.lane,
-              due_on: nextDraft.dueOn || null,
-            }),
-          )
-        }
-        onStatusChange={(actionId, status) => sync(() => api.updateAction(actionId, { status }))}
-        onDelete={(actionId) => sync(() => api.deleteAction(actionId))}
-      />
-
-      <ActionLane
-        title="Inactive"
-        description="Done, skipped, and blocked actions move here so they stop competing with live work."
-        actions={grouped.inactive}
-        onSave={(actionId, nextDraft) =>
-          sync(() =>
-            api.updateAction(actionId, {
-              title: nextDraft.title.trim(),
-              detail: nextDraft.detail.trim() || null,
-              lane: nextDraft.lane,
-              due_on: nextDraft.dueOn || null,
-            }),
-          )
-        }
-        onStatusChange={(actionId, status) => sync(() => api.updateAction(actionId, { status }))}
-        onDelete={(actionId) => sync(() => api.deleteAction(actionId))}
-      />
+      {grouped.inactive.length ? (
+        <ActionLane
+          title="Inactive"
+          description="Done, skipped, and blocked actions move here so they stop competing with live work."
+          actions={grouped.inactive}
+          onSave={(actionId, nextDraft) =>
+            sync(
+              () =>
+                api.updateAction(actionId, {
+                  title: nextDraft.title.trim(),
+                  detail: nextDraft.detail.trim() || null,
+                  lane: nextDraft.lane,
+                  due_on: nextDraft.dueOn || null,
+                }),
+              "Action updated.",
+              "Could not update action.",
+            )
+          }
+          onStatusChange={(actionId, status) =>
+            (async () => {
+              await sync(() => api.updateAction(actionId, { status }), "Action updated.", "Could not update action.");
+            })()
+          }
+          onDelete={async (actionId) => {
+            await sync(() => api.deleteAction(actionId), "Action removed.", "Could not remove action.");
+          }}
+        />
+      ) : null}
     </div>
   );
 }

@@ -1,13 +1,15 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useFeedback } from "@/components/feedback-provider";
 import { RoadmapCopilotPanel } from "@/components/roadmap-copilot-panel";
 import { Badge, Button, InlineField, Input, Panel, SectionHeading, Select, Textarea } from "@/components/ui";
-import { api, type BackendDebt, type BackendObligation } from "@/lib/api";
+import { api, type BackendDebt, type BackendObligation, type BackendSetupPayload } from "@/lib/api";
 import { notifyDecisionChanged, useDecisionSnapshot } from "@/lib/decision";
 import { formatMoney } from "@/lib/finance";
-import { getGoalOpenStepCount, getPlanAllocatedAmount, getPlanRemainingAmount } from "@/lib/planning-view";
+import { parseStrategyDocument } from "@/lib/local-state";
+import { getGoalOpenStepCount, getGoalSections, getPlanAllocatedAmount, getPlanRemainingAmount } from "@/lib/planning-view";
 
 const goalStatusOptions = ["active", "planned", "blocked", "completed"];
 const goalPriorityOptions = ["low", "medium", "high", "critical"];
@@ -96,7 +98,7 @@ function GoalCard({
   debts: BackendDebt[];
   obligations: BackendObligation[];
   onGoalUpdate: (goalId: string, patch: { status?: string; priority?: string }) => Promise<void>;
-  onCreateStep: (goalId: string, draft: { title: string; dueOn: string }) => Promise<void>;
+  onCreateStep: (goalId: string, draft: { title: string; dueOn: string }) => Promise<boolean>;
   onUpdateStep: (stepId: string, patch: { status?: string }) => Promise<void>;
 }) {
   const [stepTitle, setStepTitle] = useState("");
@@ -107,8 +109,6 @@ function GoalCard({
     setPending(true);
     try {
       await task();
-      setStepTitle("");
-      setStepDueOn("");
     } finally {
       setPending(false);
     }
@@ -203,6 +203,11 @@ function GoalCard({
                 onCreateStep(goal.id, {
                   title: stepTitle.trim(),
                   dueOn: stepDueOn,
+                }).then((created) => {
+                  if (created) {
+                    setStepTitle("");
+                    setStepDueOn("");
+                  }
                 }),
               )
             }
@@ -225,7 +230,7 @@ function IncomePlanCard({
   plan: NonNullable<ReturnType<typeof useDecisionSnapshot>["snapshot"]>["roadmap"]["plans"][number];
   debts: BackendDebt[];
   obligations: BackendObligation[];
-  onCreateAllocation: (planId: string, draft: AllocationDraft) => Promise<void>;
+  onCreateAllocation: (planId: string, draft: AllocationDraft) => Promise<boolean>;
 }) {
   const [showComposer, setShowComposer] = useState(false);
   const [pending, setPending] = useState(false);
@@ -238,9 +243,11 @@ function IncomePlanCard({
     if (!draft.label.trim() || !draft.amount) return;
     setPending(true);
     try {
-      await onCreateAllocation(plan.id, draft);
-      setDraft(emptyAllocationDraft);
-      setShowComposer(false);
+      const created = await onCreateAllocation(plan.id, draft);
+      if (created) {
+        setDraft(emptyAllocationDraft);
+        setShowComposer(false);
+      }
     } finally {
       setPending(false);
     }
@@ -357,19 +364,27 @@ function IncomePlanCard({
 }
 
 export default function RoadmapPage() {
+  const { pushFeedback } = useFeedback();
   const { snapshot, loading, refresh } = useDecisionSnapshot();
   const [debts, setDebts] = useState<BackendDebt[]>([]);
   const [obligations, setObligations] = useState<BackendObligation[]>([]);
+  const [setupPayload, setSetupPayload] = useState<BackendSetupPayload | null>(null);
+  const [mode, setMode] = useState<"focus" | "goals" | "strategy">("focus");
   const [goalDraft, setGoalDraft] = useState<GoalDraft>(emptyGoalDraft);
   const [planDraft, setPlanDraft] = useState<PlanDraft>(emptyPlanDraft);
+  const [strategyRaw, setStrategyRaw] = useState("");
+  const [strategyError, setStrategyError] = useState<string | null>(null);
+  const [strategyFeedback, setStrategyFeedback] = useState<string | null>(null);
   const [goalComposerOpen, setGoalComposerOpen] = useState(false);
   const [planComposerOpen, setPlanComposerOpen] = useState(false);
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    void Promise.all([api.listDebts(), api.listObligations()]).then(([nextDebts, nextObligations]) => {
+    void Promise.all([api.listDebts(), api.listObligations(), api.getSetup()]).then(([nextDebts, nextObligations, nextSetup]) => {
       setDebts(nextDebts);
       setObligations(nextObligations);
+      setSetupPayload(nextSetup);
+      setStrategyRaw(nextSetup.strategy_document ? JSON.stringify(nextSetup.strategy_document, null, 2) : "");
     });
   }, []);
 
@@ -380,13 +395,23 @@ export default function RoadmapPage() {
     ],
     [debts, obligations],
   );
+  const goalSections = useMemo(() => getGoalSections(snapshot?.roadmap.goals ?? []), [snapshot?.roadmap.goals]);
 
-  async function sync(task: () => Promise<unknown>) {
+  async function sync(task: () => Promise<unknown>, successTitle: string, errorTitle: string) {
     setPending(true);
     try {
       await task();
       notifyDecisionChanged();
       await refresh();
+      pushFeedback({ tone: "success", title: successTitle });
+      return true;
+    } catch (error) {
+      pushFeedback({
+        tone: "error",
+        title: errorTitle,
+        description: error instanceof Error ? error.message : "Try again in a moment.",
+      });
+      return false;
     } finally {
       setPending(false);
     }
@@ -394,39 +419,87 @@ export default function RoadmapPage() {
 
   async function createGoal() {
     if (!goalDraft.title.trim()) return;
-    await sync(() =>
-      api.createRoadmapGoal({
-        title: goalDraft.title.trim(),
-        description: goalDraft.description.trim(),
-        status: "active",
-        priority: goalDraft.priority,
-        target_date: goalDraft.targetDate || null,
-        linked_type: goalDraft.linkedType || null,
-        linked_id: goalDraft.linkedId || null,
-        metric_kind: null,
-        metric_start_value: null,
-        metric_current_value: null,
-        metric_target_value: null,
-      }),
+    const created = await sync(
+      () =>
+        api.createRoadmapGoal({
+          title: goalDraft.title.trim(),
+          description: goalDraft.description.trim(),
+          status: "active",
+          priority: goalDraft.priority,
+          target_date: goalDraft.targetDate || null,
+          linked_type: goalDraft.linkedType || null,
+          linked_id: goalDraft.linkedId || null,
+          metric_kind: null,
+          metric_start_value: null,
+          metric_current_value: null,
+          metric_target_value: null,
+        }),
+      "Goal added.",
+      "Could not add goal.",
     );
-    setGoalDraft(emptyGoalDraft);
-    setGoalComposerOpen(false);
+    if (created) {
+      setGoalDraft(emptyGoalDraft);
+      setGoalComposerOpen(false);
+    }
   }
 
   async function createPlan() {
     if (!planDraft.label.trim() || !planDraft.amount) return;
-    await sync(() =>
-      api.createIncomePlan({
-        label: planDraft.label.trim(),
-        amount: Number(planDraft.amount),
-        expected_on: planDraft.expectedOn || null,
-        is_reliable: planDraft.isReliable,
-        status: "planned",
-        notes: planDraft.notes.trim() || null,
-      }),
+    const created = await sync(
+      () =>
+        api.createIncomePlan({
+          label: planDraft.label.trim(),
+          amount: Number(planDraft.amount),
+          expected_on: planDraft.expectedOn || null,
+          is_reliable: planDraft.isReliable,
+          status: "planned",
+          notes: planDraft.notes.trim() || null,
+        }),
+      "Paycheck plan added.",
+      "Could not add paycheck plan.",
     );
-    setPlanDraft(emptyPlanDraft);
-    setPlanComposerOpen(false);
+    if (created) {
+      setPlanDraft(emptyPlanDraft);
+      setPlanComposerOpen(false);
+    }
+  }
+
+  async function handleStrategySave() {
+    if (!setupPayload) return;
+    setPending(true);
+    setStrategyError(null);
+    setStrategyFeedback(null);
+
+    try {
+      let nextDocument: Record<string, unknown> | null = null;
+      if (strategyRaw.trim()) {
+        const parsed = parseStrategyDocument(strategyRaw);
+        if (!parsed.document) {
+          setStrategyError(parsed.errors[0] ?? "Strategy JSON is invalid.");
+          return;
+        }
+        nextDocument = parsed.document as Record<string, unknown>;
+      }
+
+      const nextSetup = { ...setupPayload, strategy_document: nextDocument };
+      await api.saveSetup(nextSetup);
+      setSetupPayload(nextSetup);
+      setStrategyFeedback(nextDocument ? "Strategy JSON saved." : "Strategy JSON cleared.");
+      notifyDecisionChanged();
+      await refresh();
+      pushFeedback({
+        tone: "success",
+        title: nextDocument ? "Strategy saved." : "Strategy cleared.",
+      });
+    } catch (error) {
+      pushFeedback({
+        tone: "error",
+        title: "Could not save strategy.",
+        description: error instanceof Error ? error.message : "Try again in a moment.",
+      });
+    } finally {
+      setPending(false);
+    }
   }
 
   if (loading && !snapshot) {
@@ -465,6 +538,27 @@ export default function RoadmapPage() {
             </div>
           }
         />
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {[
+            { key: "focus" as const, label: "Focus" },
+            { key: "goals" as const, label: "Goals" },
+            { key: "strategy" as const, label: "Strategy" },
+          ].map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setMode(item.key)}
+              className={
+                item.key === mode
+                  ? "rounded-full bg-white px-4 py-2 text-sm font-medium text-ink"
+                  : "rounded-full border border-white/16 bg-white/8 px-4 py-2 text-sm font-medium text-white"
+              }
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
 
         <div className="mt-5 grid gap-3 md:grid-cols-4">
           <Panel className="bg-white/10 text-white">
@@ -567,77 +661,194 @@ export default function RoadmapPage() {
         ) : null}
       </Panel>
 
-      <RoadmapCopilotPanel
-        onPlanningChanged={async () => {
-          notifyDecisionChanged();
-          await refresh();
-        }}
-      />
+      {mode === "focus" ? (
+        <>
+          <RoadmapCopilotPanel
+            onPlanningChanged={async () => {
+              notifyDecisionChanged();
+              await refresh();
+            }}
+          />
 
-      <section className="space-y-3">
-        <SectionHeading eyebrow="Paycheck plans" title="Put expected income in order before it lands" description="Each plan should show how the next reliable money gets committed." />
-        {snapshot?.roadmap.plans.length ? (
-          <div className="space-y-3">
-            {snapshot.roadmap.plans.map((plan) => (
-              <IncomePlanCard
-                key={plan.id}
-                plan={plan}
-                debts={debts}
-                obligations={obligations}
-                onCreateAllocation={(planId, draft) =>
-                  sync(() =>
-                    api.createIncomePlanAllocation({
-                      income_plan_id: planId,
-                      label: draft.label.trim(),
-                      allocation_type: draft.allocationType,
-                      amount: Number(draft.amount),
-                      sort_order: plan.allocations.length,
-                      linked_type: draft.linkedType || null,
-                      linked_id: draft.linkedId || null,
-                      notes: null,
-                    }),
-                  )
-                }
-              />
-            ))}
-          </div>
-        ) : (
-          <Panel className="border-dashed bg-white/56 text-sm text-muted">No paycheck plan yet. Add the next reliable income and break it into explicit moves.</Panel>
-        )}
-      </section>
-      <section className="space-y-3">
-        <SectionHeading eyebrow="Goals" title="Active outcomes with real step progress" description="Goals stay here only if they change what you need to do with money next." />
-        {snapshot?.roadmap.goals.length ? (
-          <div className="space-y-3">
-            {snapshot.roadmap.goals.map((goal) => (
-              <GoalCard
-                key={goal.id}
-                goal={goal}
-                debts={debts}
-                obligations={obligations}
-                onGoalUpdate={(goalId, patch) => sync(() => api.updateRoadmapGoal(goalId, patch))}
-                onCreateStep={(goalId, draft) =>
-                  sync(() =>
-                    api.createRoadmapStep({
-                      goal_id: goalId,
-                      title: draft.title,
-                      status: "todo",
-                      due_on: draft.dueOn || null,
-                      sort_order: goal.steps.length,
-                      linked_type: null,
-                      linked_id: null,
-                      notes: null,
-                    }),
-                  )
-                }
-                onUpdateStep={(stepId, patch) => sync(() => api.updateRoadmapStep(stepId, patch))}
-              />
-            ))}
-          </div>
-        ) : (
-          <Panel className="border-dashed bg-white/56 text-sm text-muted">No active goals yet. Add the one financial outcome that should shape your next few payments.</Panel>
-        )}
-      </section>
+          <section className="space-y-3">
+            <SectionHeading
+              eyebrow="Paycheck plans"
+              title="Put expected income in order before it lands"
+              description="Each plan should show how the next reliable money gets committed."
+            />
+            {snapshot?.roadmap.plans.length ? (
+              <div className="space-y-3">
+                {snapshot.roadmap.plans.map((plan) => (
+                  <IncomePlanCard
+                    key={plan.id}
+                    plan={plan}
+                    debts={debts}
+                    obligations={obligations}
+                    onCreateAllocation={(planId, draft) =>
+                      sync(
+                        () =>
+                          api.createIncomePlanAllocation({
+                            income_plan_id: planId,
+                            label: draft.label.trim(),
+                            allocation_type: draft.allocationType,
+                            amount: Number(draft.amount),
+                            sort_order: plan.allocations.length,
+                            linked_type: draft.linkedType || null,
+                            linked_id: draft.linkedId || null,
+                            notes: null,
+                          }),
+                        "Allocation added.",
+                        "Could not add allocation.",
+                      )
+                    }
+                  />
+                ))}
+              </div>
+            ) : (
+              <Panel className="border-dashed bg-white/56 text-sm text-muted">
+                No paycheck plan yet. Add the next reliable income and break it into explicit moves.
+              </Panel>
+            )}
+          </section>
+        </>
+      ) : null}
+
+      {mode === "goals" ? (
+        <section className="space-y-4">
+          <SectionHeading
+            eyebrow="Goals"
+            title="Active outcomes with real step progress"
+            description="Goals stay here only if they change what you need to do with money next."
+          />
+          {goalSections.length ? (
+            goalSections.map((section) => (
+              <section key={section.key} className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.24em] text-muted">{section.key}</p>
+                    <p className="mt-1 text-sm text-muted">
+                      {section.key === "active"
+                        ? "The goals shaping current payment order."
+                        : section.key === "planned"
+                          ? "Outcomes queued behind live pressure."
+                          : "Completed goals kept out of the main execution path."}
+                    </p>
+                  </div>
+                  <Badge>{section.goals.length}</Badge>
+                </div>
+                <div className="space-y-3">
+                  {section.goals.map((goal) => (
+                    <GoalCard
+                      key={goal.id}
+                      goal={goal}
+                      debts={debts}
+                      obligations={obligations}
+                      onGoalUpdate={async (goalId, patch) => {
+                        await sync(() => api.updateRoadmapGoal(goalId, patch), "Goal updated.", "Could not update goal.");
+                      }}
+                      onCreateStep={(goalId, draft) =>
+                        sync(
+                          () =>
+                            api.createRoadmapStep({
+                              goal_id: goalId,
+                              title: draft.title,
+                              status: "todo",
+                              due_on: draft.dueOn || null,
+                              sort_order: goal.steps.length,
+                              linked_type: null,
+                              linked_id: null,
+                              notes: null,
+                            }),
+                          "Step added.",
+                          "Could not add step.",
+                        )
+                      }
+                      onUpdateStep={async (stepId, patch) => {
+                        await sync(() => api.updateRoadmapStep(stepId, patch), "Step updated.", "Could not update step.");
+                      }}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))
+          ) : (
+            <Panel className="border-dashed bg-white/56 text-sm text-muted">
+              No active goals yet. Add the one financial outcome that should shape your next few payments.
+            </Panel>
+          )}
+        </section>
+      ) : null}
+
+      {mode === "strategy" ? (
+        <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+          <Panel className="space-y-4">
+            <SectionHeading
+              eyebrow="Strategy JSON"
+              title="Keep the strategy document close to the roadmap"
+              description="This is advisory planning input, not ledger truth. Save only when the JSON is valid."
+              action={
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="ghost"
+                    disabled={pending}
+                    onClick={() => setStrategyRaw(setupPayload?.strategy_document ? JSON.stringify(setupPayload.strategy_document, null, 2) : "")}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Reload
+                  </Button>
+                  <Button disabled={pending} onClick={() => void handleStrategySave()}>
+                    {pending ? "Saving..." : "Save strategy JSON"}
+                  </Button>
+                </div>
+              }
+            />
+            <Textarea
+              rows={22}
+              value={strategyRaw}
+              onChange={(event) => {
+                setStrategyFeedback(null);
+                setStrategyError(null);
+                setStrategyRaw(event.target.value);
+              }}
+              placeholder='Paste or edit strategy JSON. Leave blank to clear it.'
+              className="font-mono text-xs leading-6"
+            />
+            {strategyError ? (
+              <div className="rounded-[18px] border border-[rgba(165,57,42,0.2)] bg-[rgba(165,57,42,0.06)] px-4 py-3 text-sm text-ink">
+                {strategyError}
+              </div>
+            ) : null}
+            {strategyFeedback ? (
+              <div className="rounded-[18px] border border-[rgba(61,111,94,0.18)] bg-[rgba(61,111,94,0.08)] px-4 py-3 text-sm text-ink">
+                {strategyFeedback}
+              </div>
+            ) : null}
+          </Panel>
+
+          <Panel className="space-y-4">
+            <SectionHeading
+              eyebrow="Why keep it here"
+              title="Strategy should stay visible while you plan"
+              description="The roadmap uses this as advisory input when you want a structured planning layer without mutating money history."
+            />
+            <div className="grid gap-3">
+              <div className="rounded-[22px] border border-line bg-[rgba(255,255,255,0.62)] p-4">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Active goals</p>
+                <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{snapshot?.roadmap.goals.length ?? 0}</p>
+              </div>
+              <div className="rounded-[22px] border border-line bg-[rgba(255,255,255,0.62)] p-4">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Paycheck plans</p>
+                <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{snapshot?.roadmap.plans.length ?? 0}</p>
+              </div>
+              <div className="rounded-[22px] border border-line bg-[rgba(255,255,255,0.62)] p-4">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Current focus</p>
+                <p className="mt-2 text-base font-semibold tracking-tight text-ink">{snapshot?.focus.primaryAction?.title ?? "No focus yet"}</p>
+                <p className="mt-2 text-sm leading-6 text-muted">{snapshot?.focus.whyNow ?? "No advisory context loaded yet."}</p>
+              </div>
+            </div>
+          </Panel>
+        </div>
+      ) : null}
 
     </div>
   );

@@ -3,6 +3,7 @@
 import { ArrowRight, LogOut, RefreshCw, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useFeedback } from "@/components/feedback-provider";
 import { ContextExportPanel } from "@/components/context-export-panel";
 import { RoadmapImportPanel } from "@/components/roadmap-import-panel";
 import { Badge, Button, Panel, SectionHeading, cn } from "@/components/ui";
@@ -14,6 +15,7 @@ import { getSettingsSections, type SettingsSectionId } from "@/lib/settings-view
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { pushFeedback } = useFeedback();
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("roadmap_setup");
   const [relaunchPending, setRelaunchPending] = useState(false);
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -41,6 +43,16 @@ export default function SettingsPage() {
     try {
       await api.upsertSetting(key, String(next));
       setSettings((current) => ({ ...current, [key]: String(next) }));
+      pushFeedback({
+        tone: "success",
+        title: next ? "Dashboard block shown." : "Dashboard block hidden.",
+      });
+    } catch (error) {
+      pushFeedback({
+        tone: "error",
+        title: "Could not update dashboard setting.",
+        description: error instanceof Error ? error.message : "Try again in a moment.",
+      });
     } finally {
       setSettingsPending(null);
     }
@@ -60,6 +72,16 @@ export default function SettingsPage() {
     try {
       await api.relaunchPlanning();
       notifyDecisionChanged();
+      pushFeedback({
+        tone: "success",
+        title: "Planning memory relaunched.",
+      });
+    } catch (error) {
+      pushFeedback({
+        tone: "error",
+        title: "Could not relaunch planning memory.",
+        description: error instanceof Error ? error.message : "Try again in a moment.",
+      });
     } finally {
       setRelaunchPending(false);
     }

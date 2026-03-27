@@ -259,6 +259,7 @@ export type BackendFreeCashAmount = {
     debt_minimums_due_within_horizon: number;
     essentials_reserve_within_horizon: number;
     reliable_income_within_horizon: number;
+    expected_income_within_horizon?: number;
     extra_allocations_within_horizon: number;
   };
 };
@@ -626,6 +627,15 @@ export type BackendDebt = {
   notes?: string | null;
 };
 
+export type BackendDebtUpdatePayload = {
+  name?: string | null;
+  balance?: number;
+  minimum_payment?: number;
+  due_on?: string | null;
+  status?: BackendDebt["status"];
+  notes?: string | null;
+};
+
 export type BackendObligation = {
   id: string;
   owner_id: string;
@@ -637,6 +647,16 @@ export type BackendObligation = {
   frequency: "one_time" | "weekly" | "biweekly" | "monthly" | "yearly";
   is_paid: boolean;
   is_recurring: boolean;
+  notes?: string | null;
+};
+
+export type BackendObligationUpdatePayload = {
+  name?: string | null;
+  amount?: number;
+  due_on?: string | null;
+  frequency?: BackendObligation["frequency"];
+  is_paid?: boolean;
+  is_recurring?: boolean;
   notes?: string | null;
 };
 
@@ -737,13 +757,17 @@ function requestErrorMessage(path: string) {
   return `Request failed for ${path}`;
 }
 
+function normalizeLoopbackHost(hostname: string) {
+  return hostname === "0.0.0.0" ? "localhost" : hostname;
+}
+
 function resolveBrowserAwareBaseUrl(baseUrl: string) {
   if (!baseUrl || typeof window === "undefined") return baseUrl;
   if (process.env.NODE_ENV === "production") return baseUrl;
 
   try {
     const parsed = new URL(baseUrl);
-    const currentHost = window.location.hostname;
+    const currentHost = normalizeLoopbackHost(window.location.hostname);
     const currentProtocol = window.location.protocol;
     const isLoopbackTarget =
       parsed.hostname === "localhost" ||
@@ -754,7 +778,7 @@ function resolveBrowserAwareBaseUrl(baseUrl: string) {
       currentHost === "127.0.0.1" ||
       currentHost === "0.0.0.0";
 
-    if (isLoopbackTarget && !isLoopbackViewer) {
+    if (isLoopbackTarget) {
       parsed.hostname = currentHost;
       parsed.protocol = currentProtocol;
       return parsed.toString().replace(/\/$/, "");
@@ -770,7 +794,21 @@ async function safeJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
     throw new Error(`Request failed with ${response.status}`);
   }
-  return response.json() as Promise<T>;
+
+  if (response.status === 204 || response.headers.get("content-length") === "0") {
+    return null as T;
+  }
+
+  const text = await response.text();
+  if (!text.trim()) {
+    return null as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error("Invalid JSON response");
+  }
 }
 
 export function createApiClient(options: ApiClientOptions = {}) {
@@ -929,7 +967,44 @@ export function createApiClient(options: ApiClientOptions = {}) {
     searchSources: (query: string) => get<string[]>(`/suggestions/sources?q=${encodeURIComponent(query)}`, []),
     listTasks: () => get<BackendTask[]>("/tasks", [], { required: true }),
     listDebts: () => get<BackendDebt[]>("/debts", [], { required: true }),
+    updateDebt: (debtId: string, payload: BackendDebtUpdatePayload) =>
+      patch<BackendDebt>(
+        `/debts/${debtId}`,
+        payload,
+        {
+          id: debtId,
+          owner_id: "",
+          created_at: "",
+          updated_at: "",
+          name: payload.name ?? "",
+          balance: payload.balance ?? 0,
+          minimum_payment: payload.minimum_payment ?? 0,
+          due_on: payload.due_on ?? null,
+          status: payload.status ?? "active",
+          notes: payload.notes ?? null,
+        },
+        { required: true },
+      ),
     listObligations: () => get<BackendObligation[]>("/obligations", [], { required: true }),
+    updateObligation: (obligationId: string, payload: BackendObligationUpdatePayload) =>
+      patch<BackendObligation>(
+        `/obligations/${obligationId}`,
+        payload,
+        {
+          id: obligationId,
+          owner_id: "",
+          created_at: "",
+          updated_at: "",
+          name: payload.name ?? "",
+          amount: payload.amount ?? 0,
+          due_on: payload.due_on ?? new Date().toISOString().slice(0, 10),
+          frequency: payload.frequency ?? "one_time",
+          is_paid: payload.is_paid ?? false,
+          is_recurring: payload.is_recurring ?? false,
+          notes: payload.notes ?? null,
+        },
+        { required: true },
+      ),
     listAccounts: () => get<BackendAccount[]>("/accounts", [], { required: true }),
     createAccount: (payload: BackendAccountCreatePayload) =>
       post<BackendAccount>(

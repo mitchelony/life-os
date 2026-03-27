@@ -23,15 +23,38 @@ def build_available_spend_input(
     debts: Sequence[object],
     reserves: Sequence[object],
     income_entries: Sequence[object],
+    income_plans: Sequence[object] = (),
+    transactions: Sequence[object] = (),
     settings: dict[str, str],
 ) -> AvailableSpendInput:
     next_income_dates = [
         entry.expected_on
         for entry in income_entries
         if getattr(entry, "expected_on", None) and getattr(entry, "status", None) == IncomeStatus.expected
+    ] + [
+        plan.expected_on
+        for plan in income_plans
+        if getattr(plan, "expected_on", None)
+        and getattr(plan, "is_reliable", False)
+        and getattr(plan, "status", None) not in {"cancelled", "received"}
     ]
     next_income_date = min(next_income_dates) if next_income_dates else None
-    liquid_cash = sum(float(account.balance) for account in accounts if account.type.value in {"checking", "savings", "cash"})
+    balances = {
+        account.id: float(account.balance)
+        for account in accounts
+        if account.type.value in {"checking", "savings", "cash"}
+    }
+    for transaction in transactions:
+        account_id = getattr(transaction, "account_id", None)
+        if account_id not in balances:
+            continue
+        amount = float(getattr(transaction, "amount", 0) or 0)
+        kind = getattr(getattr(transaction, "kind", None), "value", getattr(transaction, "kind", None))
+        if kind == "income":
+            balances[account_id] += amount
+        elif kind == "expense":
+            balances[account_id] -= amount
+    liquid_cash = sum(balances.values())
     manual_reserves = sum(float(reserve.amount) for reserve in reserves if getattr(reserve, "is_active", True))
     obligations_due = sum(
         float(item.amount)
