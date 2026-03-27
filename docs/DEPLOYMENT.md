@@ -104,7 +104,7 @@ If you use a non-`app` subdomain, use the real production web origin everywhere 
    - sign back in
    - context export
    - expected income confirm
-   - roadmap save/load
+   - roadmap copilot draft/revise/approve
    - roadmap import `v2`
 
 ## Production Smoke Test Checklist
@@ -116,6 +116,7 @@ If you use a non-`app` subdomain, use the real production web origin everywhere 
 - logout returns to `/login`
 - dashboard no longer references localhost
 - browser network requests target `https://api.<your-domain>/api/...`
+- roadmap copilot requests return real API responses instead of browser-level `404` or CORS failures
 - roadmap import requests return real API errors instead of browser-level CORS failures
 - `/healthz` responds with `Access-Control-Allow-Origin` for the deployed Vercel origin when tested with an `Origin` header
 

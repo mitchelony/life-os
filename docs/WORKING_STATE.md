@@ -30,9 +30,10 @@ This file is the compact handoff for new threads.
   - `Roadmap setup`
   - `Onboarding`
   - `Useful settings`
-- `Roadmap setup` now owns:
+- `Roadmap setup` now keeps the manual fallback tools:
   - GPT context export
   - roadmap import schema `v2`
+- The primary roadmap drafting flow now lives on the `Roadmap` page through the copilot review surface.
 - Expected income now has its own `Income` route outside onboarding.
 
 ## Auth State
@@ -137,11 +138,13 @@ This file is the compact handoff for new threads.
 ## Roadmap UX State
 
 - Roadmap is a cash-flow-first planning surface.
+- The Roadmap page now includes the primary copilot review flow for draft, revise, approve, deny, and emergency-expense replanning.
 - The `Focus / Goals / Strategy` toggle must remain visible.
 - Strategy JSON input must remain accessible in `Strategy` mode.
 - The page should feel centered and full, not sparse.
 - Secondary detail belongs lower on the page, not above the main decision content.
 - Bulk roadmap setup should be available in `Settings`, not buried inside onboarding.
+- Settings now holds the manual export/import fallback rather than the primary roadmap drafting flow.
 - The canonical bulk seed contract is roadmap import schema `v2`.
 - GPT-pasted roadmap JSON may contain smart quotes; the frontend import flow should normalize them before parse when safe to do so.
 - Import files should preserve explicit linked ids for real records and use temp ids only for in-file dependencies.
@@ -209,6 +212,7 @@ This file is the compact handoff for new threads.
 - Settings owns the main setup and reset workflows.
 - Expected income has a dedicated route instead of living only in onboarding.
 - Context export plus roadmap import schema `v2` form the GPT-assisted setup path.
+- Roadmap copilot drafts now flow through backend-owned approval before import rather than copy/paste as the primary path.
 - Dashboard and roadmap both read from shared backend planning state.
 - The main remaining sharp edge is operational, not conceptual:
   - hosted migrations must stay in sync with importer fields before deploys

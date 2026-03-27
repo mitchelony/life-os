@@ -228,7 +228,7 @@ The second number may include expected, reliable income before the current plann
 - dashboard preferences
 - initial setup state
 - GPT context export
-- roadmap import schema `v2`
+- roadmap import schema `v2` as a manual fallback
 - planning relaunch
 
 ### Roadmap Strategy
@@ -237,6 +237,7 @@ The roadmap strategy layer should:
 
 - accept a strict JSON planning schema
 - prefer roadmap import schema `v2` for bulk setup
+- use an approval-first copilot flow on the Roadmap page as the primary drafting path
 - guide payment order and debt/obligation handling
 - influence guidance across the dashboard, debts, obligations, and tasks
 - stay advisory only during MVP

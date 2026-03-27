@@ -189,6 +189,7 @@ The planning snapshot is backend-owned.
 Important current rules:
 
 - dashboard, roadmap, debts, obligations, and actions consume the same server snapshot
+- roadmap copilot drafts are backend-owned and approval-gated before import
 - inactive items should stop feeding live priority
 - inactive actions are:
   - `done`
@@ -197,7 +198,7 @@ Important current rules:
 - inactive actions should move to the bottom of the action list
 - action lanes are derived from dates rather than trusting stale saved grouping
 - expected income confirmation converts planned money into real transaction history
-- planning relaunch clears planning layers and income/transaction history while preserving accounts, debts, and obligations
+- planning relaunch clears planning layers and transaction history while preserving accounts, debts, obligations, expected income entries, and income sources
 
 ## Auth Model
 
@@ -220,13 +221,13 @@ The current frontend still uses a lightweight client-side session store instead 
 - `Quick Add`
   - amount-first money entry
 - `Roadmap`
-  - cash-flow-first planning and strategy
+  - cash-flow-first planning and strategy, including the primary copilot draft/review flow
 - `Income`
   - expected income management and confirmation
 - `Actions`
   - short follow-up actions, not a duplicate roadmap
 - `Settings`
-  - preferences, onboarding edits, GPT context export, roadmap import, and relaunch
+  - preferences, onboarding edits, manual GPT context export/import fallback, and relaunch
 
 ### Mobile Direction
 
