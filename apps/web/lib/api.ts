@@ -1389,13 +1389,17 @@ export function createApiClient(options: ApiClientOptions = {}) {
         draft: normalizeRoadmapCopilotDraftResponse(response.draft),
       };
     },
-    denyRoadmapCopilotDraft: (draftId: string) =>
-      post<BackendRoadmapCopilotDenyResponse>(
+    denyRoadmapCopilotDraft: async (draftId: string) => {
+      const response = await post<BackendRoadmapCopilotDenyResponse>(
         "/roadmap/copilot/deny",
         { draft_id: draftId },
         { draft: null },
         { required: true },
-      ),
+      );
+      return {
+        draft: response.draft ? normalizeRoadmapCopilotDraftResponse(response.draft) : null,
+      };
+    },
     submitRoadmapCopilotEmergencyExpense: async (payload: BackendRoadmapCopilotEmergencyExpenseRequest) => {
       const response = await post<BackendRoadmapCopilotEmergencyExpenseResponse>(
         "/roadmap/copilot/emergency-expense",

@@ -159,6 +159,25 @@ def test_copilot_deny_clears_the_current_draft_without_changing_planning_state(d
     assert stored.status == "denied"
 
 
+def test_copilot_deny_is_idempotent_for_an_inactive_draft(db_session, monkeypatch) -> None:
+    owner_id = "owner-copilot-deny-idempotent"
+    _seed_owner_context(db_session, owner_id)
+    _use_heuristic_planner(monkeypatch)
+    client = _client(db_session, monkeypatch, owner_id)
+
+    draft = client.post("/api/roadmap/copilot/draft", json={"message": "Give me a plan."}).json()
+
+    first = client.post("/api/roadmap/copilot/deny", json={"draft_id": draft["draft_id"]})
+    second = client.post("/api/roadmap/copilot/deny", json={"draft_id": draft["draft_id"]})
+
+    assert first.status_code == 200
+    assert first.json()["draft"] is None
+    assert second.status_code == 200
+    assert second.json()["draft"] is None
+    stored = db_session.query(PlannerDraft).filter(PlannerDraft.owner_id == owner_id).one()
+    assert stored.status == "denied"
+
+
 def test_copilot_emergency_expense_records_a_real_transaction_and_returns_a_fresh_draft(db_session, monkeypatch) -> None:
     owner_id = "owner-copilot-emergency"
     _seed_owner_context(db_session, owner_id)

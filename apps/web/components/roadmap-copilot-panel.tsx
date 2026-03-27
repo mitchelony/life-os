@@ -439,11 +439,11 @@ export function RoadmapCopilotPanel({ onPlanningChanged }: { onPlanningChanged: 
       onDeny={() =>
         void run(async () => {
           if (!draft) return;
-          await api.denyRoadmapCopilotDraft(draft.draft_id);
-          setDraft(null);
+          const response = await api.denyRoadmapCopilotDraft(draft.draft_id);
+          setDraft(response.draft);
           setAdjustmentOpen(false);
           setRevisionNote("");
-          setFeedback("Draft denied. The live roadmap was left unchanged.");
+          setFeedback(response.draft ? "This draft was already inactive. The latest active draft is now shown." : "Draft denied. The live roadmap was left unchanged.");
         })
       }
       onEmergencyToggle={() => {

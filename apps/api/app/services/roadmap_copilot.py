@@ -91,10 +91,11 @@ class RoadmapCopilotService:
         return RoadmapCopilotApproveResponse(draft=self._serialize_draft(approved), import_result=import_result)
 
     def deny(self, draft_id: str) -> RoadmapCopilotDenyResponse:
-        row = self._get_draft_or_raise(draft_id)
-        row.status = "denied"
-        self.db.commit()
-        return RoadmapCopilotDenyResponse(draft=None)
+        row = self._get_draft_by_id_or_raise(draft_id)
+        if row.status == "draft":
+            row.status = "denied"
+            self.db.commit()
+        return self.current().model_copy()
 
     def emergency_expense(self, payload: RoadmapCopilotEmergencyExpenseRequest) -> RoadmapCopilotEmergencyExpenseResponse:
         quick_add = QuickAddService(self.db, self.owner_id).submit(
@@ -120,17 +121,20 @@ class RoadmapCopilotService:
         return RoadmapCopilotEmergencyExpenseResponse(quick_add=quick_add, draft=draft)
 
     def _get_draft_or_raise(self, draft_id: str) -> PlannerDraft:
+        row = self._get_draft_by_id_or_raise(draft_id)
+        if row.status != "draft":
+            raise ValueError("Draft is no longer active")
+        return row
+
+    def _get_draft_by_id_or_raise(self, draft_id: str) -> PlannerDraft:
         try:
-            row = (
+            return (
                 self.db.query(PlannerDraft)
                 .filter(PlannerDraft.owner_id == self.owner_id, PlannerDraft.id == draft_id)
                 .one()
             )
         except NoResultFound as exc:
             raise ValueError("Draft not found") from exc
-        if row.status != "draft":
-            raise ValueError("Draft is no longer active")
-        return row
 
     def _supersede_active_drafts(self) -> None:
         active = self.db.query(PlannerDraft).filter(PlannerDraft.owner_id == self.owner_id, PlannerDraft.status == "draft").all()
