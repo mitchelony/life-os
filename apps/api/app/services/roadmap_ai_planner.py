@@ -78,15 +78,69 @@ def _allow_income_rewrite(message: str) -> bool:
     return mentions_income and mentions_change
 
 
-def _normalize_model_output(proposal: RoadmapAiPlannerOutput, *, message: str) -> RoadmapAiPlannerOutput:
+def _is_payment_order_request(message: str) -> bool:
+    normalized = message.lower()
+    explicit_phrases = (
+        "payment order",
+        "pay order",
+        "what gets paid first",
+        "paycheck plan",
+        "income plan",
+        "allocation order",
+    )
+    if any(phrase in normalized for phrase in explicit_phrases):
+        return True
+
+    mentions_income = any(term in normalized for term in ("income", "paycheck", "pay day", "payday"))
+    mentions_priority = any(term in normalized for term in ("first", "order", "priority", "sequence"))
+    mentions_payment = any(term in normalized for term in ("pay", "payment", "bill", "obligation", "debt", "allocation"))
+    return mentions_income and mentions_priority and mentions_payment
+
+
+def _build_required_income_plans(context: ContextExportPayload) -> list[RoadmapImportV2IncomePlan]:
+    expected_income = sorted(
+        [entry for entry in context.expected_income_entries if _enum_value(entry.status) == "expected"],
+        key=lambda item: (item.expected_on or date.max, item.created_at),
+    )
+    plans: list[RoadmapImportV2IncomePlan] = []
+    for index, entry in enumerate(expected_income):
+        plans.append(
+            RoadmapImportV2IncomePlan(
+                temp_id=f"auto-income-plan-{index + 1}",
+                label=f"{entry.source_name} paycheck plan",
+                amount=float(entry.amount),
+                expected_on=entry.expected_on,
+                is_reliable=bool(entry.is_reliable),
+                status="planned",
+                priority="critical" if index == 0 else "high",
+                recommended_step="Cover required bills first, then extras.",
+                remaining_unallocated_amount=float(entry.amount),
+                source_income_entry_id=entry.id,
+                notes="Auto-generated because the payment-order draft omitted paycheck plans.",
+                allocations=[],
+            )
+        )
+    return plans
+
+
+def _normalize_model_output(proposal: RoadmapAiPlannerOutput, *, message: str, context: ContextExportPayload) -> RoadmapAiPlannerOutput:
+    warnings = list(proposal.warnings)
+    income_plans = proposal.payload.income_plans
+    if _is_payment_order_request(message) and context.expected_income_entries and not income_plans:
+        income_plans = _build_required_income_plans(context)
+        warnings.append(
+            "Added paycheck plans from expected income so payment-order drafts always include income plan coverage."
+        )
+
     payload = proposal.payload.model_copy(
         update={
             "version": 2,
             "reset_planning_first": True,
             "expected_income_entries": proposal.payload.expected_income_entries if _allow_income_rewrite(message) else [],
+            "income_plans": income_plans,
         }
     )
-    return proposal.model_copy(update={"payload": payload})
+    return proposal.model_copy(update={"payload": payload, "warnings": warnings})
 
 
 @dataclass(slots=True)
@@ -113,7 +167,7 @@ class AdaptiveRoadmapPlanner:
                 }
             )
 
-        return _normalize_model_output(proposal, message=message)
+        return _normalize_model_output(proposal, message=message, context=context)
 
 
 @dataclass(slots=True)
@@ -498,6 +552,7 @@ class OpenAIResponsesRoadmapPlannerClient:
             "- Return a complete replacement planning payload in roadmap import schema v2.\n"
             "- Keep reset_planning_first true.\n"
             "- Preserve expected income entries by default unless the user explicitly asks to rewrite income planning.\n"
+            "- If expected income exists and the request is about payment order (what gets paid first), include non-empty income_plans.\n"
             "- Keep top-level obligations and debts empty unless the user explicitly asks to replace those planning records.\n"
             "- Keep summary and rationale short and plain.\n\n"
             f"Response schema:\n{json.dumps(schema, indent=2)}\n\n"

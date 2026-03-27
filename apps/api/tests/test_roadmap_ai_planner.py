@@ -12,6 +12,7 @@ from app.schemas.domain import (
     DecisionFocus,
     DecisionSnapshot,
     FreeCashAmount,
+    IncomeEntryRead,
     ProgressSummary,
     RecentUpdate,
     RoadmapGoalSummary,
@@ -186,6 +187,65 @@ def test_adaptive_planner_surfaces_quota_failures_in_the_warning() -> None:
 
     assert any("quota" in warning.lower() for warning in proposal.warnings)
     assert any("fell back" in warning.lower() for warning in proposal.warnings)
+
+
+def test_adaptive_planner_backfills_income_plans_for_payment_order_drafts_when_expected_income_exists() -> None:
+    class FakeModelClient:
+        def plan(self, *, message, context, snapshot, today):
+            return RoadmapAiPlannerOutput(
+                summary="Payment-order draft",
+                rationale="Focus pay order by due date.",
+                warnings=[],
+                payload=_empty_payload(),
+            )
+
+    class FakeHeuristicPlanner:
+        def plan(self, *, message, context, snapshot):
+            return RoadmapAiPlannerOutput(
+                summary="Fallback",
+                rationale="Fallback rationale.",
+                warnings=[],
+                payload=_empty_payload(),
+            )
+
+    planner = AdaptiveRoadmapPlanner(model_client=FakeModelClient(), fallback_planner=FakeHeuristicPlanner())
+
+    context = _context_payload().model_copy(
+        update={
+            "expected_income_entries": [
+                IncomeEntryRead(
+                    id="income-1",
+                    owner_id="owner-1",
+                    created_at=datetime(2026, 3, 27, 8, 0, 0),
+                    updated_at=datetime(2026, 3, 27, 8, 0, 0),
+                    source_name="Payroll",
+                    amount=1200,
+                    status="expected",
+                    expected_on=date(2026, 3, 29),
+                    received_on=None,
+                    account_id=None,
+                    is_reliable=True,
+                    category="paycheck",
+                    linked_obligation_id=None,
+                    linked_debt_id=None,
+                    is_partial=False,
+                    parent_income_entry_id=None,
+                    notes=None,
+                )
+            ]
+        }
+    )
+
+    proposal = planner.plan(
+        message="Create the payment order for what gets paid first when paycheck lands.",
+        context=context,
+        snapshot=_decision_snapshot(),
+    )
+
+    assert len(proposal.payload.income_plans) == 1
+    assert proposal.payload.income_plans[0].source_income_entry_id == "income-1"
+    assert proposal.payload.income_plans[0].amount == 1200
+    assert any("payment-order drafts always include income plan" in warning for warning in proposal.warnings)
 
 
 def test_openai_responses_planner_client_parses_a_json_proposal() -> None:
