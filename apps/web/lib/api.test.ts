@@ -681,6 +681,36 @@ describe("createApiClient", () => {
     expect(headers.get("Authorization")).toBe("Bearer session-token");
   });
 
+  it("normalizes sparse roadmap copilot draft responses", async () => {
+    vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/roadmap/copilot/draft")) {
+        return new Response(
+          JSON.stringify({
+            draft_id: "draft-sparse",
+            status: "draft",
+            summary: "Sparse response",
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    const client = createApiClient({
+      baseUrl: "http://localhost:8000/api",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    const draft = await client.createRoadmapCopilotDraft("Help me fill in paycheck plans.");
+
+    expect(draft.draft_id).toBe("draft-sparse");
+    expect(draft.preview.goals).toEqual([]);
+    expect(draft.preview.income_plans).toEqual([]);
+    expect(draft.payload.income_plans).toEqual([]);
+    expect(draft.payload.actions).toEqual([]);
+  });
+
   it("posts emergency expense replans through the roadmap copilot endpoint", async () => {
     vi.spyOn(auth, "getAccessToken").mockResolvedValue("session-token");
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {

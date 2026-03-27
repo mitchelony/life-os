@@ -393,6 +393,42 @@ def test_decision_snapshot_dedupes_income_plan_when_linked_to_expected_income_en
     assert snapshot.free_after_planned_income.breakdown.expected_income_within_horizon == 0
 
 
+def test_decision_snapshot_dedupes_unlinked_income_plan_when_amount_and_date_match_expected_income(db_session) -> None:
+    owner_id = "owner-unlinked-income-dedupe"
+    today = date.today()
+
+    db_session.add_all(
+        [
+            Account(owner_id=owner_id, name="Checking", type="checking", balance=100),
+            IncomeEntry(
+                owner_id=owner_id,
+                source_name="Payroll",
+                amount=500,
+                status="expected",
+                expected_on=today + timedelta(days=3),
+            ),
+            IncomePlan(
+                owner_id=owner_id,
+                label="Payroll plan",
+                amount=500,
+                expected_on=today + timedelta(days=3),
+                is_reliable=True,
+                status="planned",
+                source_income_entry_id=None,
+            ),
+        ]
+    )
+    db_session.commit()
+
+    snapshot = DecisionEngineService(db_session, owner_id).build()
+
+    assert snapshot.free_now.amount == 100
+    assert snapshot.free_after_planned_income.amount == 600
+    assert snapshot.free_after_planned_income.breakdown.reliable_income_within_horizon == 500
+    assert snapshot.free_after_planned_income.breakdown.expected_income_within_horizon == 0
+    assert snapshot.cashflow_glance.next_14_planned_inflow == 500
+
+
 def test_decision_snapshot_uses_multiple_incomes_before_next_pressure_for_free_after(db_session) -> None:
     owner_id = "owner-multi-income-window"
     today = date.today()

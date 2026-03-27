@@ -380,12 +380,32 @@ export default function RoadmapPage() {
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    void Promise.all([api.listDebts(), api.listObligations(), api.getSetup()]).then(([nextDebts, nextObligations, nextSetup]) => {
-      setDebts(nextDebts);
-      setObligations(nextObligations);
-      setSetupPayload(nextSetup);
-      setStrategyRaw(nextSetup.strategy_document ? JSON.stringify(nextSetup.strategy_document, null, 2) : "");
-    });
+    let cancelled = false;
+
+    async function loadSupportingData() {
+      const [debtsResult, obligationsResult, setupResult] = await Promise.allSettled([
+        api.listDebts(),
+        api.listObligations(),
+        api.getSetup(),
+      ]);
+      if (cancelled) return;
+
+      if (debtsResult.status === "fulfilled") {
+        setDebts(debtsResult.value);
+      }
+      if (obligationsResult.status === "fulfilled") {
+        setObligations(obligationsResult.value);
+      }
+      if (setupResult.status === "fulfilled") {
+        setSetupPayload(setupResult.value);
+        setStrategyRaw(setupResult.value.strategy_document ? JSON.stringify(setupResult.value.strategy_document, null, 2) : "");
+      }
+    }
+
+    void loadSupportingData();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const linkedEntityOptions = useMemo(

@@ -82,6 +82,51 @@ def _effective_liquid_cash(accounts: list[Account], transactions: list[Transacti
     return _money(sum(balances.values()))
 
 
+def _matched_expected_income_ids(
+    income_entries: list[IncomeEntry],
+    income_plans: list[IncomePlan],
+    horizon: date,
+) -> set[str]:
+    today = _start_of_today()
+    matched_ids = {
+        plan.source_income_entry_id
+        for plan in income_plans
+        if plan.is_reliable
+        and plan.status not in INACTIVE_PLAN_STATUSES
+        and plan.expected_on
+        and today <= plan.expected_on <= horizon
+        and plan.source_income_entry_id
+    }
+
+    entry_ids_by_signature: dict[tuple[date, float], list[str]] = {}
+    for entry in income_entries:
+        if (
+            entry.status != IncomeStatus.expected
+            or not entry.expected_on
+            or not (today <= entry.expected_on <= horizon)
+            or entry.id in matched_ids
+        ):
+            continue
+        signature = (entry.expected_on, _money(float(entry.amount)))
+        entry_ids_by_signature.setdefault(signature, []).append(entry.id)
+
+    for plan in income_plans:
+        if (
+            not plan.is_reliable
+            or plan.status in INACTIVE_PLAN_STATUSES
+            or not plan.expected_on
+            or not (today <= plan.expected_on <= horizon)
+            or plan.source_income_entry_id
+        ):
+            continue
+        signature = (plan.expected_on, _money(float(plan.amount)))
+        candidates = entry_ids_by_signature.get(signature)
+        if candidates:
+            matched_ids.add(candidates.pop(0))
+
+    return matched_ids
+
+
 def _lane_from_due_date(due_on: date | None, today: date, fallback: str = "manual") -> str:
     if due_on is None:
         return fallback
@@ -286,15 +331,7 @@ class DecisionEngineService:
                 if plan.is_reliable and plan.status not in INACTIVE_PLAN_STATUSES and plan.expected_on and today <= plan.expected_on <= free_after_horizon
             )
         )
-        linked_expected_income_ids = {
-            plan.source_income_entry_id
-            for plan in income_plans
-            if plan.is_reliable
-            and plan.status not in INACTIVE_PLAN_STATUSES
-            and plan.expected_on
-            and today <= plan.expected_on <= free_after_horizon
-            and plan.source_income_entry_id
-        }
+        matched_expected_income_ids = _matched_expected_income_ids(income_entries, income_plans, free_after_horizon)
         expected_income = _money(
             sum(
                 float(entry.amount)
@@ -302,7 +339,7 @@ class DecisionEngineService:
                 if entry.status == IncomeStatus.expected
                 and entry.expected_on
                 and today <= entry.expected_on <= free_after_horizon
-                and entry.id not in linked_expected_income_ids
+                and entry.id not in matched_expected_income_ids
             )
         )
         debt_lookup = {item.id: item for item in debts}
@@ -603,12 +640,14 @@ class DecisionEngineService:
         trailing_expense = _money(
             sum(float(item.amount) for item in transactions if item.kind == TransactionKind.expense and trailing_start <= item.occurred_on <= today)
         )
+        matched_expected_income_ids = _matched_expected_income_ids(income_entries, income_plans, horizon)
         planned_inflow = _money(
             sum(float(plan.amount) for plan in income_plans if plan.status not in INACTIVE_PLAN_STATUSES and plan.expected_on and today <= plan.expected_on <= horizon)
             + sum(
                 float(entry.amount)
                 for entry in income_entries
                 if entry.status == IncomeStatus.expected and entry.expected_on and today <= entry.expected_on <= horizon
+                and entry.id not in matched_expected_income_ids
             )
         )
         required_outflow = _money(
