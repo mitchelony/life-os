@@ -138,7 +138,8 @@ class DecisionEngineService:
         events = self._safe_query_all(ActivityEvent, ActivityEvent.owner_id == self.owner_id, order_by=ActivityEvent.occurred_at.desc(), limit=12)
         snapshots = self._safe_query_all(ProgressSnapshot, ProgressSnapshot.owner_id == self.owner_id, order_by=ProgressSnapshot.snapshot_date.desc())
 
-        horizon = self._planning_horizon(income_plans, income_entries, obligations, debts)
+        free_now_horizon = self._free_now_horizon(income_plans, income_entries, obligations, debts)
+        free_after_horizon = self._free_after_horizon(income_plans, income_entries, obligations, debts)
         free_now, free_after = self._free_cash(
             accounts,
             obligations,
@@ -149,7 +150,8 @@ class DecisionEngineService:
             income_plans,
             allocations,
             transactions,
-            horizon,
+            free_now_horizon,
+            free_after_horizon,
         )
         synced_actions = self._sync_system_actions(actions, obligations, debts)
         goal_reads = self._goal_reads(goals, steps)
@@ -172,13 +174,11 @@ class DecisionEngineService:
             free_after_planned_income=free_after,
         )
 
-    def _planning_horizon(
+    def _income_dates(
         self,
         income_plans: list[IncomePlan],
         income_entries: list[IncomeEntry],
-        obligations: list[Obligation],
-        debts: list[Debt],
-    ) -> date:
+    ) -> list[date]:
         today = _start_of_today()
         reliable_income_dates = sorted(
             plan.expected_on
@@ -188,9 +188,19 @@ class DecisionEngineService:
         expected_income_dates = sorted(
             entry.expected_on for entry in income_entries if entry.status == IncomeStatus.expected and entry.expected_on and entry.expected_on >= today
         )
-        combined_income_dates = sorted([*reliable_income_dates, *expected_income_dates])
-        if combined_income_dates:
-            return combined_income_dates[0]
+        return sorted([*reliable_income_dates, *expected_income_dates])
+
+    def _free_now_horizon(
+        self,
+        income_plans: list[IncomePlan],
+        income_entries: list[IncomeEntry],
+        obligations: list[Obligation],
+        debts: list[Debt],
+    ) -> date:
+        today = _start_of_today()
+        income_dates = self._income_dates(income_plans, income_entries)
+        if income_dates:
+            return income_dates[0]
         requirement_dates = sorted(
             [item.due_on for item in obligations if item.due_on >= today]
             + [item.due_on for item in debts if item.due_on and item.due_on >= today]
@@ -198,6 +208,32 @@ class DecisionEngineService:
         if requirement_dates:
             return min(today + timedelta(days=14), requirement_dates[0])
         return today + timedelta(days=14)
+
+    def _free_after_horizon(
+        self,
+        income_plans: list[IncomePlan],
+        income_entries: list[IncomeEntry],
+        obligations: list[Obligation],
+        debts: list[Debt],
+    ) -> date:
+        today = _start_of_today()
+        income_dates = self._income_dates(income_plans, income_entries)
+        if not income_dates:
+            return self._free_now_horizon(income_plans, income_entries, obligations, debts)
+
+        next_income = income_dates[0]
+        requirement_dates = sorted(
+            [item.due_on for item in obligations if item.due_on >= today]
+            + [item.due_on for item in debts if item.due_on and item.due_on >= today]
+        )
+        next_requirement_after_next_income = next((item for item in requirement_dates if item > next_income), None)
+        if next_requirement_after_next_income is None:
+            return next_income
+
+        later_income_before_requirement = any(next_income < item <= next_requirement_after_next_income for item in income_dates[1:])
+        if later_income_before_requirement:
+            return next_requirement_after_next_income
+        return next_income
 
     def _free_cash(
         self,
@@ -210,30 +246,44 @@ class DecisionEngineService:
         income_plans: list[IncomePlan],
         allocations: list[IncomePlanAllocation],
         transactions: list[Transaction],
-        horizon: date,
+        free_now_horizon: date,
+        free_after_horizon: date,
     ) -> tuple[FreeCashAmount, FreeCashAmount]:
         today = _start_of_today()
-        active_plan_ids = {plan.id for plan in income_plans if plan.status not in INACTIVE_PLAN_STATUSES}
+        active_plan_ids = {
+            plan.id
+            for plan in income_plans
+            if plan.status not in INACTIVE_PLAN_STATUSES and plan.expected_on and today <= plan.expected_on <= free_after_horizon
+        }
         liquid_cash = _effective_liquid_cash(accounts, transactions)
         protected_buffer = _money(_setting(settings, "protected_cash_buffer"))
         active_reserves = _money(sum(float(reserve.amount) for reserve in reserves if reserve.kind.value == "manual"))
         essentials_reserve = _money(_setting(settings, "essential_spend_target"))
         overdue_obligations = _money(sum(float(item.amount) for item in obligations if not item.is_paid and item.due_on < today))
-        obligations_due = _money(sum(float(item.amount) for item in obligations if not item.is_paid and today <= item.due_on <= horizon))
-        debt_minimums = _money(
+        obligations_due_now = _money(sum(float(item.amount) for item in obligations if not item.is_paid and today <= item.due_on <= free_now_horizon))
+        debt_minimums_now = _money(
             sum(
                 float(item.minimum_payment)
                 for item in debts
-                if item.status == DebtStatus.active and (item.due_on is None or item.due_on <= horizon)
+                if item.status == DebtStatus.active and (item.due_on is None or item.due_on <= free_now_horizon)
             )
         )
-        free_now_amount = _money(liquid_cash - protected_buffer - active_reserves - overdue_obligations - obligations_due - debt_minimums - essentials_reserve)
+        free_now_amount = _money(liquid_cash - protected_buffer - active_reserves - overdue_obligations - obligations_due_now - debt_minimums_now - essentials_reserve)
+
+        obligations_due_after = _money(sum(float(item.amount) for item in obligations if not item.is_paid and today <= item.due_on <= free_after_horizon))
+        debt_minimums_after = _money(
+            sum(
+                float(item.minimum_payment)
+                for item in debts
+                if item.status == DebtStatus.active and (item.due_on is None or item.due_on <= free_after_horizon)
+            )
+        )
 
         reliable_income = _money(
             sum(
                 float(plan.amount)
                 for plan in income_plans
-                if plan.is_reliable and plan.status not in INACTIVE_PLAN_STATUSES and plan.expected_on and today <= plan.expected_on <= horizon
+                if plan.is_reliable and plan.status not in INACTIVE_PLAN_STATUSES and plan.expected_on and today <= plan.expected_on <= free_after_horizon
             )
         )
         linked_expected_income_ids = {
@@ -242,7 +292,7 @@ class DecisionEngineService:
             if plan.is_reliable
             and plan.status not in INACTIVE_PLAN_STATUSES
             and plan.expected_on
-            and today <= plan.expected_on <= horizon
+            and today <= plan.expected_on <= free_after_horizon
             and plan.source_income_entry_id
         }
         expected_income = _money(
@@ -251,7 +301,7 @@ class DecisionEngineService:
                 for entry in income_entries
                 if entry.status == IncomeStatus.expected
                 and entry.expected_on
-                and today <= entry.expected_on <= horizon
+                and today <= entry.expected_on <= free_after_horizon
                 and entry.id not in linked_expected_income_ids
             )
         )
@@ -260,12 +310,12 @@ class DecisionEngineService:
         remaining_obligation_pressure = {
             item.id: float(item.amount)
             for item in obligations
-            if not item.is_paid and item.due_on <= horizon
+            if not item.is_paid and item.due_on <= free_after_horizon
         }
         remaining_debt_minimum_pressure = {
             item.id: float(item.minimum_payment)
             for item in debts
-            if item.status == DebtStatus.active and (item.due_on is None or item.due_on <= horizon)
+            if item.status == DebtStatus.active and (item.due_on is None or item.due_on <= free_after_horizon)
         }
         extra_allocations = 0.0
         for allocation in allocations:
@@ -290,7 +340,18 @@ class DecisionEngineService:
                 continue
             extra_allocations += amount
         extra_allocations = _money(extra_allocations)
-        free_after_amount = _money(free_now_amount + reliable_income + expected_income - extra_allocations)
+        free_after_amount = _money(
+            liquid_cash
+            - protected_buffer
+            - active_reserves
+            - overdue_obligations
+            - obligations_due_after
+            - debt_minimums_after
+            - essentials_reserve
+            + reliable_income
+            + expected_income
+            - extra_allocations
+        )
 
         free_now = FreeCashAmount(
             amount=free_now_amount,
@@ -299,8 +360,8 @@ class DecisionEngineService:
                 protected_buffer=protected_buffer,
                 active_reserves=active_reserves,
                 overdue_obligations=overdue_obligations,
-                obligations_due_within_horizon=obligations_due,
-                debt_minimums_due_within_horizon=debt_minimums,
+                obligations_due_within_horizon=obligations_due_now,
+                debt_minimums_due_within_horizon=debt_minimums_now,
                 essentials_reserve_within_horizon=essentials_reserve,
                 reliable_income_within_horizon=0,
                 expected_income_within_horizon=0,
@@ -314,8 +375,8 @@ class DecisionEngineService:
                 protected_buffer=protected_buffer,
                 active_reserves=active_reserves,
                 overdue_obligations=overdue_obligations,
-                obligations_due_within_horizon=obligations_due,
-                debt_minimums_due_within_horizon=debt_minimums,
+                obligations_due_within_horizon=obligations_due_after,
+                debt_minimums_due_within_horizon=debt_minimums_after,
                 essentials_reserve_within_horizon=essentials_reserve,
                 reliable_income_within_horizon=reliable_income,
                 expected_income_within_horizon=expected_income,

@@ -393,6 +393,73 @@ def test_decision_snapshot_dedupes_income_plan_when_linked_to_expected_income_en
     assert snapshot.free_after_planned_income.breakdown.expected_income_within_horizon == 0
 
 
+def test_decision_snapshot_uses_multiple_incomes_before_next_pressure_for_free_after(db_session) -> None:
+    owner_id = "owner-multi-income-window"
+    today = date.today()
+
+    db_session.add_all(
+        [
+            Account(owner_id=owner_id, name="Checking", type="checking", balance=100),
+            Obligation(owner_id=owner_id, name="Insurance", amount=700, due_on=today + timedelta(days=10), is_paid=False),
+            IncomePlan(
+                owner_id=owner_id,
+                label="Part one",
+                amount=300,
+                expected_on=today + timedelta(days=3),
+                is_reliable=True,
+                status="planned",
+            ),
+            IncomePlan(
+                owner_id=owner_id,
+                label="Part two",
+                amount=400,
+                expected_on=today + timedelta(days=7),
+                is_reliable=True,
+                status="planned",
+            ),
+        ]
+    )
+    db_session.flush()
+
+    plans = db_session.query(IncomePlan).filter(IncomePlan.owner_id == owner_id).order_by(IncomePlan.expected_on.asc()).all()
+    obligation = db_session.query(Obligation).filter(Obligation.owner_id == owner_id).one()
+    db_session.add_all(
+        [
+            IncomePlanAllocation(
+                owner_id=owner_id,
+                income_plan_id=plans[0].id,
+                label="Insurance part one",
+                allocation_type="obligation_payment",
+                amount=300,
+                sort_order=1,
+                linked_type="obligation",
+                linked_id=obligation.id,
+            ),
+            IncomePlanAllocation(
+                owner_id=owner_id,
+                income_plan_id=plans[1].id,
+                label="Insurance part two",
+                allocation_type="obligation_payment",
+                amount=400,
+                sort_order=1,
+                linked_type="obligation",
+                linked_id=obligation.id,
+            ),
+        ]
+    )
+    db_session.commit()
+
+    snapshot = DecisionEngineService(db_session, owner_id).build()
+
+    assert snapshot.free_now.amount == 100
+    assert snapshot.free_now.breakdown.reliable_income_within_horizon == 0
+    assert snapshot.free_now.breakdown.obligations_due_within_horizon == 0
+    assert snapshot.free_after_planned_income.amount == 100
+    assert snapshot.free_after_planned_income.breakdown.reliable_income_within_horizon == 700
+    assert snapshot.free_after_planned_income.breakdown.obligations_due_within_horizon == 700
+    assert snapshot.free_after_planned_income.breakdown.extra_allocations_within_horizon == 0
+
+
 def test_decision_snapshot_falls_back_when_new_planning_tables_are_missing(db_session, monkeypatch) -> None:
     owner_id = "owner-legacy-schema"
     today = date.today()
