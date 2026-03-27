@@ -2,6 +2,17 @@
 
 This file is the build contract for Codex agents and human contributors working on Life OS.
 
+## Operating Rules
+
+- Read `AGENTS.md` at the start of every pass before making changes, validating behavior, or giving repo-specific guidance.
+- Treat a user instruction to "close out" as a required end-of-pass protocol, not a suggestion.
+- The `close out` protocol is:
+  - update all docs that are affected so they match the current repo state
+  - clean up after yourself and remove stray local artifacts that should not remain from the pass
+  - add any suggested follow-up changes, known gaps, or discovered unfixed bugs to `/Users/MAC/Github/life-os/TODOLIST.md`
+  - commit the intended changes
+  - push the current branch
+
 ## Product Rules
 
 - This is a private, single-user app.
