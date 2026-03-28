@@ -8,6 +8,7 @@ import { Badge, Button, InlineField, Input, Panel, SectionHeading, Select, Texta
 import { api } from "@/lib/api";
 import { notifyDecisionChanged, type DecisionAction, useDecisionSnapshot } from "@/lib/decision";
 import { getActionLaneSummary, getVisibleActionLanes, groupActionsByLane, isInactiveActionStatus } from "@/lib/decision-view";
+import { formatDateValue } from "@/lib/dates";
 
 const laneOptions = [
   { value: "do_now", label: "Do now" },
@@ -26,11 +27,11 @@ const statusOptions = [
 
 function dueLabel(value?: string) {
   if (!value) return "No due date";
-  return new Intl.DateTimeFormat("en-US", {
+  return formatDateValue(value, {
     weekday: "short",
     month: "short",
     day: "numeric",
-  }).format(new Date(value));
+  });
 }
 
 function laneLabel(value: string) {

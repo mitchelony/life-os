@@ -6,15 +6,16 @@ import { Badge, Button, InlineField, Input, Panel, SectionHeading, Select, StatC
 import { api, type BackendObligation } from "@/lib/api";
 import { notifyDecisionChanged, useDecisionSnapshot } from "@/lib/decision";
 import { describeTrend } from "@/lib/decision-view";
+import { compareDateValues, formatDateValue, parseDateValue } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance";
 import { findLinkedAction } from "@/lib/planning-view";
 
 function dueLabel(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
+  return formatDateValue(value, {
     weekday: "short",
     month: "short",
     day: "numeric",
-  }).format(new Date(value));
+  });
 }
 
 function recurrenceLabel(value: string) {
@@ -23,7 +24,7 @@ function recurrenceLabel(value: string) {
 
 function obligationDirection(isPaid: boolean, dueOn: string) {
   if (isPaid) return "Moving forward";
-  if (new Date(dueOn).getTime() < Date.now()) return "Moving backward";
+  if (parseDateValue(dueOn).getTime() < Date.now()) return "Moving backward";
   return "Holding steady";
 }
 
@@ -241,9 +242,8 @@ export default function ObligationsPage() {
         if (left.is_paid !== right.is_paid) {
           return left.is_paid ? 1 : -1;
         }
-        const leftTime = new Date(left.due_on).getTime();
-        const rightTime = new Date(right.due_on).getTime();
-        if (leftTime !== rightTime) return leftTime - rightTime;
+        const dueDateComparison = compareDateValues(left.due_on, right.due_on);
+        if (dueDateComparison !== 0) return dueDateComparison;
         return left.name.localeCompare(right.name);
       }),
     [obligations],

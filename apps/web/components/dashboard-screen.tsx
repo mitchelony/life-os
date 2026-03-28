@@ -5,23 +5,24 @@ import { ArrowRight, ChevronRight } from "lucide-react";
 import { Badge, Panel, SectionHeading, StatCard, cn } from "@/components/ui";
 import { type DecisionSnapshot } from "@/lib/decision";
 import { describeTrend, getActionLaneSummary, getAvailableSpendBreakdownRows, isInactiveActionStatus } from "@/lib/decision-view";
+import { formatDateValue } from "@/lib/dates";
 import { formatMoney, formatSignedMoney } from "@/lib/finance";
 
 function shortDate(value?: string) {
   if (!value) return "No date";
-  return new Intl.DateTimeFormat("en-US", {
+  return formatDateValue(value, {
     month: "short",
     day: "numeric",
-  }).format(new Date(value));
+  });
 }
 
 function eventDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
+  return formatDateValue(value, {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  }).format(new Date(value));
+  });
 }
 
 export function DashboardScreen({

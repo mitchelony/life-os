@@ -7,6 +7,7 @@ import { RoadmapCopilotPanel } from "@/components/roadmap-copilot-panel";
 import { Badge, Button, InlineField, Input, Panel, SectionHeading, Select, Textarea } from "@/components/ui";
 import { api, type BackendDebt, type BackendObligation, type BackendSetupPayload } from "@/lib/api";
 import { notifyDecisionChanged, useDecisionSnapshot } from "@/lib/decision";
+import { formatDateValue } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance";
 import { parseStrategyDocument } from "@/lib/local-state";
 import { getGoalOpenStepCount, getGoalSections, getPlanAllocatedAmount, getPlanRemainingAmount } from "@/lib/planning-view";
@@ -68,10 +69,10 @@ const emptyAllocationDraft: AllocationDraft = {
 
 function shortDate(value?: string) {
   if (!value) return "No date";
-  return new Intl.DateTimeFormat("en-US", {
+  return formatDateValue(value, {
     month: "short",
     day: "numeric",
-  }).format(new Date(value));
+  });
 }
 
 function linkedEntityLabel(

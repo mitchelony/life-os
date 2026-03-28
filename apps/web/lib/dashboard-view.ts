@@ -1,4 +1,5 @@
 import type { DashboardSnapshot } from "@/lib/types";
+import { compareDateValues, formatDateValue } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance";
 
 export type DashboardWeekSignal = {
@@ -9,10 +10,10 @@ export type DashboardWeekSignal = {
 };
 
 function shortDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
+  return formatDateValue(value, {
     month: "short",
     day: "numeric",
-  }).format(new Date(value));
+  });
 }
 
 export function getDashboardWeekSignals(snapshot: DashboardSnapshot): DashboardWeekSignal[] {
@@ -22,7 +23,7 @@ export function getDashboardWeekSignals(snapshot: DashboardSnapshot): DashboardW
     snapshot.obligations.find((item) => item.status === "overdue") ??
     snapshot.obligations
       .filter((item) => item.status === "due_soon" || item.status === "scheduled")
-      .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime())[0];
+      .sort((left, right) => compareDateValues(left.dueDate, right.dueDate))[0];
 
   if (urgentObligation) {
     signals.push({
@@ -35,7 +36,7 @@ export function getDashboardWeekSignals(snapshot: DashboardSnapshot): DashboardW
 
   const nextIncome = snapshot.upcomingIncome
     .filter((item) => item.status === "expected")
-    .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime())[0];
+    .sort((left, right) => compareDateValues(left.dueDate, right.dueDate))[0];
 
   if (nextIncome) {
     signals.push({

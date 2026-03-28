@@ -9,6 +9,7 @@ import {
   type BackendAccount,
   type BackendRoadmapCopilotDraftResponse,
 } from "@/lib/api";
+import { todayDateInputValue } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance";
 
 export type RoadmapCopilotEmergencyDraft = {
@@ -320,7 +321,7 @@ export function RoadmapCopilotPanelView({
   );
 }
 
-const todayIso = new Date().toISOString().slice(0, 10);
+const todayIso = todayDateInputValue();
 
 const emptyEmergencyDraft: RoadmapCopilotEmergencyDraft = {
   message: "",

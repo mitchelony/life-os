@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { Check, Delete, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import { notifyDecisionChanged } from "@/lib/decision";
+import { todayDateInputValue } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance";
 import { sampleCategories } from "@/lib/sample-data";
 import { applyQuickAddToSetup, readStoredLifeOsSetup, saveStoredLifeOsSetup, useLifeOsDashboard } from "@/lib/local-state";
@@ -53,7 +54,7 @@ export function QuickAddFlow() {
 
   useEffect(() => {
     if (!date) {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayDateInputValue();
       setDate(today);
       setObligationDueDate(today);
     }

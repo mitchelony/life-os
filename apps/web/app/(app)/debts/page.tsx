@@ -6,16 +6,17 @@ import { Badge, Button, InlineField, Input, Panel, SectionHeading, Select, StatC
 import { api, type BackendDebt } from "@/lib/api";
 import { notifyDecisionChanged, useDecisionSnapshot } from "@/lib/decision";
 import { describeTrend } from "@/lib/decision-view";
+import { formatDateValue } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance";
 import { findLinkedAction } from "@/lib/planning-view";
 
 function dueLabel(value?: string | null) {
   if (!value) return "No due date";
-  return new Intl.DateTimeFormat("en-US", {
+  return formatDateValue(value, {
     weekday: "short",
     month: "short",
     day: "numeric",
-  }).format(new Date(value));
+  });
 }
 
 function debtDirection(debt: BackendDebt, metricCurrentValue?: number, metricStartValue?: number) {

@@ -1,5 +1,6 @@
 import { sampleCategories } from "@/lib/sample-data";
 import { getAccessToken } from "@/lib/auth";
+import { todayDateInputValue } from "@/lib/dates";
 import type { QuickAddDraft } from "@/lib/types";
 
 type ApiClientOptions = {
@@ -1053,7 +1054,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
           updated_at: "",
           name: payload.name ?? "",
           amount: payload.amount ?? 0,
-          due_on: payload.due_on ?? new Date().toISOString().slice(0, 10),
+          due_on: payload.due_on ?? todayDateInputValue(),
           frequency: payload.frequency ?? "one_time",
           is_paid: payload.is_paid ?? false,
           is_recurring: payload.is_recurring ?? false,

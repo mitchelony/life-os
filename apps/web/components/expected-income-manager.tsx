@@ -12,6 +12,7 @@ import {
   type BackendIncomeEntryUpdatePayload,
 } from "@/lib/api";
 import { notifyDecisionChanged } from "@/lib/decision";
+import { formatDateValue } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance";
 
 type IncomeDraft = {
@@ -36,10 +37,10 @@ const emptyDraft: IncomeDraft = {
 
 function shortDate(value?: string | null) {
   if (!value) return "No date";
-  return new Intl.DateTimeFormat("en-US", {
+  return formatDateValue(value, {
     month: "short",
     day: "numeric",
-  }).format(new Date(value));
+  });
 }
 
 function statusTone(status: string) {

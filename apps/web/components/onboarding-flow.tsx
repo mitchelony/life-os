@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, type BackendSetupPayload } from "@/lib/api";
 import { Check, ChevronLeft, ChevronRight, CirclePlus } from "lucide-react";
+import { todayDateInputValue } from "@/lib/dates";
 import {
   onboardingKey,
   readStoredLifeOsSetup,
@@ -54,7 +55,7 @@ function createDraftId() {
 }
 
 function todayString() {
-  return new Date().toISOString().slice(0, 10);
+  return todayDateInputValue();
 }
 
 const recurrenceOptions: Array<{ value: RecurrenceFrequency; label: string }> = [
