@@ -101,6 +101,51 @@ def test_copilot_draft_persists_model_generated_output_when_a_planner_client_is_
     assert any("ledger truth" in warning.lower() for warning in body["warnings"])
 
 
+def test_copilot_draft_truncates_long_summary_for_planner_draft_name_without_losing_full_payload(db_session, monkeypatch) -> None:
+    from app.services.roadmap_ai_planner import RoadmapAiPlannerOutput
+
+    owner_id = "owner-copilot-long-summary"
+    _seed_owner_context(db_session, owner_id)
+    long_summary = (
+        "Set conservative priorities: protect the $100 buffer, keep rent, taxes, tuition, and utilities on track, "
+        "pay the credit-card minimum before due dates, keep the next paycheck ordered, and still make progress on "
+        "emergency savings and the job search without losing sight of what matters first when income lands."
+    )
+
+    class FakePlanner:
+        def plan(self, *, message, context, snapshot):
+            return RoadmapAiPlannerOutput(
+                summary=long_summary,
+                rationale="Long summaries should still persist safely.",
+                warnings=[],
+                payload=RoadmapImportV2Payload(
+                    version=2,
+                    reset_planning_first=True,
+                    goals=[],
+                    income_plans=[],
+                    cash_reserves=[],
+                    expected_income_entries=[],
+                    obligations=[],
+                    debts=[],
+                    actions=[],
+                ),
+            )
+
+    monkeypatch.setattr("app.services.roadmap_copilot.build_roadmap_planner", lambda: FakePlanner())
+    client = _client(db_session, monkeypatch, owner_id)
+
+    response = client.post("/api/roadmap/copilot/draft", json={"message": "Make the next-income plan explicit."})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["summary"] == long_summary
+
+    stored = db_session.query(PlannerDraft).filter(PlannerDraft.owner_id == owner_id).one()
+    assert len(stored.name) <= 200
+    assert stored.name.endswith("...")
+    assert stored.draft["summary"] == long_summary
+
+
 def test_copilot_revise_supersedes_the_previous_draft(db_session, monkeypatch) -> None:
     owner_id = "owner-copilot-revise"
     _seed_owner_context(db_session, owner_id)

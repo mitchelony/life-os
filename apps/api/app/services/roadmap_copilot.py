@@ -32,6 +32,17 @@ LEDGER_TRUTH_WARNING = (
 )
 
 
+def _draft_name(summary: str, *, limit: int = 200) -> str:
+    normalized = " ".join(summary.split()).strip()
+    if not normalized:
+        return "Roadmap copilot draft"
+    if len(normalized) <= limit:
+        return normalized
+    if limit <= 3:
+        return normalized[:limit]
+    return normalized[: limit - 3].rstrip() + "..."
+
+
 @dataclass(slots=True)
 class RoadmapCopilotService:
     db: Session
@@ -51,7 +62,7 @@ class RoadmapCopilotService:
         self._supersede_active_drafts()
         row = PlannerDraft(
             owner_id=self.owner_id,
-            name=proposal.summary,
+            name=_draft_name(proposal.summary),
             status="draft",
             planner_source=planner_source,
             draft={
