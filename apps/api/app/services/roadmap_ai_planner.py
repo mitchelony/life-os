@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Protocol
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from app.core.config import Settings, get_settings
 from app.models.enums import DebtStatus
@@ -22,8 +23,16 @@ from app.schemas.domain import (
     RoadmapImportV2Step,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def _planner_failure_warning(error: Exception) -> str:
+    if isinstance(error, json.JSONDecodeError):
+        return "Model planner returned malformed or truncated JSON, so the copilot fell back to deterministic planning rules."
+
+    if isinstance(error, ValidationError):
+        return "Model planner returned an invalid planning payload, so the copilot fell back to deterministic planning rules."
+
     if isinstance(error, httpx.HTTPStatusError):
         try:
             payload = error.response.json()
@@ -157,6 +166,7 @@ class AdaptiveRoadmapPlanner:
                 today=date.today(),
             )
         except Exception as error:
+            logger.warning("Roadmap copilot model planner failed; falling back to heuristic planner.", exc_info=error)
             fallback = self.fallback_planner.plan(message=message, context=context, snapshot=snapshot)
             return fallback.model_copy(
                 update={
@@ -553,6 +563,8 @@ class OpenAIResponsesRoadmapPlannerClient:
             "- Keep reset_planning_first true.\n"
             "- Preserve expected income entries by default unless the user explicitly asks to rewrite income planning.\n"
             "- If expected income exists and the request is about payment order (what gets paid first), include non-empty income_plans.\n"
+            "- Keep the response compact: prefer 3-6 goals, 0-1 step per goal unless a second step is necessary, 1-3 income plans, and 3-6 actions.\n"
+            "- Omit allowed_values unless they are truly necessary.\n"
             "- Keep top-level obligations and debts empty unless the user explicitly asks to replace those planning records.\n"
             "- Keep summary and rationale short and plain.\n\n"
             f"Response schema:\n{json.dumps(schema, indent=2)}\n\n"

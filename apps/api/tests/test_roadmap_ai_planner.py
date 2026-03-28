@@ -189,6 +189,32 @@ def test_adaptive_planner_surfaces_quota_failures_in_the_warning() -> None:
     assert any("fell back" in warning.lower() for warning in proposal.warnings)
 
 
+def test_adaptive_planner_surfaces_truncated_json_failures_in_the_warning() -> None:
+    class FailingModelClient:
+        def plan(self, *, message, context, snapshot, today):
+            raise json.JSONDecodeError("Unterminated string", '{"summary":"x"', 14)
+
+    class FakeHeuristicPlanner:
+        def plan(self, *, message, context, snapshot):
+            return RoadmapAiPlannerOutput(
+                summary="Fallback draft",
+                rationale="Used the deterministic planning rules.",
+                warnings=[],
+                payload=_empty_payload(),
+            )
+
+    planner = AdaptiveRoadmapPlanner(model_client=FailingModelClient(), fallback_planner=FakeHeuristicPlanner())
+
+    proposal = planner.plan(
+        message="Cover rent first.",
+        context=_context_payload(),
+        snapshot=_decision_snapshot(),
+    )
+
+    assert any("malformed or truncated json" in warning.lower() for warning in proposal.warnings)
+    assert any("fell back" in warning.lower() for warning in proposal.warnings)
+
+
 def test_adaptive_planner_backfills_income_plans_for_payment_order_drafts_when_expected_income_exists() -> None:
     class FakeModelClient:
         def plan(self, *, message, context, snapshot, today):

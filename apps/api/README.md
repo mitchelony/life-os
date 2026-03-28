@@ -122,7 +122,7 @@ Common local variables:
 - `AI_PLANNER_API_KEY` - optional provider key override
 - `OPENAI_API_KEY` - fallback key when `AI_PLANNER_PROVIDER=openai`
 - `AI_PLANNER_TIMEOUT_SECONDS`
-- `AI_PLANNER_MAX_OUTPUT_TOKENS`
+- `AI_PLANNER_MAX_OUTPUT_TOKENS` - defaults to `8000`; raise it if large roadmap drafts are getting truncated
 
 Notes:
 
