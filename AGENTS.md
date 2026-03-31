@@ -9,7 +9,7 @@ This file is the build contract for Codex agents and human contributors working 
 - The `close out` protocol is:
   - update all docs that are affected so they match the current repo state
   - clean up after yourself and remove stray local artifacts that should not remain from the pass
-  - add any suggested follow-up changes, known gaps, or discovered unfixed bugs to `/Users/MAC/Github/life-os/TODOLIST.md`
+  - add any suggested follow-up changes, known gaps, or discovered unfixed bugs to `/Users/MAC/Projects/life-os/TODOLIST.md`
   - commit the intended changes
   - push the current branch
 
@@ -38,10 +38,10 @@ This file is the build contract for Codex agents and human contributors working 
 
 ## Active Workspace Rules
 
-- The active repo is `/Users/MAC/Github/life-os`.
+- The active repo is `/Users/MAC/Projects/life-os`.
 - Ignore the old iCloud-backed repo at `/Users/MAC/Documents/GitHub/life-os`.
-- Do all new work only in the clean repo unless the user explicitly says otherwise.
-- When verifying or editing files, prefer the clean repo paths in responses and tooling.
+- Do all new work only in the active repo unless the user explicitly says otherwise.
+- When verifying or editing files, prefer the active repo paths in responses and tooling.
 
 ## Hosted Supabase Rules
 
@@ -228,7 +228,7 @@ This file is the build contract for Codex agents and human contributors working 
 - Planning relaunch now clears transactions, merchants, reserves, roadmap state, actions, and progress history while preserving accounts, debts, obligations, expected income entries, and income sources. (Added By Project Maintenance Agent)
 - Actions are API-backed, date-aware, and inactive action states should stop feeding dashboard priority.
 - Browser and hosted-db validation should use disposable test identities and remove them, plus any linked owner-scoped rows, before the pass is considered complete.
-- When updating docs or setup steps, keep them aligned with the active hosted-Supabase flow and the clean repo path.
+- When updating docs or setup steps, keep them aligned with the active hosted-Supabase flow and the active repo path.
 - Before ending a substantial pass, check whether `.gitignore` needs updates for any newly generated local artifacts.
 - If Playwright browser binaries are missing, install them explicitly before retrying:
   - `python3 -m playwright install <browser>`

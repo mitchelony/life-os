@@ -11,12 +11,13 @@ import { OnboardingFlow } from "@/components/onboarding-flow";
 import { signOut } from "@/lib/auth";
 import { notifyDecisionChanged } from "@/lib/decision";
 import { api } from "@/lib/api";
-import { getSettingsSections, type SettingsSectionId } from "@/lib/settings-view";
+import { onboardingKey } from "@/lib/local-state";
+import { getDefaultSettingsSection, getSettingsSections, type SettingsSectionId } from "@/lib/settings-view";
 
 export default function SettingsPage() {
   const router = useRouter();
   const { pushFeedback } = useFeedback();
-  const [activeSection, setActiveSection] = useState<SettingsSectionId>("roadmap_setup");
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>("onboarding");
   const [relaunchPending, setRelaunchPending] = useState(false);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [settingsPending, setSettingsPending] = useState<string | null>(null);
@@ -27,6 +28,26 @@ export default function SettingsPage() {
       .listSettings()
       .then((items) => setSettings(Object.fromEntries(items.map((item) => [item.key, item.value]))))
       .catch(() => setSettings({}));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void api
+      .startOnboarding()
+      .then((result) => {
+        if (cancelled) return;
+        setActiveSection(getDefaultSettingsSection(result?.state.is_complete ?? false));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        const isOnboardingComplete = typeof window !== "undefined" && window.localStorage.getItem(onboardingKey) === "true";
+        setActiveSection(getDefaultSettingsSection(isOnboardingComplete));
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const dashboardPreferences = useMemo(
@@ -93,7 +114,7 @@ export default function SettingsPage() {
         <SectionHeading
           eyebrow="Settings"
           title="Choose what you want to change"
-          description="Roadmap copilot now lives on the Roadmap page. Settings keeps the manual JSON workflow, onboarding edits, and utility controls."
+          description="The Roadmap page is the main planning surface. Settings keeps onboarding, advanced planning tools, and utility controls."
           tone="inverse"
         />
         <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -133,25 +154,25 @@ export default function SettingsPage() {
         <div className="space-y-4">
           <Panel className="space-y-4">
             <SectionHeading
-              eyebrow="Roadmap setup"
-              title="Keep the manual roadmap JSON flow as a fallback"
-              description="The Roadmap page is now the primary copilot surface. Use this export/import flow when you want an explicit manual JSON handoff."
+              eyebrow="Planning tools"
+              title="Use advanced planning tools when you want more control"
+              description="The Roadmap page is where the copilot takes the lead. These tools are here when you want to review or import the plan more directly."
             />
             <div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-[20px] border border-line bg-[rgba(244,241,233,0.82)] p-4">
                 <p className="text-[10px] uppercase tracking-[0.22em] text-muted">1</p>
-                <p className="mt-2 text-sm font-medium text-ink">Export exact live context</p>
-                <p className="mt-2 text-sm leading-6 text-muted">Copy the real ids, statuses, expected income, debts, obligations, accounts, and actions when you want a manual AI handoff.</p>
+                <p className="mt-2 text-sm font-medium text-ink">Export the current plan</p>
+                <p className="mt-2 text-sm leading-6 text-muted">Pull the live ids, statuses, income, debts, bills, accounts, and actions when you want the full planning picture in one place.</p>
               </div>
               <div className="rounded-[20px] border border-line bg-[rgba(244,241,233,0.82)] p-4">
                 <p className="text-[10px] uppercase tracking-[0.22em] text-muted">2</p>
-                <p className="mt-2 text-sm font-medium text-ink">Have the model draft JSON</p>
-                <p className="mt-2 text-sm leading-6 text-muted">The export includes strict shapes and allowed values so the model can target the right records without guessing names.</p>
+                <p className="mt-2 text-sm font-medium text-ink">Shape the plan outside the page</p>
+                <p className="mt-2 text-sm leading-6 text-muted">The export includes strict shapes and allowed values so the next version of the plan stays tied to the right records.</p>
               </div>
               <div className="rounded-[20px] border border-line bg-[rgba(244,241,233,0.82)] p-4">
                 <p className="text-[10px] uppercase tracking-[0.22em] text-muted">3</p>
-                <p className="mt-2 text-sm font-medium text-ink">Paste and import manually</p>
-                <p className="mt-2 text-sm leading-6 text-muted">Bring goals, steps, paycheck plans, and allocations in together when you want direct control over the payload.</p>
+                <p className="mt-2 text-sm font-medium text-ink">Paste and import</p>
+                <p className="mt-2 text-sm leading-6 text-muted">Bring goals, steps, income plans, and allocations in together when you want direct control over the payload.</p>
               </div>
             </div>
           </Panel>
@@ -219,7 +240,7 @@ export default function SettingsPage() {
             <SectionHeading
               eyebrow="Planning memory"
               title="Relaunch planning without touching core records"
-              description="This clears planning state, roadmap, actions, progress history, recent updates, and transactions while preserving accounts, debts, obligations, and expected income."
+              description="This clears planning state, roadmap, actions, progress history, recent updates, and transactions while preserving accounts, debts, bills, and expected income."
             />
             <div className="rounded-[20px] border border-[rgba(165,57,42,0.18)] bg-[rgba(165,57,42,0.06)] p-4">
               <p className="text-sm leading-6 text-ink">Use this when you want a clean planning restart but do not want to lose your core financial records.</p>
@@ -232,11 +253,11 @@ export default function SettingsPage() {
 
           <div className="space-y-4">
             <Panel className="space-y-4">
-              <SectionHeading
-                eyebrow="Planner boundary"
-                title="Keep roadmap control approval-first"
-                description="Roadmap copilot can draft smarter replacements, but live roadmap changes still happen only when you approve them."
-              />
+            <SectionHeading
+              eyebrow="Planner boundary"
+              title="Keep roadmap control approval-first"
+              description="The copilot can draft smarter replacements, but live roadmap changes still happen only when you approve them."
+            />
               <div className="rounded-[20px] border border-line bg-[rgba(244,241,233,0.82)] p-4">
                 <div className="flex items-start gap-3">
                   <Sparkles className="mt-0.5 h-4 w-4 text-accent" />

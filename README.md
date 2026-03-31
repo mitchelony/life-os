@@ -24,6 +24,8 @@ Life OS is currently in MVP development.
   - roadmap import schema `v2`
   - onboarding edits
   - planning relaunch
+- `/` is now a public landing page for signed-out users and still routes signed-in users through the onboarding gate.
+- On the first onboarding step, users can now start blank or load student demo data for a full product walkthrough.
 - Expected income lives on its own `Income` route and can be confirmed into real income transactions.
 - Dashboard and Actions now consume the server decision snapshot instead of rebuilding roadmap logic in the browser.
 
@@ -39,10 +41,10 @@ supabase/     Migrations, hosted setup reference, and optional local Supabase as
 
 Key references:
 
-- [Product requirements](/Users/MAC/Github/life-os/docs/PRD.md)
-- [Architecture notes](/Users/MAC/Github/life-os/docs/ARCHITECTURE.md)
-- [Current working state](/Users/MAC/Github/life-os/docs/WORKING_STATE.md)
-- [Contributor contract](/Users/MAC/Github/life-os/AGENTS.md)
+- [Product requirements](/Users/MAC/Projects/life-os/docs/PRD.md)
+- [Architecture notes](/Users/MAC/Projects/life-os/docs/ARCHITECTURE.md)
+- [Current working state](/Users/MAC/Projects/life-os/docs/WORKING_STATE.md)
+- [Contributor contract](/Users/MAC/Projects/life-os/AGENTS.md)
 
 ## Tech Stack
 
@@ -150,7 +152,7 @@ npm install
 In one terminal:
 
 ```bash
-cd /Users/MAC/Github/life-os
+cd /Users/MAC/Projects/life-os
 source .venv/bin/activate
 npm run dev:api
 ```
@@ -160,7 +162,7 @@ npm run dev:api
 In another terminal:
 
 ```bash
-cd /Users/MAC/Github/life-os
+cd /Users/MAC/Projects/life-os
 source ~/.nvm/nvm.sh
 nvm use 20
 npm run dev:web
@@ -209,11 +211,13 @@ The app is now owner-authenticated through Supabase.
 
 Current auth behavior:
 
+- signed-out users stay on the public landing page at `/`
 - sign in with email/password or Google
 - first successful sign-in routes through the onboarding decision path
 - incomplete onboarding goes to `Settings`
 - completed onboarding goes to `Dashboard`
 - logout returns directly to `/login`
+- the first onboarding screen now asks whether to start blank or load student demo data
 - onboarding/profile bootstrap is defensive against duplicate historical owner rows instead of crashing with `500`
 
 ## Roadmap Import V2
@@ -280,13 +284,13 @@ Production deployment uses:
 - Render for `apps/api`
 - hosted Supabase for Postgres and Auth
 
-Use the runbook in [docs/DEPLOYMENT.md](/Users/MAC/Github/life-os/docs/DEPLOYMENT.md).
+Use the runbook in [docs/DEPLOYMENT.md](/Users/MAC/Projects/life-os/docs/DEPLOYMENT.md).
 
 ## Database and Supabase
 
 Hosted Supabase is the normal path right now.
 
-Use [supabase/README.md](/Users/MAC/Github/life-os/supabase/README.md) for:
+Use [supabase/README.md](/Users/MAC/Projects/life-os/supabase/README.md) for:
 
 - hosted project setup
 - schema application
@@ -318,8 +322,8 @@ This app handles sensitive financial information. Keep the following in mind:
 
 Before making major changes, read:
 
-- [AGENTS.md](/Users/MAC/Github/life-os/AGENTS.md)
-- [docs/PRD.md](/Users/MAC/Github/life-os/docs/PRD.md)
-- [docs/ARCHITECTURE.md](/Users/MAC/Github/life-os/docs/ARCHITECTURE.md)
+- [AGENTS.md](/Users/MAC/Projects/life-os/AGENTS.md)
+- [docs/PRD.md](/Users/MAC/Projects/life-os/docs/PRD.md)
+- [docs/ARCHITECTURE.md](/Users/MAC/Projects/life-os/docs/ARCHITECTURE.md)
 
 These documents define the product scope, architecture, and UX constraints for the MVP.

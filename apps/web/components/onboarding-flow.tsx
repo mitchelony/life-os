@@ -13,10 +13,12 @@ import {
   storedSetupToBackendSetupPayload,
   type StoredLifeOsSetup,
 } from "@/lib/local-state";
-import type { RecurrenceFrequency } from "@/lib/types";
+import { createOnboardingSetupPreset, onboardingPresetOptions, type OnboardingPresetId } from "@/lib/onboarding-presets";
+import type { RecurrenceFrequency, RoadmapItem, StrategyDocument, Task } from "@/lib/types";
 import { Badge, Button, InlineField, Input, Panel, Select, SectionHeading, Textarea } from "@/components/ui";
 
-type Step = 0 | 1 | 2 | 3;
+type Step = 0 | 1 | 2 | 3 | 4;
+type StartingPoint = OnboardingPresetId | "current" | null;
 
 type AccountDraft = {
   id: string;
@@ -66,23 +68,20 @@ const recurrenceOptions: Array<{ value: RecurrenceFrequency; label: string }> = 
 ];
 
 const defaultAccounts: AccountDraft[] = [
-  { id: "seed-account-checking", name: "Wells Fargo Checking", institution: "Wells Fargo", type: "checking", balance: "1842.17" },
-  { id: "seed-account-savings", name: "Cash App Savings", institution: "Cash App", type: "savings", balance: "1480.12" },
+  ...createOnboardingSetupPreset("blank").accounts,
 ];
 
 const defaultObligations: ObligationDraft[] = [
-  { id: "seed-obligation-rent", name: "Rent", amount: "950", dueDate: "2026-03-26", recurrence: "monthly" },
-  { id: "seed-obligation-electric", name: "Electric bill", amount: "73.22", dueDate: "2026-03-29", recurrence: "monthly" },
+  ...createOnboardingSetupPreset("blank").obligations,
 ];
 
 const defaultDebts: DebtDraft[] = [
-  { id: "seed-debt-capital-one", name: "Capital One Credit Card", balance: "318.49", minimum: "52", dueDate: "2026-03-25" },
+  ...createOnboardingSetupPreset("blank").debts,
 ];
 
 const defaultIncome: IncomeDraft[] = [
-  { id: "seed-income-payroll", source: "Payroll deposit", expectedAmount: "2480", dueDate: "2026-03-27", recurrence: "biweekly" },
+  ...createOnboardingSetupPreset("blank").income,
 ];
-
 
 function hasBootstrapData(payload: BackendSetupPayload) {
   return (
@@ -99,81 +98,109 @@ function hasBootstrapData(payload: BackendSetupPayload) {
   );
 }
 
+function hasStoredSetupData(setup: StoredLifeOsSetup) {
+  return (
+    setup.accounts.length > 0 ||
+    setup.obligations.length > 0 ||
+    setup.debts.length > 0 ||
+    setup.income.length > 0 ||
+    setup.roadmapItems.length > 0 ||
+    Boolean(setup.strategyDocument) ||
+    setup.notes.trim().length > 0 ||
+    setup.protectedBuffer !== "0" ||
+    setup.essentialTarget !== "0" ||
+    setup.savingsFloor !== "0"
+  );
+}
+
 export function OnboardingFlow() {
   const router = useRouter();
   const [step, setStep] = useState<Step>(0);
+  const [startingPoint, setStartingPoint] = useState<StartingPoint>(null);
+  const [currentSetupSnapshot, setCurrentSetupSnapshot] = useState<StoredLifeOsSetup | null>(null);
   const [storedTransactions, setStoredTransactions] = useState<StoredLifeOsSetup["transactions"]>([]);
+  const [manualTasks, setManualTasks] = useState<Task[]>([]);
+  const [taskOverrides, setTaskOverrides] = useState<StoredLifeOsSetup["taskOverrides"]>([]);
+  const [roadmapItems, setRoadmapItems] = useState<RoadmapItem[]>([]);
+  const [strategyDocument, setStrategyDocument] = useState<StrategyDocument | null>(null);
   const [name, setName] = useState("Life owner");
-  const [protectedBuffer, setProtectedBuffer] = useState("750");
-  const [essentialTarget, setEssentialTarget] = useState("310");
-  const [savingsFloor, setSavingsFloor] = useState("1500");
+  const [protectedBuffer, setProtectedBuffer] = useState("0");
+  const [essentialTarget, setEssentialTarget] = useState("0");
+  const [savingsFloor, setSavingsFloor] = useState("0");
   const [accounts, setAccounts] = useState<AccountDraft[]>(defaultAccounts);
   const [obligations, setObligations] = useState<ObligationDraft[]>(defaultObligations);
   const [debts, setDebts] = useState<DebtDraft[]>(defaultDebts);
   const [income, setIncome] = useState<IncomeDraft[]>(defaultIncome);
-  const [notes, setNotes] = useState("Keep the dashboard calm and high-signal.");
+  const [notes, setNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const totalSteps = 5;
 
-  const completedPercent = useMemo(() => Math.round(((step + 1) / 4) * 100), [step]);
+  const completedPercent = useMemo(() => Math.round(((step + 1) / totalSteps) * 100), [step, totalSteps]);
+
+  function applySetup(nextSetup: StoredLifeOsSetup, nextStartingPoint?: StartingPoint) {
+    setStoredTransactions(nextSetup.transactions ?? []);
+    setManualTasks(nextSetup.manualTasks ?? []);
+    setTaskOverrides(nextSetup.taskOverrides ?? []);
+    setRoadmapItems(nextSetup.roadmapItems ?? []);
+    setStrategyDocument(nextSetup.strategyDocument ?? null);
+    setName(nextSetup.displayName);
+    setProtectedBuffer(nextSetup.protectedBuffer);
+    setEssentialTarget(nextSetup.essentialTarget);
+    setSavingsFloor(nextSetup.savingsFloor);
+    setAccounts(nextSetup.accounts.length ? nextSetup.accounts : defaultAccounts);
+    setObligations(nextSetup.obligations.length ? nextSetup.obligations : defaultObligations);
+    setDebts(nextSetup.debts.length ? nextSetup.debts : defaultDebts);
+    setIncome(nextSetup.income.length ? nextSetup.income : defaultIncome);
+    setNotes(nextSetup.notes);
+    if (nextStartingPoint !== undefined) {
+      setStartingPoint(nextStartingPoint);
+    }
+  }
+
+  function applyPreset(presetId: OnboardingPresetId) {
+    applySetup(createOnboardingSetupPreset(presetId, new Date()), presetId);
+  }
 
   useEffect(() => {
     const storedSetup = readStoredLifeOsSetup();
-    if (storedSetup) {
-      setStoredTransactions(storedSetup.transactions ?? []);
-      setName(storedSetup.displayName);
-      setProtectedBuffer(storedSetup.protectedBuffer);
-      setEssentialTarget(storedSetup.essentialTarget);
-      setSavingsFloor(storedSetup.savingsFloor);
-      setAccounts(storedSetup.accounts.length ? storedSetup.accounts : defaultAccounts);
-      setObligations(storedSetup.obligations.length ? storedSetup.obligations : defaultObligations);
-      setDebts(storedSetup.debts.length ? storedSetup.debts : defaultDebts);
-      setIncome(storedSetup.income.length ? storedSetup.income : defaultIncome);
-      setNotes(storedSetup.notes);
+    if (storedSetup && hasStoredSetupData(storedSetup)) {
+      setCurrentSetupSnapshot(storedSetup);
+      applySetup(storedSetup, "current");
     }
 
     void api.getSetup().then((payload) => {
       if (!hasBootstrapData(payload)) return;
       const mapped = storedSetupFromApiSetup(payload, readStoredLifeOsSetup());
-      setStoredTransactions(mapped.transactions);
-      setName(mapped.displayName);
-      setProtectedBuffer(mapped.protectedBuffer);
-      setEssentialTarget(mapped.essentialTarget);
-      setSavingsFloor(mapped.savingsFloor);
-      setNotes(mapped.notes);
-      setAccounts(mapped.accounts.length ? mapped.accounts : defaultAccounts);
-      setObligations(
-        mapped.obligations.length
-          ? mapped.obligations.map((item) => ({
-              id: item.id,
-              name: item.name,
-              amount: item.amount,
-              dueDate: item.dueDate,
-              recurrence: item.recurrence,
-            }))
-          : defaultObligations,
-      );
-      setDebts(
-        mapped.debts.length
-          ? mapped.debts.map((item) => ({
-              id: item.id,
-              name: item.name,
-              balance: item.balance,
-              minimum: item.minimum,
-              dueDate: item.dueDate,
-            }))
-          : defaultDebts,
-      );
-      setIncome(
-        mapped.income.length
-          ? mapped.income.map((item) => ({
-              id: item.id,
-              source: item.source,
-              expectedAmount: item.expectedAmount,
-              dueDate: item.dueDate,
-              recurrence: item.recurrence,
-            }))
-          : defaultIncome,
+      setCurrentSetupSnapshot(mapped);
+      applySetup(
+        {
+          ...mapped,
+          obligations: mapped.obligations.map((item) => ({
+            id: item.id,
+            name: item.name,
+            amount: item.amount,
+            dueDate: item.dueDate,
+            recurrence: item.recurrence,
+            linkedAccount: item.linkedAccount,
+          })),
+          debts: mapped.debts.map((item) => ({
+            id: item.id,
+            name: item.name,
+            balance: item.balance,
+            minimum: item.minimum,
+            dueDate: item.dueDate,
+          })),
+          income: mapped.income.map((item) => ({
+            id: item.id,
+            source: item.source,
+            expectedAmount: item.expectedAmount,
+            dueDate: item.dueDate,
+            recurrence: item.recurrence,
+            linkedAccount: item.linkedAccount,
+          })),
+        },
+        "current",
       );
     });
   }, []);
@@ -204,7 +231,6 @@ export function OnboardingFlow() {
   }
 
   function completeOnboarding() {
-    const existing = readStoredLifeOsSetup();
     const nextSetup: StoredLifeOsSetup = {
       displayName: name,
       protectedBuffer,
@@ -216,10 +242,10 @@ export function OnboardingFlow() {
       debts,
       income,
       transactions: storedTransactions,
-      manualTasks: existing?.manualTasks ?? [],
-      taskOverrides: existing?.taskOverrides ?? [],
-      roadmapItems: existing?.roadmapItems ?? [],
-      strategyDocument: existing?.strategyDocument ?? null,
+      manualTasks,
+      taskOverrides,
+      roadmapItems,
+      strategyDocument,
     };
 
     setIsSaving(true);
@@ -228,6 +254,7 @@ export function OnboardingFlow() {
       .saveSetup(storedSetupToBackendSetupPayload(nextSetup))
       .then(() => api.completeOnboarding())
       .then(() => {
+        setCurrentSetupSnapshot(nextSetup);
         saveStoredLifeOsSetup(nextSetup);
         window.localStorage.setItem(onboardingKey, "true");
         router.push("/dashboard");
@@ -265,6 +292,73 @@ export function OnboardingFlow() {
       {step === 0 ? (
         <Panel className="space-y-5">
           <SectionHeading
+            eyebrow="Demo setup"
+            title="Do you want sample data?"
+            description="Pick a starting point first. Sample student data loads a realistic college budget, uneven income, and a roadmap plan."
+          />
+          {currentSetupSnapshot ? (
+            <div className="rounded-[22px] border border-line bg-[rgba(244,241,233,0.82)] p-4">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Saved setup found</p>
+              <p className="mt-2 text-sm leading-6 text-ink">
+                You already have baseline data here. You can keep it, start blank, or swap in sample student data.
+              </p>
+            </div>
+          ) : null}
+          <div className="grid gap-3 lg:grid-cols-[0.85fr_1.15fr]">
+            {onboardingPresetOptions.map((option) => {
+              const active = startingPoint === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => applyPreset(option.id)}
+                  className={[
+                    "rounded-[26px] border p-5 text-left transition duration-200",
+                    active
+                      ? "border-accent bg-[rgba(51,95,83,0.12)] shadow-soft"
+                      : "border-line bg-white/72 hover:-translate-y-0.5 hover:bg-white/82",
+                  ].join(" ")}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-muted">{option.label}</p>
+                      <p className="mt-3 text-xl font-semibold tracking-tight text-ink">{option.description}</p>
+                    </div>
+                    {option.recommended ? <Badge>Recommended</Badge> : null}
+                  </div>
+                  <div className="mt-5 space-y-2">
+                    {option.bullets.map((bullet) => (
+                      <p key={bullet} className="text-sm leading-6 text-muted">
+                        {bullet}
+                      </p>
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {currentSetupSnapshot ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant={startingPoint === "current" ? "secondary" : "ghost"} onClick={() => applySetup(currentSetupSnapshot, "current")}>
+                Keep current setup
+              </Button>
+              <p className="text-sm text-muted">Useful if you already entered real data and only need to review it.</p>
+            </div>
+          ) : null}
+          {startingPoint === "student-demo" ? (
+            <div className="rounded-[24px] border border-line bg-[linear-gradient(180deg,rgba(51,95,83,0.12),rgba(255,255,255,0.82))] p-4">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-accent">Sample setup loaded</p>
+              <p className="mt-2 text-sm leading-6 text-ink">
+                The sample includes part-time job income, parent support, a refund check, a live roadmap focus, and a next-income plan built for student cash flow.
+              </p>
+            </div>
+          ) : null}
+        </Panel>
+      ) : null}
+
+      {step === 1 ? (
+        <Panel className="space-y-5">
+          <SectionHeading
             eyebrow="Preferences"
             title="Identity, buffer, and guardrails"
             description="Start with the basic numbers the app will use."
@@ -293,7 +387,7 @@ export function OnboardingFlow() {
         </Panel>
       ) : null}
 
-      {step === 1 ? (
+      {step === 2 ? (
         <Panel className="space-y-5">
           <SectionHeading eyebrow="Accounts" title="Add the balances you already know" description="Just type them in by hand for now." />
           <p className="text-sm leading-6 text-muted">
@@ -356,7 +450,7 @@ export function OnboardingFlow() {
         </Panel>
       ) : null}
 
-      {step === 2 ? (
+      {step === 3 ? (
         <Panel className="space-y-5">
           <SectionHeading
             eyebrow="Responsibilities"
@@ -535,7 +629,7 @@ export function OnboardingFlow() {
         </Panel>
       ) : null}
 
-      {step === 3 ? (
+      {step === 4 ? (
         <Panel className="space-y-5">
           <SectionHeading eyebrow="Review" title="Check everything before you save" description="This is what the dashboard will use." />
           <div className="grid gap-4 md:grid-cols-3">
@@ -543,6 +637,16 @@ export function OnboardingFlow() {
             <SummaryCard label="Bills" value={`${obligations.length}`} detail="Recurring obligations" />
             <SummaryCard label="Income" value={`${income.length}`} detail="Expected sources" />
           </div>
+          {strategyDocument ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <SummaryCard label="Roadmap focus" value={`${roadmapItems.length}`} detail="Strategy-backed roadmap items" />
+              <SummaryCard
+                label="Next income plan"
+                value={strategyDocument.nextIncomePlans?.[0]?.label ?? "Ready"}
+                detail={strategyDocument.summary}
+              />
+            </div>
+          ) : null}
           <div className="rounded-[24px] border border-line bg-accent-soft p-4">
             <p className="text-[11px] uppercase tracking-[0.24em] text-accent">Why this matters</p>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-ink">
@@ -554,7 +658,7 @@ export function OnboardingFlow() {
 
       <div className="rounded-[22px] border border-line bg-surface/96 p-3 shadow-[0_16px_40px_rgba(16,32,24,0.08)] backdrop-blur-xl md:static md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
         <div className="mb-3 flex items-center justify-between px-1 md:hidden">
-          <p className="text-[11px] uppercase tracking-[0.22em] text-muted">Step {step + 1} of 4</p>
+          <p className="text-[11px] uppercase tracking-[0.22em] text-muted">Step {step + 1} of {totalSteps}</p>
           <p className="text-sm font-medium text-ink">{completedPercent}% done</p>
         </div>
         <div className="flex items-center gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -567,12 +671,16 @@ export function OnboardingFlow() {
             <ChevronLeft className="h-4 w-4" /> Back
           </Button>
           <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:flex-none sm:items-center">
-            {step < 3 ? (
-              <Button className="h-11 w-full sm:w-auto" onClick={() => setStep((current) => Math.min(3, current + 1) as Step)} disabled={isSaving}>
+            {step < totalSteps - 1 ? (
+              <Button
+                className="h-11 w-full sm:w-auto"
+                onClick={() => setStep((current) => Math.min(totalSteps - 1, current + 1) as Step)}
+                disabled={isSaving || (step === 0 && startingPoint === null)}
+              >
                 Next <ChevronRight className="h-4 w-4" />
               </Button>
             ) : null}
-            {step === 3 ? (
+            {step === totalSteps - 1 ? (
               <Button className="h-11 w-full sm:w-auto" onClick={completeOnboarding} disabled={isSaving}>
                 <Check className="h-4 w-4" /> {isSaving ? "Saving..." : "Save setup"}
               </Button>

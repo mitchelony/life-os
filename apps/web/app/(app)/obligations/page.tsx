@@ -124,7 +124,7 @@ function ObligationCard({
           {nextActionDetail ??
             (item.is_paid
               ? "This obligation is already handled."
-              : "Create a linked action or paycheck allocation so this bill takes its place in the execution queue.")}
+              : "Create a linked action or income-plan allocation so this bill takes its place in the execution queue.")}
         </p>
       </div>
 

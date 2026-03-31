@@ -45,7 +45,7 @@ Notes:
 
 ## API on Render
 
-Use the root [render.yaml](/Users/MAC/Github/life-os/render.yaml) Blueprint.
+Use the root [render.yaml](/Users/MAC/Projects/life-os/render.yaml) Blueprint.
 
 The Blueprint creates:
 

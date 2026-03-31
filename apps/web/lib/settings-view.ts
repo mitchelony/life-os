@@ -3,8 +3,8 @@ export type SettingsSectionId = "roadmap_setup" | "onboarding" | "utilities";
 const settingsSections = [
   {
     id: "roadmap_setup",
-    title: "Roadmap setup",
-    description: "Copy your live context, let GPT draft the plan, then paste the import JSON back in one shot.",
+    title: "Planning tools",
+    description: "Review or import the plan directly when you want more control than the copilot flow.",
   },
   {
     id: "onboarding",
@@ -14,7 +14,7 @@ const settingsSections = [
   {
     id: "utilities",
     title: "Useful settings",
-    description: "Relaunch planning memory, keep planner control manual, and manage the current session.",
+    description: "Reset planning memory, keep changes approval-first, and manage the current session.",
   },
 ] as const satisfies ReadonlyArray<{
   id: SettingsSectionId;
@@ -24,4 +24,8 @@ const settingsSections = [
 
 export function getSettingsSections() {
   return [...settingsSections];
+}
+
+export function getDefaultSettingsSection(isOnboardingComplete: boolean): SettingsSectionId {
+  return isOnboardingComplete ? "roadmap_setup" : "onboarding";
 }

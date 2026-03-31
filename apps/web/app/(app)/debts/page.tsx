@@ -121,7 +121,7 @@ function DebtCard({
           {nextActionDetail ??
             (item.minimum_payment > 0
               ? `This debt is pulling ${formatMoney(item.minimum_payment)} out of your free cash before the next reliable income.`
-              : "Add a linked action or paycheck allocation so this debt shows up in the execution queue.")}
+              : "Add a linked action or income-plan allocation so this debt shows up in the execution queue.")}
         </p>
       </div>
 

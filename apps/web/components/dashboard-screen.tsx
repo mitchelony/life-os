@@ -65,7 +65,7 @@ export function DashboardScreen({
                 Log money
               </Link>
               <Link href="/roadmap" className="inline-flex items-center justify-center rounded-full border border-white/16 bg-white/8 px-4 py-2.5 text-sm font-medium text-white">
-                Open roadmap
+                Open copilot
               </Link>
               <Link href="/tasks" className="inline-flex items-center justify-center rounded-full border border-white/16 bg-white/8 px-4 py-2.5 text-sm font-medium text-white">
                 Open actions
@@ -92,7 +92,7 @@ export function DashboardScreen({
             </div>
 
             <div className="rounded-[26px] border border-white/10 bg-white/8 p-5">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-white/55">What matters this week</p>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/55">Copilot focus</p>
               <div className="mt-3 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -118,7 +118,7 @@ export function DashboardScreen({
           <SectionHeading
             eyebrow="Top actions"
             title="Do now, then next"
-            description="This queue is ordered so you do not have to recompute the week in your head."
+            description="This queue is ordered so you do not have to redo the week in your head after the plan changes."
           />
           <div className="space-y-2">
             {actionPreview.length ? (

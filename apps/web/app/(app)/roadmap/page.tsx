@@ -307,7 +307,7 @@ function IncomePlanCard({
             </div>
           ))
         ) : (
-          <div className="rounded-[18px] border border-dashed border-line bg-white/56 p-3 text-sm text-muted">No allocations yet. Break the paycheck into explicit moves.</div>
+          <div className="rounded-[18px] border border-dashed border-line bg-white/56 p-3 text-sm text-muted">No allocations yet. Break this income into explicit moves.</div>
         )}
       </div>
 
@@ -477,7 +477,7 @@ export default function RoadmapPage() {
           notes: planDraft.notes.trim() || null,
         }),
       "Paycheck plan added.",
-      "Could not add paycheck plan.",
+      "Could not add income plan.",
     );
     if (created) {
       setPlanDraft(emptyPlanDraft);
@@ -527,7 +527,7 @@ export default function RoadmapPage() {
     return (
       <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
         <Panel>
-          <SectionHeading eyebrow="Roadmap" title="Loading your plan" description="Pulling the current focus, paycheck flow, and goal progress." />
+          <SectionHeading eyebrow="Roadmap" title="Loading your plan" description="Pulling the current focus, income plan, and goal progress." />
         </Panel>
       </div>
     );
@@ -538,7 +538,7 @@ export default function RoadmapPage() {
       <Panel className="overflow-hidden bg-[linear-gradient(135deg,rgba(15,28,22,0.97),rgba(64,105,89,0.94))] text-bg">
         <SectionHeading
           eyebrow="Roadmap"
-          title={snapshot?.focus.primaryAction?.title ?? "Set the next paycheck in order"}
+          title={snapshot?.focus.primaryAction?.title ?? "Set the next income in order"}
           description={snapshot?.focus.whyNow ?? "Roadmap should answer what gets paid first, what happens after that, and what goal is actually active."}
           tone="inverse"
           action={
@@ -554,7 +554,7 @@ export default function RoadmapPage() {
                 onClick={() => setPlanComposerOpen((current) => !current)}
               >
                 <Plus className="h-4 w-4" />
-                {planComposerOpen ? "Close plan" : "Add paycheck plan"}
+                {planComposerOpen ? "Close plan" : "Add income plan"}
               </Button>
             </div>
           }
@@ -591,7 +591,7 @@ export default function RoadmapPage() {
             <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{snapshot?.roadmap.goals.length ?? 0}</p>
           </Panel>
           <Panel className="bg-white/10 text-white">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Paycheck plans</p>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Income plans</p>
             <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{snapshot?.roadmap.plans.length ?? 0}</p>
           </Panel>
           <Panel className="bg-white/10 text-white">
@@ -653,7 +653,7 @@ export default function RoadmapPage() {
         {planComposerOpen ? (
           <div className="mt-5 grid gap-3 rounded-[24px] border border-white/10 bg-white/10 p-4 md:grid-cols-2">
             <InlineField label="Plan label" tone="inverse">
-              <Input value={planDraft.label} onChange={(event) => setPlanDraft((current) => ({ ...current, label: event.target.value }))} placeholder="When the next paycheck lands" />
+              <Input value={planDraft.label} onChange={(event) => setPlanDraft((current) => ({ ...current, label: event.target.value }))} placeholder="When the next deposit lands" />
             </InlineField>
             <InlineField label="Amount" tone="inverse">
               <Input value={planDraft.amount} onChange={(event) => setPlanDraft((current) => ({ ...current, amount: event.target.value }))} placeholder="0.00" inputMode="decimal" />
@@ -675,7 +675,7 @@ export default function RoadmapPage() {
             </InlineField>
             <div className="md:col-span-2">
               <Button disabled={pending || !planDraft.label.trim() || !planDraft.amount} onClick={() => void createPlan()}>
-                Save paycheck plan
+                Save income plan
               </Button>
             </div>
           </div>
@@ -685,9 +685,9 @@ export default function RoadmapPage() {
       {mode === "focus" ? (
         <section className="space-y-3">
           <SectionHeading
-            eyebrow="Paycheck plans"
-            title="Put expected income in order before it lands"
-            description="Each plan should show how the next reliable money gets committed."
+            eyebrow="Income plans"
+            title="Put incoming money in order before it lands"
+            description="Each plan should show where the next reliable money needs to go first."
           />
           {snapshot?.roadmap.plans.length ? (
             <div className="space-y-3">
@@ -719,7 +719,7 @@ export default function RoadmapPage() {
             </div>
           ) : (
             <Panel className="border-dashed bg-white/56 text-sm text-muted">
-              No paycheck plan yet. Add the next reliable income and break it into explicit moves.
+              No income plan yet. Add the next reliable deposit and break it into explicit moves.
             </Panel>
           )}
         </section>
@@ -857,7 +857,7 @@ export default function RoadmapPage() {
                   <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{snapshot?.roadmap.goals.length ?? 0}</p>
                 </div>
                 <div className="rounded-[22px] border border-line bg-[rgba(255,255,255,0.62)] p-4">
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Paycheck plans</p>
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Income plans</p>
                   <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{snapshot?.roadmap.plans.length ?? 0}</p>
                 </div>
                 <div className="rounded-[22px] border border-line bg-[rgba(255,255,255,0.62)] p-4">

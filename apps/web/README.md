@@ -27,7 +27,6 @@ Accounts are also manageable directly from the Accounts page:
 - add account
 - edit account name, institution, type, and balance
 - delete accounts that no longer have linked data
-- keep name-linked transaction and planned-income references in sync when an account name changes
 
 ## Stack
 
@@ -61,7 +60,7 @@ The dashboard should answer, at a glance:
 From the repository root:
 
 ```bash
-cd /Users/MAC/GitHub/life-os
+cd /Users/MAC/Projects/life-os
 source ~/.nvm/nvm.sh
 nvm use 20 || nvm install 20
 npm install
@@ -84,7 +83,7 @@ The web app now expects Supabase auth env values in `apps/web/.env.local`:
 From the repository root:
 
 ```bash
-cd /Users/MAC/GitHub/life-os
+cd /Users/MAC/Projects/life-os
 source ~/.nvm/nvm.sh
 nvm use 20
 npm run dev:web
@@ -138,11 +137,14 @@ The app now supports:
 
 Current routing behavior:
 
+- signed-out users stay on the public landing page at `/`
 - first successful sign-in returns to `/`
 - the home gate checks onboarding state through the API
 - incomplete onboarding routes to `Settings`
 - completed onboarding routes to `Dashboard`
 - logout returns to `/login`
+- Settings defaults incomplete onboarding to the `Onboarding` section
+- the first onboarding step now asks whether to start blank or load student demo data
 
 ## Scripts
 
@@ -169,7 +171,7 @@ npm --workspace apps/web run test
 Run the frontend test suite:
 
 ```bash
-cd /Users/MAC/GitHub/life-os
+cd /Users/MAC/Projects/life-os
 source ~/.nvm/nvm.sh
 nvm use 20
 npm --workspace apps/web run test
@@ -186,7 +188,7 @@ Current tests focus on:
 For real browser validation on this machine:
 
 ```bash
-cd /Users/MAC/GitHub/life-os
+cd /Users/MAC/Projects/life-os
 python3 -m playwright install webkit
 ```
 

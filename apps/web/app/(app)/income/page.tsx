@@ -10,7 +10,7 @@ export default function IncomePage() {
         <SectionHeading
           eyebrow="Income"
           title="Track expected money before it lands"
-          description="Keep upcoming paychecks and deposits in one place, then confirm them into real income when they hit."
+          description="Keep upcoming paychecks, deposits, refunds, and support in one place, then confirm them into real income when they hit."
           tone="inverse"
         />
       </Panel>

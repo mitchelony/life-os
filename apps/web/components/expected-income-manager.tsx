@@ -267,7 +267,7 @@ export function ExpectedIncomeManager({ onChanged }: { onChanged?: () => Promise
         <SectionHeading
           eyebrow="Expected income"
           title="Track incoming money after onboarding"
-          description="View, edit, and confirm expected income so the roadmap knows what money is actually on the way."
+          description="View, edit, and confirm expected income so the roadmap and copilot know what money is actually on the way."
           action={
             <Button variant="secondary" disabled={pending} onClick={() => setComposerOpen((current) => !current)}>
               <Plus className="h-4 w-4" />
@@ -377,7 +377,7 @@ export function ExpectedIncomeManager({ onChanged }: { onChanged?: () => Promise
             ))}
         </div>
       ) : (
-        <Panel className="border-dashed bg-white/56 text-sm text-muted">No expected income yet. Add the next paycheck or expected deposit here.</Panel>
+        <Panel className="border-dashed bg-white/56 text-sm text-muted">No expected income yet. Add the next deposit, transfer, refund, or paycheck here.</Panel>
       )}
     </section>
   );

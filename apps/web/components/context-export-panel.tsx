@@ -46,18 +46,18 @@ export function ContextExportPanel() {
   return (
     <Panel className="space-y-4">
       <SectionHeading
-        eyebrow="GPT Context"
-        title="Export live context in GPT-friendly JSON"
-        description="Generate exact ids, statuses, and allowed values so GPT can draft changes against your real data without guessing."
+        eyebrow="Planning context"
+        title="Export your current planning data"
+        description="Generate exact ids, statuses, and allowed values when you want to review or reshape the plan outside this page."
         action={
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" disabled={pending} onClick={() => void loadExport(true)}>
               <Copy className="h-4 w-4" />
-              {copied ? "Copied JSON" : "Generate + copy"}
+              {copied ? "Copied data" : "Generate + copy"}
             </Button>
             <Button variant="ghost" disabled={pending} onClick={() => void loadExport()}>
               <RefreshCw className="h-4 w-4" />
-              {payload ? "Refresh JSON" : "Show JSON"}
+              {payload ? "Refresh export" : "Show export"}
             </Button>
             <Button variant="ghost" disabled={!payload} onClick={() => void copyExport()}>
               <Copy className="h-4 w-4" />
@@ -74,7 +74,7 @@ export function ContextExportPanel() {
         rows={18}
         value={payload}
         readOnly
-        placeholder="Generate the export to copy or review the current accounts, debts, obligations, expected income, expenses, actions, roadmap ids, and allowed values."
+        placeholder="Generate the export to review the current accounts, debts, bills, expected income, actions, roadmap ids, and allowed values."
         className="font-mono text-xs leading-6"
       />
     </Panel>

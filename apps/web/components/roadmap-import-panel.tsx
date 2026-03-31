@@ -26,7 +26,7 @@ export function RoadmapImportPanel({ onImported }: { onImported: () => Promise<v
 
   async function importPayload() {
     if (!payload.trim()) {
-      setError("Paste roadmap JSON first.");
+      setError("Paste a roadmap import first.");
       return;
     }
 
@@ -60,8 +60,8 @@ export function RoadmapImportPanel({ onImported }: { onImported: () => Promise<v
     <Panel className="space-y-4">
       <SectionHeading
         eyebrow="Bulk import"
-        title="Paste a roadmap setup in one shot"
-        description="Schema v2 accepts goals, steps, income plans, allocations, cash reserves, expected income, obligations, debts, and actions in one GPT-friendly payload."
+        title="Paste a full roadmap plan in one shot"
+        description="Schema v2 accepts goals, steps, income plans, allocations, reserves, expected income, bills, debts, and actions in one payload."
         action={
           <div className="flex flex-wrap gap-2">
             <Button
@@ -86,7 +86,7 @@ export function RoadmapImportPanel({ onImported }: { onImported: () => Promise<v
         rows={18}
         value={payload}
         onChange={(event) => setPayload(event.target.value)}
-        placeholder='Paste roadmap import v2 JSON. Example: { "version": 2, "reset_planning_first": true, "goals": [], "income_plans": [], "cash_reserves": [], "expected_income_entries": [], "obligations": [], "debts": [], "actions": [] }'
+        placeholder='Paste roadmap import v2 data here. Example: { "version": 2, "reset_planning_first": true, "goals": [], "income_plans": [], "cash_reserves": [], "expected_income_entries": [], "obligations": [], "debts": [], "actions": [] }'
         className="font-mono text-xs leading-6"
       />
 
@@ -113,7 +113,7 @@ export function RoadmapImportPanel({ onImported }: { onImported: () => Promise<v
   "actions": [...]
 }`}</pre>
         <p className="mt-3 text-sm leading-6 text-muted">
-          Use the context export first so GPT works with exact live ids. Smart quotes from pasted GPT output are normalized before parsing.
+          Use the planning export first if you want exact live ids. Smart quotes from pasted output are normalized before parsing.
         </p>
         <p className="mt-2 text-sm leading-6 text-muted">
           Top-level debt, obligation, and expected-income temp ids can be resolved when you provide <code>temp_id</code>. If you want to keep your
@@ -146,7 +146,7 @@ export function RoadmapImportPanel({ onImported }: { onImported: () => Promise<v
       <div className="flex flex-wrap gap-2">
         <Button disabled={pending || !payload.trim()} onClick={() => void importPayload()}>
           <Upload className="h-4 w-4" />
-          {pending ? "Importing..." : "Import roadmap JSON"}
+          {pending ? "Importing..." : "Import roadmap plan"}
         </Button>
       </div>
     </Panel>

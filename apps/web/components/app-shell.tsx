@@ -112,16 +112,16 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-[0.3em] text-muted">Life OS</p>
-              <h1 className="mt-1.5 text-[1.12rem] font-semibold tracking-tight">Private money workspace</h1>
+              <h1 className="mt-1.5 text-[1.12rem] font-semibold tracking-tight">Your money plan</h1>
             </div>
-            <div className="rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent">Owner only</div>
+            <div className="rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent">Private</div>
           </div>
-          <p className="mt-2 max-w-[15rem] text-sm leading-5 text-muted">Keep the next payment and the safe-spend number in view.</p>
+          <p className="mt-2 max-w-[15rem] text-sm leading-5 text-muted">Keep the next bill and the safe-to-spend number in view.</p>
         </div>
 
         <div className="life-scrollbar min-h-0 overflow-y-auto overscroll-contain pr-1">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Daily workspace</p>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Main pages</p>
             <div className="mt-3 space-y-1.5">
               {desktopPrimaryItems.map((item) => {
                 const Icon = item.icon;
@@ -149,7 +149,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
           </div>
 
           <div className="mt-5 border-t border-line pt-5">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Browse</p>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-muted">More</p>
             <div className="mt-3 space-y-1.5">
               {desktopSecondaryItems.map((item) => {
                 const Icon = item.icon;
@@ -180,7 +180,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
         <div className="rounded-[26px] border border-line bg-[linear-gradient(180deg,rgba(20,35,29,0.98),rgba(49,88,77,0.94))] p-4 text-white">
           <p className="text-[10px] uppercase tracking-[0.24em] text-white/62">Available now</p>
           <div className="mt-2 text-[2.15rem] font-semibold tracking-tight tabular-nums">{formatSignedMoney(freeNow)}</div>
-          <p className="mt-1.5 text-sm leading-5 text-white/72">Safe to spend before anything else should get paid.</p>
+          <p className="mt-1.5 text-sm leading-5 text-white/72">Safe to spend before bills, minimums, and essentials need it.</p>
         </div>
       </aside>
 
@@ -210,7 +210,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
                 {roadmapFocus && activePath === "/dashboard" ? roadmapFocus : activeItem.label}
               </div>
               <p className="mt-1 hidden max-w-3xl text-sm leading-6 text-muted md:block">
-                {focusReason ?? "Keep the next payment and the next safe move in view without turning the app into a spreadsheet."}
+                {focusReason ?? "Keep the next bill and the next safe move in view without redoing the math in your head."}
               </p>
               {showMobileSummary ? (
                 <div className="mt-2 flex flex-wrap items-center gap-2 md:hidden">

@@ -47,7 +47,7 @@ tests/        API and service tests
 From the repository root:
 
 ```bash
-cd /Users/MAC/GitHub/life-os
+cd /Users/MAC/Projects/life-os
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -U pip
@@ -75,7 +75,7 @@ If you use the Supabase pooler, the Postgres username must be `postgres.<project
 The normal development path now uses the hosted Supabase project. Start the API from the repository root:
 
 ```bash
-cd /Users/MAC/GitHub/life-os
+cd /Users/MAC/Projects/life-os
 source .venv/bin/activate
 npm run dev:api
 ```
@@ -140,7 +140,7 @@ Notes:
 Run all backend tests:
 
 ```bash
-cd /Users/MAC/GitHub/life-os/apps/api
+cd /Users/MAC/Projects/life-os/apps/api
 source ../../.venv/bin/activate
 python3 -m pytest
 ```

@@ -4,9 +4,9 @@ This file is the compact handoff for new threads.
 
 ## Active Repo
 
-- Only use `/Users/MAC/Github/life-os`.
+- Only use `/Users/MAC/Projects/life-os`.
 - Ignore the old iCloud-backed repo at `/Users/MAC/Documents/GitHub/life-os`.
-- If the project is reopened from the wrong path, stop and reopen `/Users/MAC/Github/life-os` before making changes.
+- If the project is reopened from the wrong path, stop and reopen `/Users/MAC/Projects/life-os` before making changes.
 - If a local server is already running, confirm it is serving this repo before trusting what the browser shows.
 
 ## Current Product State
@@ -30,6 +30,7 @@ This file is the compact handoff for new threads.
   - `Roadmap setup`
   - `Onboarding`
   - `Useful settings`
+- The signed-out root route now shows a public landing page aimed at student cash flow.
 - `Roadmap setup` now keeps the manual fallback tools:
   - GPT context export
   - roadmap import schema `v2`
@@ -47,9 +48,11 @@ This file is the compact handoff for new threads.
 - First successful auth returns to `/`, then the home gate decides:
   - incomplete onboarding -> `/settings`
   - completed onboarding -> `/dashboard`
+- Signed-out users stay on the landing page at `/`.
 - API-backed onboarding state is the source of truth for that decision.
 - Generic local setup persistence must not mark onboarding complete on its own.
 - Logout should always return to `/login`.
+- The first onboarding step now asks whether to start blank or load student demo data before showing the rest of the setup form.
 - Browser auth validation should use `http://localhost:3000` or `http://localhost:3001`, not `127.0.0.1`, because API CORS is scoped to explicit localhost origins.
 - Phone or LAN auth testing needs extra hosted config:
   - add the exact LAN callback URL, for example `http://192.168.1.162:3000/auth/callback`, to Supabase Auth redirect URLs
@@ -59,7 +62,7 @@ This file is the compact handoff for new threads.
 - Browser-aware localhost/LAN API rewriting is a local-development convenience only and should not be relied on in production.
 - The `/login` screen now uses a mobile form-first layout:
   - brand header
-  - short auth copy
+  - short student-focused auth copy
   - sign in / create account switch
   - fields and primary action
   - social sign-in
@@ -96,10 +99,6 @@ This file is the compact handoff for new threads.
   - add accounts
   - edit name, institution, type, and balance
   - remove unlinked accounts
-- Account renames should update name-linked references in:
-  - transactions
-  - obligation linked accounts
-  - expected income linked accounts
 - Account deletion should stay conservative:
   - if an account still has linked data, do not silently let the page orphan those references
 
@@ -223,7 +222,7 @@ This file is the compact handoff for new threads.
 Web tests:
 
 ```bash
-cd /Users/MAC/Github/life-os
+cd /Users/MAC/Projects/life-os
 source ~/.nvm/nvm.sh
 nvm use 20
 npm --workspace apps/web run test
@@ -232,7 +231,7 @@ npm --workspace apps/web run test
 Focused onboarding/local-state web tests:
 
 ```bash
-cd /Users/MAC/Github/life-os
+cd /Users/MAC/Projects/life-os
 source ~/.nvm/nvm.sh
 nvm use 20
 npm --workspace apps/web run test -- lib/onboarding.test.ts lib/auth.test.ts lib/local-state.test.ts
@@ -241,7 +240,7 @@ npm --workspace apps/web run test -- lib/onboarding.test.ts lib/auth.test.ts lib
 Web typecheck:
 
 ```bash
-cd /Users/MAC/Github/life-os
+cd /Users/MAC/Projects/life-os
 source ~/.nvm/nvm.sh
 nvm use 20
 npm --workspace apps/web run typecheck
@@ -250,7 +249,7 @@ npm --workspace apps/web run typecheck
 API tests:
 
 ```bash
-cd /Users/MAC/Github/life-os/apps/api
+cd /Users/MAC/Projects/life-os/apps/api
 source ../../.venv/bin/activate
 python3 -m pytest
 ```
@@ -258,7 +257,7 @@ python3 -m pytest
 Playwright/browser validation on this machine:
 
 ```bash
-cd /Users/MAC/Github/life-os
+cd /Users/MAC/Projects/life-os
 python3 -m playwright install webkit
 python3 -m playwright --help
 ```

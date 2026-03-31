@@ -45,39 +45,39 @@ const fieldClassName =
 
 const previewSlides = [
   {
-    eyebrow: "Spend view",
-    title: "Know what is safe right now.",
-    description: "See the one number that matters first, then the few things shaping it.",
+    eyebrow: "Available now",
+    title: "Know what is safe between shifts.",
+    description: "See the number that matters first, then the bills and buffers pressing on it.",
     primaryLabel: "Available now",
-    primaryValue: "-$239.71",
+    primaryValue: "$84.00",
     detailRows: [
-      { label: "Protected buffer", value: "$100" },
-      { label: "Debt minimums", value: "$10" },
-      { label: "Essentials left", value: "$25" },
+      { label: "Protected buffer", value: "$150" },
+      { label: "Due before Friday", value: "$90" },
+      { label: "Weekly essentials", value: "$55" },
     ],
   },
   {
-    eyebrow: "Paycheck flow",
-    title: "See what the next check needs to cover.",
-    description: "Turn incoming money into a clear order instead of guessing under pressure.",
-    primaryLabel: "Next paycheck",
-    primaryValue: "$390.00",
+    eyebrow: "Income flow",
+    title: "Plan parent support, campus pay, and refund checks together.",
+    description: "The app works even when your money lands in chunks instead of a steady salary.",
+    primaryLabel: "Next income",
+    primaryValue: "$145 Friday",
     detailRows: [
-      { label: "Buffer first", value: "$50" },
-      { label: "Utilities", value: "$170" },
-      { label: "Capital One", value: "$170" },
+      { label: "Campus shift", value: "$145" },
+      { label: "Parent transfer", value: "$175" },
+      { label: "Refund check", value: "$420" },
     ],
   },
   {
     eyebrow: "Roadmap focus",
-    title: "Keep one next move in view.",
-    description: "Roadmap stays focused on what gets paid first, not a noisy list of everything.",
+    title: "Turn uneven income into one next step.",
+    description: "Roadmap stays focused on what gets paid first when money lands, not a noisy list of everything.",
     primaryLabel: "Focus",
-    primaryValue: "Utilities catch-up",
+    primaryValue: "Phone bill first",
     detailRows: [
-      { label: "Target date", value: "Apr 30" },
+      { label: "Target date", value: "Apr 4" },
       { label: "Status", value: "Active" },
-      { label: "Next step", value: "Send first payment" },
+      { label: "Next step", value: "Use Friday shift payout" },
     ],
   },
 ] as const;
@@ -161,7 +161,7 @@ export default function LoginPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="text-[2rem] font-semibold tracking-[0.18em] text-ink sm:text-[2.35rem]">LIFE OS</div>
-                    <p className="mt-2 text-sm text-muted">Private money system</p>
+                    <p className="mt-2 text-sm text-muted">Money for student life</p>
                   </div>
                   <button
                     type="button"
@@ -176,12 +176,12 @@ export default function LoginPage() {
                 <div className="mt-10 max-w-lg">
                   <p className="text-[10px] uppercase tracking-[0.24em] text-muted md:text-[11px] md:tracking-[0.28em]">Money view</p>
                   <p className="mt-4 text-4xl font-semibold tracking-tight text-ink sm:text-5xl">
-                    Keep your money clear.
+                    Keep college cash flow clear.
                     <br />
                     Keep the next move obvious.
                   </p>
                   <p className="mt-4 text-base leading-7 text-muted">
-                    See the same three things the app keeps in view every day: what is safe now, what the next check needs to cover, and what to do first.
+                    See what is safe now, what the next money needs to cover, and what gets paid first when income timing is uneven.
                   </p>
                 </div>
 
@@ -259,7 +259,7 @@ export default function LoginPage() {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-[1.55rem] font-semibold tracking-[0.18em] text-ink">LIFE OS</p>
-                      <p className="mt-1 text-sm text-muted">Private money system</p>
+                      <p className="mt-1 text-sm text-muted">Money for student life</p>
                     </div>
                     <button
                       type="button"
@@ -272,12 +272,14 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <p className="text-[10px] uppercase tracking-[0.24em] text-muted md:text-[11px] md:tracking-[0.28em]">Owner Access</p>
+                <p className="text-[10px] uppercase tracking-[0.24em] text-muted md:text-[11px] md:tracking-[0.28em]">Student access</p>
                 <h1 className="mt-3 text-[2.35rem] font-semibold leading-[0.92] tracking-tight text-ink sm:text-5xl xl:text-[3.7rem]">
                   {mode === "signin" ? "Welcome back" : "Create your account"}
                 </h1>
                 <p className="mt-3 max-w-xl text-[0.98rem] leading-6 text-muted">
-                  {mode === "signin" ? "Sign in to get back to what your money needs next." : "Start with the basics now. You can fill in the rest after you are in."}
+                  {mode === "signin"
+                    ? "Sign in to get back to what your money needs next."
+                    : "Start with your real numbers or load sample student data on the first onboarding step."}
                 </p>
 
                 <div className="mt-5 grid grid-cols-2 gap-2 rounded-[22px] border border-line bg-white/70 p-1">
@@ -430,6 +432,13 @@ export default function LoginPage() {
                     {mode === "signin" ? "Create one" : "Log in"}
                   </button>
                 </p>
+
+                {mode === "signup" ? (
+                  <p className="mt-3 text-sm leading-6 text-muted">
+                    After signup, you can choose <span className="font-medium text-ink">Start blank</span> or{" "}
+                    <span className="font-medium text-ink">Use sample student data</span> before the app asks for any setup details.
+                  </p>
+                ) : null}
 
                 <div className="mt-5 rounded-[24px] border border-line bg-[linear-gradient(180deg,rgba(61,111,94,0.08),rgba(255,255,255,0.92))] p-4 lg:hidden">
                   <div className="flex items-start justify-between gap-3">

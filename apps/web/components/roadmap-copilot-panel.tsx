@@ -82,11 +82,11 @@ export function RoadmapCopilotPanelView({
     <Panel className="space-y-4 overflow-hidden bg-[linear-gradient(135deg,rgba(250,247,240,0.96),rgba(241,236,224,0.94))]">
       <SectionHeading
         eyebrow="Copilot"
-        title={draft ? "Review the drafted replacement plan" : "Tell the copilot what changed"}
+        title={draft ? "Review the drafted plan" : "Tell the copilot what changed"}
         description={
           draft
-            ? "Approve to import the replacement plan, adjust it with a revision note, or deny it and keep the current roadmap untouched."
-            : "Describe what changed or what you want help with. The copilot drafts a full planning replacement, but nothing imports until you approve it."
+            ? "Approve to use this updated plan, adjust it with a note, or leave your current roadmap unchanged."
+            : "Describe what changed or what you want help with. The copilot will draft an updated plan around your current numbers, but nothing changes until you approve it."
         }
         action={
           <div className="flex flex-wrap gap-2">
@@ -123,22 +123,27 @@ export function RoadmapCopilotPanelView({
         <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
           <InlineField
             label="What changed?"
-            description="Examples: rent is overdue, an emergency expense hit, next paycheck is smaller, or I want utilities first."
+            description="Examples: a refund is late, work hours got cut, family support changed, or rent has to come first."
           >
-            <Textarea rows={8} value={prompt} onChange={(event) => onPromptChange?.(event.target.value)} placeholder="Rent is due in two days, my card minimum is coming up, and I need a paycheck-first plan that keeps the next week stable." />
+            <Textarea
+              rows={8}
+              value={prompt}
+              onChange={(event) => onPromptChange?.(event.target.value)}
+              placeholder="Rent is due in two days, my card minimum is coming up, and the next deposit is smaller than I expected. Rework the plan so this week stays stable."
+            />
           </InlineField>
           <div className="grid gap-3">
             <div className="rounded-[20px] border border-line bg-white/70 p-4">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Approve path</p>
-              <p className="mt-2 text-sm leading-6 text-muted">Approval imports the persisted draft directly. No copy and paste step.</p>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Use it</p>
+              <p className="mt-2 text-sm leading-6 text-muted">If the draft looks right, approve it and the updated plan is applied right away.</p>
             </div>
             <div className="rounded-[20px] border border-line bg-white/70 p-4">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Adjust path</p>
-              <p className="mt-2 text-sm leading-6 text-muted">Revision notes regenerate a full replacement draft against the latest backend state.</p>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Refine it</p>
+              <p className="mt-2 text-sm leading-6 text-muted">Give the copilot a short note and it will redraw the plan against your latest numbers.</p>
             </div>
             <div className="rounded-[20px] border border-line bg-white/70 p-4">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Safety</p>
-              <p className="mt-2 text-sm leading-6 text-muted">The copilot drafts advice. It does not silently rewrite ledger truth or planning state. If real money already moved, add it manually so it becomes ledger truth.</p>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Guardrails</p>
+              <p className="mt-2 text-sm leading-6 text-muted">The copilot suggests the plan. It does not silently rewrite real money history, so recorded transactions stay trustworthy.</p>
             </div>
           </div>
         </div>
@@ -153,7 +158,7 @@ export function RoadmapCopilotPanelView({
               <h3 className="mt-3 text-xl font-semibold tracking-tight text-ink">{draft.summary}</h3>
               <p className="mt-3 text-sm leading-6 text-muted">{draft.rationale}</p>
               <p className="mt-3 text-xs leading-5 text-muted">{formatIncomeEntryCount(draft.preview.preserved_income_entries)}</p>
-              <p className="mt-2 text-xs leading-5 text-muted">If real money already moved, add it manually so it becomes ledger truth.</p>
+              <p className="mt-2 text-xs leading-5 text-muted">If money already moved in real life, record it so the plan stays grounded in what actually happened.</p>
             </div>
             <div className="rounded-[22px] border border-line bg-white/78 p-4">
               <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Warnings</p>
@@ -191,7 +196,7 @@ export function RoadmapCopilotPanelView({
               </div>
             </div>
             <div className="rounded-[22px] border border-line bg-white/72 p-4">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Paycheck plans</p>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Income plans</p>
               <div className="mt-3 space-y-2">
                 {draft.preview.income_plans.length ? (
                   draft.preview.income_plans.map((plan) => (
@@ -203,7 +208,7 @@ export function RoadmapCopilotPanelView({
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted">{emptyPreviewMessage("paycheck plans")}</p>
+                  <p className="text-sm text-muted">{emptyPreviewMessage("income plans")}</p>
                 )}
               </div>
             </div>
@@ -233,9 +238,14 @@ export function RoadmapCopilotPanelView({
             <div className="flex-1 space-y-3">
               <div>
                 <p className="text-sm font-medium text-ink">Adjust the draft</p>
-                <p className="mt-1 text-sm leading-6 text-muted">Give the copilot a revision note. It will regenerate a full replacement draft against the latest backend context.</p>
+                <p className="mt-1 text-sm leading-6 text-muted">Give the copilot a revision note. It will redraw the draft against your latest planning context.</p>
               </div>
-              <Textarea rows={4} value={revisionNote} onChange={(event) => onRevisionNoteChange?.(event.target.value)} placeholder="Put utilities first, keep the card minimum current, and leave a smaller buffer for now." />
+              <Textarea
+                rows={4}
+                value={revisionNote}
+                onChange={(event) => onRevisionNoteChange?.(event.target.value)}
+                placeholder="Put utilities first, keep the card minimum current, and leave a smaller cushion for now."
+              />
               <div className="flex flex-wrap gap-2">
                 <Button variant="secondary" disabled={pending || !revisionNote.trim()} onClick={onRevise}>
                   {pending ? "Adjusting..." : "Submit adjustment"}
@@ -255,7 +265,7 @@ export function RoadmapCopilotPanelView({
             <ShieldAlert className="mt-1 h-4 w-4 text-[rgba(165,57,42,0.88)]" />
             <div>
               <p className="text-sm font-medium text-ink">{emergencyOpen ? "Record emergency expense and replan" : "Record emergency expense"}</p>
-              <p className="mt-1 text-sm leading-6 text-muted">This writes a real expense first, then rebuilds the copilot draft from the updated state in the same flow.</p>
+              <p className="mt-1 text-sm leading-6 text-muted">This records the expense first, then lets the copilot redraw the plan from the updated numbers in the same flow.</p>
             </div>
           </div>
           <Button variant="ghost" disabled={pending} onClick={onEmergencyToggle}>
@@ -266,7 +276,7 @@ export function RoadmapCopilotPanelView({
         {emergencyOpen ? (
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <InlineField label="What changed?">
-              <Textarea rows={3} value={emergencyDraft.message} onChange={(event) => onEmergencyChange?.("message", event.target.value)} placeholder="A car repair hit today. Rework the roadmap around it." />
+              <Textarea rows={3} value={emergencyDraft.message} onChange={(event) => onEmergencyChange?.("message", event.target.value)} placeholder="A car repair hit today. Rework the plan around it." />
             </InlineField>
             <div className="grid gap-3">
               <InlineField label="Amount">
@@ -297,7 +307,7 @@ export function RoadmapCopilotPanelView({
             </InlineField>
             <div className="md:col-span-2">
               <InlineField label="Notes" helper="Optional">
-                <Textarea rows={3} value={emergencyDraft.notes} onChange={(event) => onEmergencyChange?.("notes", event.target.value)} placeholder="Paid immediately. Rework the next few payments around it." />
+                <Textarea rows={3} value={emergencyDraft.notes} onChange={(event) => onEmergencyChange?.("notes", event.target.value)} placeholder="Paid immediately. Rework the next few moves around it." />
               </InlineField>
             </div>
             <div className="md:col-span-2 flex flex-wrap gap-2">
