@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Badge, Panel, SectionHeading, StatCard, cn } from "@/components/ui";
 import { type DecisionSnapshot } from "@/lib/decision";
 import { describeTrend, getActionLaneSummary, getAvailableSpendBreakdownRows, isInactiveActionStatus } from "@/lib/decision-view";
@@ -32,6 +32,8 @@ export function DashboardScreen({
     showMomentum: true,
     showRecentUpdates: true,
   },
+  showSamplePlanBanner = false,
+  onResetSamplePlan,
 }: {
   snapshot: DecisionSnapshot;
   preferences?: {
@@ -39,6 +41,8 @@ export function DashboardScreen({
     showMomentum: boolean;
     showRecentUpdates: boolean;
   };
+  showSamplePlanBanner?: boolean;
+  onResetSamplePlan?: () => void;
 }) {
   const primary = snapshot.focus.primaryAction;
   const secondary = snapshot.focus.secondaryAction;
@@ -50,6 +54,32 @@ export function DashboardScreen({
 
   return (
     <div className="mx-auto max-w-[1260px] space-y-4 pb-24 md:space-y-6 md:pb-6">
+      {showSamplePlanBanner ? (
+        <Panel className="border-[rgba(61,111,94,0.18)] bg-[rgba(246,250,248,0.92)]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-accent">Sample student plan</p>
+              <p className="mt-2 text-sm leading-6 text-ink">
+                Dashboard, roadmap, and copilot are loaded with realistic student numbers, so you can demo the full flow without typing anything in live.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/roadmap" className="inline-flex items-center justify-center rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-[0_12px_28px_rgba(51,95,83,0.16)] transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#294d43]">
+                Open roadmap
+              </Link>
+              {onResetSamplePlan ? (
+                <button
+                  type="button"
+                  onClick={onResetSamplePlan}
+                  className="inline-flex items-center justify-center rounded-full border border-line bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-black/5"
+                >
+                  Use your own numbers
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </Panel>
+      ) : null}
       <Panel className="overflow-hidden bg-[linear-gradient(135deg,rgba(20,35,29,0.98),rgba(46,84,73,0.96))] text-white">
         <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
@@ -84,26 +114,21 @@ export function DashboardScreen({
 
           <div className="grid gap-3">
             <div className="rounded-[26px] border border-white/10 bg-white/8 p-5">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-white/55">Through next income</p>
-              <p className="mt-2 text-4xl font-semibold tracking-tight tabular-nums">{formatSignedMoney(snapshot.freeAfterPlannedIncome.amount)}</p>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/55">Do this first</p>
+              <p className="mt-2 text-xl font-semibold tracking-tight text-white">{primary?.title ?? "Your next move is ready"}</p>
               <p className="mt-2 text-sm leading-6 text-white/72">
-                What stays free after expected inflow, due bills, minimums, and your essentials target.
+                {primary?.detail ?? "The app keeps the next move visible, even when money is landing unevenly."}
               </p>
             </div>
 
             <div className="rounded-[26px] border border-white/10 bg-white/8 p-5">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-white/55">Copilot focus</p>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/55">Through next income</p>
               <div className="mt-3 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-white">{primary?.title ?? "No immediate action yet"}</p>
-                    <p className="mt-1 text-sm leading-6 text-white/68">{primary?.detail ?? snapshot.focus.whyNow}</p>
-                  </div>
-                  <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-white/55" />
-                </div>
+                <p className="text-4xl font-semibold tracking-tight tabular-nums">{formatSignedMoney(snapshot.freeAfterPlannedIncome.amount)}</p>
+                <p className="text-sm leading-6 text-white/72">What stays free after expected inflow, due bills, minimums, and your essentials target.</p>
                 {secondary ? (
                   <div className="border-t border-white/10 pt-3">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/55">Then next</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/55">After that</p>
                     <p className="mt-1 text-sm font-medium text-white">{secondary.title}</p>
                   </div>
                 ) : null}
@@ -117,8 +142,8 @@ export function DashboardScreen({
         <Panel className="space-y-4">
           <SectionHeading
             eyebrow="Top actions"
-            title="Do now, then next"
-            description="This queue is ordered so you do not have to redo the week in your head after the plan changes."
+            title="This week, in order"
+            description="Start with the first move and work straight down. The ordering is already handled for you."
           />
           <div className="space-y-2">
             {actionPreview.length ? (
@@ -140,7 +165,7 @@ export function DashboardScreen({
               ))
             ) : (
               <div className="rounded-[22px] border border-dashed border-line bg-white/56 p-4 text-sm text-muted">
-                No actions yet. Open Roadmap or add a manual action.
+                You are caught up for now. If the week changes, open the roadmap and let the copilot redraw the plan.
               </div>
             )}
           </div>
@@ -149,7 +174,7 @@ export function DashboardScreen({
         <Panel className="space-y-4">
           <SectionHeading
             eyebrow="Spend breakdown"
-            title="See what is tightening the number"
+            title="Why the number looks like this"
             description="The formula stays readable: cash in view first, then the money already spoken for."
           />
 
@@ -211,8 +236,8 @@ export function DashboardScreen({
             <StatCard label="Required outflow (14d)" value={formatMoney(snapshot.cashflow.next14RequiredOutflow)} />
             <StatCard
               label="Next pressure"
-              value={snapshot.cashflow.nextPressurePoint ?? "Nothing urgent"}
-              detail={snapshot.cashflow.nextIncomeDate ? `Next income ${shortDate(snapshot.cashflow.nextIncomeDate)}` : "No reliable income planned"}
+              value={snapshot.cashflow.nextPressurePoint ?? "Steady right now"}
+              detail={snapshot.cashflow.nextIncomeDate ? `Next income ${shortDate(snapshot.cashflow.nextIncomeDate)}` : "Add the next deposit, transfer, or refund."}
             />
             <StatCard
               label="Trailing 30d net"
@@ -265,7 +290,7 @@ export function DashboardScreen({
                   ))
                 ) : (
                   <div className="rounded-[22px] border border-dashed border-line bg-white/56 p-4 text-sm text-muted">
-                    No fresh updates yet. Your next logged action or relaunch event will show here.
+                    Nothing new has landed yet. The next bill, deposit, or approved plan update will show up here.
                   </div>
                 )}
               </div>

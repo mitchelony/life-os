@@ -6,6 +6,7 @@ import { api, type BackendSetupPayload } from "@/lib/api";
 import { Check, ChevronLeft, ChevronRight, CirclePlus } from "lucide-react";
 import { todayDateInputValue } from "@/lib/dates";
 import {
+  demoPlanKey,
   onboardingKey,
   readStoredLifeOsSetup,
   saveStoredLifeOsSetup,
@@ -257,12 +258,17 @@ export function OnboardingFlow() {
         setCurrentSetupSnapshot(nextSetup);
         saveStoredLifeOsSetup(nextSetup);
         window.localStorage.setItem(onboardingKey, "true");
+        if (startingPoint === "student-demo") {
+          window.localStorage.setItem(demoPlanKey, "student");
+        } else {
+          window.localStorage.removeItem(demoPlanKey);
+        }
         router.push("/dashboard");
       })
       .catch(() => {
         saveStoredLifeOsSetup(nextSetup);
         window.localStorage.removeItem(onboardingKey);
-        setSaveError("Setup was saved locally, but the API could not confirm onboarding. Fix the connection and try again.");
+        setSaveError("Your setup is saved here, but we could not finish the handoff to the app. Refresh and try again.");
       })
       .finally(() => {
         setIsSaving(false);
@@ -294,13 +300,13 @@ export function OnboardingFlow() {
           <SectionHeading
             eyebrow="Demo setup"
             title="Do you want sample data?"
-            description="Pick a starting point first. Sample student data loads a realistic college budget, uneven income, and a roadmap plan."
+            description="Pick a starting point first. The sample student plan loads realistic accounts, uneven income, and a ready-to-demo roadmap."
           />
           {currentSetupSnapshot ? (
             <div className="rounded-[22px] border border-line bg-[rgba(244,241,233,0.82)] p-4">
               <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Saved setup found</p>
               <p className="mt-2 text-sm leading-6 text-ink">
-                You already have baseline data here. You can keep it, start blank, or swap in sample student data.
+                You already have numbers here. Keep them, start blank, or switch to the student sample for the demo.
               </p>
             </div>
           ) : null}
@@ -347,9 +353,14 @@ export function OnboardingFlow() {
           ) : null}
           {startingPoint === "student-demo" ? (
             <div className="rounded-[24px] border border-line bg-[linear-gradient(180deg,rgba(51,95,83,0.12),rgba(255,255,255,0.82))] p-4">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-accent">Sample setup loaded</p>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-[11px] uppercase tracking-[0.24em] text-accent">Sample student plan loaded</p>
+                <Button variant="ghost" onClick={() => applyPreset("blank")}>
+                  Start over
+                </Button>
+              </div>
               <p className="mt-2 text-sm leading-6 text-ink">
-                The sample includes part-time job income, parent support, a refund check, a live roadmap focus, and a next-income plan built for student cash flow.
+                Dashboard, roadmap, and copilot are ready with campus pay, family support, and aid-refund timing already filled in.
               </p>
             </div>
           ) : null}

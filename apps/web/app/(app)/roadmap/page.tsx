@@ -527,7 +527,7 @@ export default function RoadmapPage() {
     return (
       <div className="space-y-4 pb-24 md:space-y-6 md:pb-6">
         <Panel>
-          <SectionHeading eyebrow="Roadmap" title="Loading your plan" description="Pulling the current focus, income plan, and goal progress." />
+          <SectionHeading eyebrow="Roadmap" title="Loading your plan" description="Pulling your next move, upcoming income, and copilot context." />
         </Panel>
       </div>
     );
@@ -539,7 +539,7 @@ export default function RoadmapPage() {
         <SectionHeading
           eyebrow="Roadmap"
           title={snapshot?.focus.primaryAction?.title ?? "Set the next income in order"}
-          description={snapshot?.focus.whyNow ?? "Roadmap should answer what gets paid first, what happens after that, and what goal is actually active."}
+          description={snapshot?.focus.whyNow ?? "Use the roadmap to decide what gets paid first, what comes after that, and which goal is truly active."}
           tone="inverse"
           action={
             <div className="flex flex-wrap gap-2">
@@ -584,7 +584,7 @@ export default function RoadmapPage() {
         <div className="mt-5 grid gap-3 md:grid-cols-4">
           <Panel className="bg-white/10 text-white">
             <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Focus</p>
-            <p className="mt-2 text-lg font-semibold tracking-tight">{snapshot?.focus.primaryAction?.title ?? "No focus yet"}</p>
+            <p className="mt-2 text-lg font-semibold tracking-tight">{snapshot?.focus.primaryAction?.title ?? "Next move coming into focus"}</p>
           </Panel>
           <Panel className="bg-white/10 text-white">
             <p className="text-[10px] uppercase tracking-[0.22em] text-white/65">Goals</p>
@@ -719,7 +719,7 @@ export default function RoadmapPage() {
             </div>
           ) : (
             <Panel className="border-dashed bg-white/56 text-sm text-muted">
-              No income plan yet. Add the next reliable deposit and break it into explicit moves.
+              No income plan yet. Add the next paycheck, transfer, or refund and give every dollar a job.
             </Panel>
           )}
         </section>
@@ -785,7 +785,7 @@ export default function RoadmapPage() {
             ))
           ) : (
             <Panel className="border-dashed bg-white/56 text-sm text-muted">
-              No active goals yet. Add the one financial outcome that should shape your next few payments.
+              No active goal yet. Add the one outcome that should shape your next few payments.
             </Panel>
           )}
         </section>
@@ -862,8 +862,8 @@ export default function RoadmapPage() {
                 </div>
                 <div className="rounded-[22px] border border-line bg-[rgba(255,255,255,0.62)] p-4">
                   <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Current focus</p>
-                  <p className="mt-2 text-base font-semibold tracking-tight text-ink">{snapshot?.focus.primaryAction?.title ?? "No focus yet"}</p>
-                  <p className="mt-2 text-sm leading-6 text-muted">{snapshot?.focus.whyNow ?? "No advisory context loaded yet."}</p>
+                  <p className="mt-2 text-base font-semibold tracking-tight text-ink">{snapshot?.focus.primaryAction?.title ?? "Next move coming into focus"}</p>
+                  <p className="mt-2 text-sm leading-6 text-muted">{snapshot?.focus.whyNow ?? "Add a goal or income plan and the next move will become clear here."}</p>
                 </div>
               </div>
             </Panel>

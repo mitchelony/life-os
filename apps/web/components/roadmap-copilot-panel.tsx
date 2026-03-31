@@ -52,8 +52,15 @@ function formatIncomeEntryCount(count: number) {
 }
 
 function emptyPreviewMessage(label: string) {
-  return `No ${label} in this draft yet.`;
+  return `No ${label} drafted yet.`;
 }
+
+const copilotScenarioChips = [
+  "My refund is late, so rent has to come first.",
+  "My work-study shift was smaller than usual this week.",
+  "Family support is coming later than expected.",
+  "I need to cover groceries before anything optional.",
+] as const;
 
 export function RoadmapCopilotPanelView({
   draft,
@@ -121,29 +128,43 @@ export function RoadmapCopilotPanelView({
 
       {!draft ? (
         <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-          <InlineField
-            label="What changed?"
-            description="Examples: a refund is late, work hours got cut, family support changed, or rent has to come first."
-          >
-            <Textarea
-              rows={8}
-              value={prompt}
-              onChange={(event) => onPromptChange?.(event.target.value)}
-              placeholder="Rent is due in two days, my card minimum is coming up, and the next deposit is smaller than I expected. Rework the plan so this week stays stable."
-            />
-          </InlineField>
+          <div className="space-y-3">
+            <InlineField
+              label="What changed?"
+              description="Examples: a refund is late, work hours got cut, family support changed, or rent has to come first."
+            >
+              <Textarea
+                rows={8}
+                value={prompt}
+                onChange={(event) => onPromptChange?.(event.target.value)}
+                placeholder="Rent is due in two days, my card minimum is coming up, and the next deposit is smaller than I expected. Rework the plan so this week stays stable."
+              />
+            </InlineField>
+            <div className="flex flex-wrap gap-2">
+              {copilotScenarioChips.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => onPromptChange?.(chip)}
+                  className="rounded-full border border-line bg-white/72 px-3 py-2 text-sm text-ink transition hover:bg-white"
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="grid gap-3">
             <div className="rounded-[20px] border border-line bg-white/70 p-4">
               <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Use it</p>
-              <p className="mt-2 text-sm leading-6 text-muted">If the draft looks right, approve it and the updated plan is applied right away.</p>
+              <p className="mt-2 text-sm leading-6 text-muted">If it looks right, approve it and the roadmap updates in one step.</p>
             </div>
             <div className="rounded-[20px] border border-line bg-white/70 p-4">
               <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Refine it</p>
-              <p className="mt-2 text-sm leading-6 text-muted">Give the copilot a short note and it will redraw the plan against your latest numbers.</p>
+              <p className="mt-2 text-sm leading-6 text-muted">Give one short note and the copilot redraws the plan against your latest numbers.</p>
             </div>
             <div className="rounded-[20px] border border-line bg-white/70 p-4">
               <p className="text-[10px] uppercase tracking-[0.22em] text-muted">Guardrails</p>
-              <p className="mt-2 text-sm leading-6 text-muted">The copilot suggests the plan. It does not silently rewrite real money history, so recorded transactions stay trustworthy.</p>
+              <p className="mt-2 text-sm leading-6 text-muted">The copilot can reshape the plan, not your money history, so recorded transactions stay trustworthy.</p>
             </div>
           </div>
         </div>
@@ -373,7 +394,7 @@ export function RoadmapCopilotPanel({ onPlanningChanged }: { onPlanningChanged: 
         setCategories(nextCategories);
       } catch (caught) {
         if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : "Could not load copilot state.");
+          setError(caught instanceof Error ? `Copilot is unavailable right now. ${caught.message}` : "Copilot is unavailable right now. You can still work from the roadmap below.");
         }
       }
     }
@@ -391,7 +412,7 @@ export function RoadmapCopilotPanel({ onPlanningChanged }: { onPlanningChanged: 
     try {
       await task();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Copilot request failed.");
+      setError(caught instanceof Error ? caught.message : "Something interrupted the copilot. Try again.");
     } finally {
       setPending(false);
     }
@@ -417,7 +438,7 @@ export function RoadmapCopilotPanel({ onPlanningChanged }: { onPlanningChanged: 
           setDraft(nextDraft);
           setPrompt("");
           setAdjustmentOpen(false);
-          setFeedback("Draft ready to review.");
+          setFeedback("Fresh draft ready to review.");
         })
       }
       onApprove={() =>
@@ -427,7 +448,7 @@ export function RoadmapCopilotPanel({ onPlanningChanged }: { onPlanningChanged: 
           setDraft(null);
           setAdjustmentOpen(false);
           setRevisionNote("");
-          setFeedback("Draft approved and imported into the roadmap.");
+          setFeedback("Draft approved. The roadmap is now updated.");
           await onPlanningChanged();
         })
       }
@@ -444,7 +465,7 @@ export function RoadmapCopilotPanel({ onPlanningChanged }: { onPlanningChanged: 
           setDraft(nextDraft);
           setRevisionNote("");
           setAdjustmentOpen(false);
-          setFeedback("Draft updated from your revision note.");
+          setFeedback("Draft refreshed from your note.");
         })
       }
       onDeny={() =>
@@ -454,7 +475,7 @@ export function RoadmapCopilotPanel({ onPlanningChanged }: { onPlanningChanged: 
           setDraft(response.draft);
           setAdjustmentOpen(false);
           setRevisionNote("");
-          setFeedback(response.draft ? "This draft was already inactive. The latest active draft is now shown." : "Draft denied. The live roadmap was left unchanged.");
+          setFeedback(response.draft ? "That draft was already inactive. The latest active draft is now shown." : "Draft denied. The live roadmap was left unchanged.");
         })
       }
       onEmergencyToggle={() => {
@@ -482,7 +503,7 @@ export function RoadmapCopilotPanel({ onPlanningChanged }: { onPlanningChanged: 
           });
           setEmergencyOpen(false);
           setAdjustmentOpen(false);
-          setFeedback("Emergency expense recorded and a fresh draft is ready.");
+          setFeedback("Expense recorded. A fresh draft is ready.");
           await onPlanningChanged();
         })
       }

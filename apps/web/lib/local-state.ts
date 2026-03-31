@@ -28,6 +28,7 @@ import type {
 
 export const onboardingKey = process.env.NEXT_PUBLIC_ONBOARDING_KEY ?? "life-os-onboarded";
 export const setupKey = "life-os-setup";
+export const demoPlanKey = "life-os-demo-plan";
 const changedEvent = "lifeos:setup-changed";
 
 export type StoredAccountDraft = {

@@ -21,8 +21,8 @@ export const onboardingPresetOptions: OnboardingPresetOption[] = [
   {
     id: "student-demo",
     label: "Use sample student data",
-    description: "Load a realistic college budget with uneven income so you can see how the app works right away.",
-    bullets: ["Part-time income", "Parent support and refund timing", "Roadmap + income plan included"],
+    description: "Load a realistic student money setup with campus pay, family help, aid-refund timing, and a ready-to-demo plan.",
+    bullets: ["Campus shifts and side money", "Family support and aid refund timing", "Roadmap + income plan already mapped"],
     recommended: true,
   },
 ];
@@ -55,8 +55,8 @@ function addDays(referenceDate: Date, days: number) {
 function buildStudentStrategy(referenceDate: Date): StrategyDocument {
   return {
     version: 2,
-    name: "Student cash flow plan",
-    summary: "Cover essentials first, keep a buffer for uneven weeks, and stop small debt from snowballing.",
+    name: "Student cash flow game plan",
+    summary: "Cover essentials first, protect a buffer for uneven weeks, and stay ahead of the small bills that can throw off the month.",
     effectiveDate: addDays(referenceDate, 0),
     currency: "USD",
     planningHorizonDays: 21,
@@ -64,42 +64,42 @@ function buildStudentStrategy(referenceDate: Date): StrategyDocument {
     goals: [
       {
         id: "goal-april-cashflow",
-        title: "Stabilize April cash flow",
+        title: "Stay ahead of April bills",
         category: "finances",
         status: "active",
         priority: "critical",
         targetDate: addDays(referenceDate, 21),
-        notes: "Stay ahead of essentials even when income lands at different times.",
+        notes: "Keep rent share, phone, and groceries covered even when money lands on different days.",
       },
       {
         id: "goal-summer-buffer",
-        title: "Build a $300 summer buffer",
+        title: "Build a $300 finals-to-summer buffer",
         category: "finances",
         status: "planned",
         priority: "high",
         targetDate: addDays(referenceDate, 45),
         targetAmount: 300,
-        notes: "Keep some room before campus hours slow down.",
+        notes: "Set aside a cushion before campus hours slow down after finals.",
       },
     ],
     expectedIncome: [
       {
         id: "income-campus-shift",
-        label: "Campus library shift",
+        label: "Campus rec center shift",
         amount: 145,
         timing: "next_week",
         certainty: "confirmed",
       },
       {
         id: "income-parent-transfer",
-        label: "Parent transfer",
+        label: "Mom transfer",
         amount: 175,
         timing: "in_2_weeks",
         certainty: "confirmed",
       },
       {
         id: "income-refund-check",
-        label: "Refund check",
+        label: "Aid refund",
         amount: 420,
         timing: "after_mid_april",
         certainty: "conditional",
@@ -109,19 +109,19 @@ function buildStudentStrategy(referenceDate: Date): StrategyDocument {
       {
         id: "plan-friday-income",
         incomeId: "income-campus-shift",
-        label: "Friday income plan",
+        label: "Friday deposit plan",
         amount: 145,
         allocations: [
           {
             id: "alloc-groceries",
-            label: "Groceries and laundry",
+            label: "Groceries + laundry reload",
             amount: 55,
             type: "obligation_payment",
             priority: 1,
           },
           {
             id: "alloc-phone",
-            label: "Phone bill",
+            label: "Mint Mobile",
             amount: 35,
             type: "obligation_payment",
             priority: 2,
@@ -135,13 +135,13 @@ function buildStudentStrategy(referenceDate: Date): StrategyDocument {
           },
           {
             id: "alloc-buffer",
-            label: "Cash buffer top-up",
+            label: "Cash cushion",
             amount: 30,
             type: "buffer",
             priority: 4,
           },
         ],
-        recommendedStep: "Cover groceries, phone, and the card minimum before any discretionary spend.",
+        recommendedStep: "Handle groceries, your phone bill, and the card minimum before any social spending.",
       },
     ],
     cashFlowPlan: {
@@ -160,7 +160,7 @@ function buildStudentStrategy(referenceDate: Date): StrategyDocument {
           type: "follow_next_income_plan",
         },
         priority: "high",
-        notes: "Keep the balance moving down while income is uneven.",
+        notes: "Keep it current so one uneven week does not spill into the next.",
       },
     ],
     obligationPlan: [
@@ -168,7 +168,7 @@ function buildStudentStrategy(referenceDate: Date): StrategyDocument {
         obligationName: "Phone bill",
         handling: "pay_once",
         priority: "critical",
-        notes: "Pay this from the next confirmed shift.",
+        notes: "Pay this from the next confirmed shift deposit.",
       },
       {
         obligationName: "Rent share",
@@ -178,12 +178,12 @@ function buildStudentStrategy(referenceDate: Date): StrategyDocument {
           cadence: "within_horizon",
         },
         priority: "critical",
-        notes: "Split this across the next two income moments.",
+        notes: "Split this across the next two income moments instead of letting it hit all at once.",
       },
     ],
     spendingRules: {
       weeklyEssentialsCap: 110,
-      notes: "Keep takeout and rideshare low until the refund check clears.",
+      notes: "Keep takeout and rideshare low until the aid refund clears.",
     },
     guidance: {
       focusOrder: ["next_income_plan", "critical_obligation", "critical_debt", "buffer", "goal_progress"],
@@ -197,11 +197,11 @@ function buildStudentDemoSetup(referenceDate: Date): StoredLifeOsSetup {
   const strategyDocument = buildStudentStrategy(referenceDate);
 
   return {
-    displayName: "Maya Carter",
+    displayName: "Nia Brooks",
     protectedBuffer: "150",
     essentialTarget: "110",
     savingsFloor: "300",
-    notes: "Income changes week to week, so keep the plan centered on essentials, upcoming bills, and the next confirmed money in.",
+    notes: "Income moves around week to week, so keep the plan centered on essentials, upcoming bills, and the next confirmed money in.",
     accounts: [
       {
         id: "acct-chase-checking",
@@ -219,7 +219,7 @@ function buildStudentDemoSetup(referenceDate: Date): StoredLifeOsSetup {
       },
       {
         id: "acct-discover-student",
-        name: "Discover Student Card",
+        name: "Discover it Student Card",
         institution: "Discover",
         type: "credit_card",
         balance: "-182.40",
@@ -228,7 +228,7 @@ function buildStudentDemoSetup(referenceDate: Date): StoredLifeOsSetup {
     obligations: [
       {
         id: "obl-rent-share",
-        name: "Rent share",
+        name: "Off-campus rent split",
         amount: "300",
         dueDate: addDays(referenceDate, 5),
         recurrence: "monthly",
@@ -236,7 +236,7 @@ function buildStudentDemoSetup(referenceDate: Date): StoredLifeOsSetup {
       },
       {
         id: "obl-phone",
-        name: "Phone bill",
+        name: "Mint Mobile",
         amount: "35",
         dueDate: addDays(referenceDate, 3),
         recurrence: "monthly",
@@ -244,7 +244,7 @@ function buildStudentDemoSetup(referenceDate: Date): StoredLifeOsSetup {
       },
       {
         id: "obl-laundry",
-        name: "Laundry + groceries",
+        name: "Laundry card + grocery run",
         amount: "55",
         dueDate: addDays(referenceDate, 2),
         recurrence: "weekly",
@@ -254,7 +254,7 @@ function buildStudentDemoSetup(referenceDate: Date): StoredLifeOsSetup {
     debts: [
       {
         id: "debt-discover-student",
-        name: "Discover Student Card",
+        name: "Discover it Student Card",
         balance: "182.40",
         minimum: "25",
         dueDate: addDays(referenceDate, 6),
@@ -263,7 +263,7 @@ function buildStudentDemoSetup(referenceDate: Date): StoredLifeOsSetup {
     income: [
       {
         id: "income-campus-shift",
-        source: "Campus library shift",
+        source: "Campus rec center shift",
         expectedAmount: "145",
         dueDate: addDays(referenceDate, 4),
         recurrence: "weekly",
@@ -271,7 +271,7 @@ function buildStudentDemoSetup(referenceDate: Date): StoredLifeOsSetup {
       },
       {
         id: "income-parent-transfer",
-        source: "Parent transfer",
+        source: "Mom transfer",
         expectedAmount: "175",
         dueDate: addDays(referenceDate, 11),
         recurrence: "monthly",
@@ -279,7 +279,7 @@ function buildStudentDemoSetup(referenceDate: Date): StoredLifeOsSetup {
       },
       {
         id: "income-refund-check",
-        source: "Refund check",
+        source: "Aid refund",
         expectedAmount: "420",
         dueDate: addDays(referenceDate, 15),
         recurrence: "one-time",
@@ -290,7 +290,7 @@ function buildStudentDemoSetup(referenceDate: Date): StoredLifeOsSetup {
       {
         id: "tx-campus-lunch",
         kind: "expense",
-        title: "Campus lunch",
+        title: "Late-night food run",
         amount: "12.45",
         date: addDays(referenceDate, -1),
         account: "Chase Student Checking",
@@ -300,7 +300,7 @@ function buildStudentDemoSetup(referenceDate: Date): StoredLifeOsSetup {
       {
         id: "tx-campus-pay",
         kind: "income",
-        title: "Library shift payout",
+        title: "Campus payroll deposit",
         amount: "138.00",
         date: addDays(referenceDate, -5),
         account: "Chase Student Checking",
@@ -310,10 +310,10 @@ function buildStudentDemoSetup(referenceDate: Date): StoredLifeOsSetup {
       {
         id: "tx-books",
         kind: "expense",
-        title: "Lab manual",
+        title: "Organic chem lab goggles",
         amount: "28.75",
         date: addDays(referenceDate, -6),
-        account: "Discover Student Card",
+        account: "Discover it Student Card",
         counterparty: "Campus Store",
         category: "School",
       },
@@ -321,20 +321,20 @@ function buildStudentDemoSetup(referenceDate: Date): StoredLifeOsSetup {
     manualTasks: [
       {
         id: "task-bursar",
-        title: "Check bursar account for April fee deadline",
+        title: "Check the bursar portal before the late fee posts",
         dueDate: addDays(referenceDate, 2),
         priority: "high",
         linkedTo: "School",
         completed: false,
         source: "manual",
-        notes: "Make sure the refund timeline still holds.",
+        notes: "Make sure the aid refund timeline still holds.",
       },
     ],
     taskOverrides: [],
     roadmapItems: [
       {
         id: "roadmap-april-cashflow",
-        title: "Stabilize April cash flow",
+        title: "Stay ahead of April bills",
         description: "Use each incoming dollar in order so rent share, phone, and groceries are covered before anything optional.",
         category: "finances",
         status: "active",
@@ -346,34 +346,34 @@ function buildStudentDemoSetup(referenceDate: Date): StoredLifeOsSetup {
         steps: [
           {
             id: "step-cover-groceries",
-            title: "Use Friday shift money for groceries and laundry",
+            title: "Use Friday's shift money for groceries and laundry",
             completed: true,
             dueDate: addDays(referenceDate, 2),
           },
           {
             id: "step-cover-phone",
-            title: "Pay the phone bill from the next shift payout",
+            title: "Pay Mint Mobile from the next shift payout",
             completed: false,
             dueDate: addDays(referenceDate, 3),
           },
           {
             id: "step-cover-rent-share",
-            title: "Split rent share across the next two income moments",
+            title: "Split the rent share between the next shift and Mom transfer",
             completed: false,
             dueDate: addDays(referenceDate, 5),
           },
         ],
-        notes: "This should stay ahead of social spending until the refund check lands.",
+        notes: "This should stay ahead of social spending until the aid refund lands.",
         dependencyIds: [],
         linkedStrategyGoalId: "goal-april-cashflow",
         strategyBacked: true,
-        derivedNextStep: "Pay the phone bill from the next shift payout.",
+        derivedNextStep: "Pay Mint Mobile from the next shift payout.",
         urgencyScore: 98,
-        reason: "Bills are due before the conditional refund check.",
+        reason: "Bills are due before the aid refund clears.",
       },
       {
         id: "roadmap-summer-buffer",
-        title: "Build a $300 summer buffer",
+        title: "Build a $300 finals-to-summer buffer",
         description: "Keep a cushion before campus hours drop and summer costs shift.",
         category: "finances",
         status: "planned",

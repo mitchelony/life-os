@@ -10,13 +10,61 @@ import { hasAuthSession } from "@/lib/auth";
 import { getRootPageMode, type RootPageMode } from "@/lib/root-page";
 
 const preview = {
-  availableNow: "$84",
-  throughNextIncome: "$229",
-  nextAction: "Pay the phone bill before Friday",
-  afterThat: "Split rent share when the refund check lands",
-  incomeSources: ["Campus shift", "Parent transfer", "Refund check"],
-  roadmapLabel: "Friday income plan",
+  cards: [
+    {
+      id: "available_now",
+      eyebrow: "Available now",
+      title: "$84",
+      summary: "What you can spend today.",
+      detail: "A clear number after bills, essentials, and your buffer.",
+      tieIn: "Dashboard",
+      tone: "light",
+    },
+    {
+      id: "income_mix",
+      eyebrow: "Income mix",
+      title: "Campus pay + support",
+      summary: "Student money comes from more than one place.",
+      detail: "Track shifts, refunds, transfers, side gigs, and support in one plan.",
+      tieIn: "Income",
+      tone: "dark",
+    },
+    {
+      id: "through_next_income",
+      eyebrow: "Through next income",
+      title: "$229",
+      summary: "What stays safe until more money lands.",
+      detail: "See the next two moves before the next deposit hits.",
+      tieIn: "Planning horizon",
+      tone: "dark",
+    },
+    {
+      id: "copilot_focus",
+      eyebrow: "Copilot focus",
+      title: "Friday income plan",
+      summary: "The next call the app recommends.",
+      detail: "When plans change, the copilot reshuffles the order for you.",
+      tieIn: "Roadmap + Copilot",
+      tone: "light",
+    },
+  ],
 };
+
+const previewOrder = preview.cards.map((card) => card.id);
+const leftColumnIds = ["available_now", "through_next_income"] as const;
+const rightColumnIds = ["income_mix", "copilot_focus"] as const;
+
+function buildPreviewColumns(activeId: ((typeof preview.cards)[number]["id"]) | null) {
+  if (!activeId) {
+    return [leftColumnIds, rightColumnIds] as const;
+  }
+
+  if (leftColumnIds.includes(activeId as (typeof leftColumnIds)[number])) {
+    return [[activeId], previewOrder.filter((id) => id !== activeId)] as const;
+  }
+
+  return [previewOrder.filter((id) => id !== activeId), [activeId]] as const;
+}
 
 const landingSections = [
   {
@@ -54,7 +102,74 @@ const workflow = [
   },
 ] as const;
 
+const typedHighlights = [
+  "Guided onboarding with optional sample student data",
+  "Built for refunds, side gigs, campus pay, and parent support",
+  "See what is safe to spend before the next income lands",
+  "Get a student-first plan when money comes in unevenly",
+] as const;
+
+function TypedHighlight() {
+  const [phraseIndex, setPhraseIndex] = useState(0);
+  const [displayText, setDisplayText] = useState<string>(typedHighlights[0] ?? "");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const syncReducedMotion = () => setReducedMotion(mediaQuery.matches);
+    syncReducedMotion();
+    mediaQuery.addEventListener("change", syncReducedMotion);
+    return () => mediaQuery.removeEventListener("change", syncReducedMotion);
+  }, []);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      setDisplayText(typedHighlights[0] ?? "");
+      return;
+    }
+
+    const currentPhrase = typedHighlights[phraseIndex] ?? "";
+    const typingDelay = isDeleting ? 34 : 58;
+    const pauseDelay = isDeleting ? 180 : 1500;
+
+    const timeout = window.setTimeout(() => {
+      if (!isDeleting) {
+        const nextText = currentPhrase.slice(0, displayText.length + 1);
+        setDisplayText(nextText);
+        if (nextText === currentPhrase) {
+          setIsDeleting(true);
+        }
+        return;
+      }
+
+      const nextText = currentPhrase.slice(0, Math.max(0, displayText.length - 1));
+      setDisplayText(nextText);
+      if (!nextText.length) {
+        setIsDeleting(false);
+        setPhraseIndex((current) => (current + 1) % typedHighlights.length);
+      }
+    }, displayText === currentPhrase || displayText.length === 0 ? pauseDelay : typingDelay);
+
+    return () => window.clearTimeout(timeout);
+  }, [displayText, isDeleting, phraseIndex, reducedMotion]);
+
+  return (
+    <span
+      className="inline-flex min-h-[1.5rem] items-center gap-1"
+      aria-label={typedHighlights[phraseIndex] ?? typedHighlights[0]}
+    >
+      <span>{displayText}</span>
+      {!reducedMotion ? <span className="h-4 w-px animate-pulse bg-current/75" aria-hidden="true" /> : null}
+    </span>
+  );
+}
+
 function LandingPage() {
+  const [activePreviewCard, setActivePreviewCard] = useState<((typeof preview.cards)[number]["id"]) | null>(null);
+  const [leftColumn, rightColumn] = buildPreviewColumns(activePreviewCard);
+
   return (
     <main className="min-h-screen">
       <section className="relative overflow-hidden bg-[linear-gradient(135deg,rgba(13,24,20,0.98),rgba(38,69,60,0.96))] text-white">
@@ -82,7 +197,7 @@ function LandingPage() {
             </div>
           </div>
 
-          <div className="grid flex-1 items-center gap-10 py-10 lg:grid-cols-[0.92fr_1.08fr] lg:py-14">
+          <div className="grid flex-1 content-start gap-10 py-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-start lg:py-14">
             <motion.div
               initial={{ opacity: 0, y: 28 }}
               animate={{ opacity: 1, y: 0 }}
@@ -113,12 +228,12 @@ function LandingPage() {
                   See how it works
                 </a>
               </div>
-              <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-white/68">
-                <span className="inline-flex items-center gap-2">
+              <div className="mt-6 grid gap-3 text-sm text-white/68 sm:grid-cols-[minmax(0,40rem)_max-content] sm:items-center">
+                <span className="inline-flex min-w-0 items-center gap-2">
                   <Sparkles className="h-4 w-4" />
-                  Guided onboarding with optional sample student data
+                  <TypedHighlight />
                 </span>
-                <span className="inline-flex items-center gap-2">
+                <span className="inline-flex items-center gap-2 sm:justify-self-start">
                   <ShieldCheck className="h-4 w-4" />
                   Private by default
                 </span>
@@ -133,44 +248,85 @@ function LandingPage() {
             >
               <div className="rounded-[34px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.06))] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.24)] backdrop-blur-xl sm:p-5">
                 <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.14),rgba(255,255,255,0.05))] p-5 sm:p-6">
-                  <div className="grid gap-4 md:grid-cols-[1.05fr_0.95fr]">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.24em] text-white/55">Student preview</p>
-                      <div className="mt-4 rounded-[24px] bg-white px-5 py-5 text-ink">
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-muted">Available now</p>
-                        <p className="mt-2 text-[3rem] font-semibold tracking-tight">{preview.availableNow}</p>
-                        <p className="mt-2 text-sm leading-6 text-muted">
-                          Free after your near-term bills, weekly essentials, and protected cash buffer.
-                        </p>
-                      </div>
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-white/55">Student preview</p>
+                  <div
+                    className="mt-4 grid gap-4 md:h-[23rem] md:grid-cols-2 md:items-stretch"
+                    onMouseLeave={() => setActivePreviewCard(null)}
+                  >
+                    {[leftColumn, rightColumn].map((column, columnIndex) => (
+                      <motion.div key={columnIndex} layout className="flex h-full flex-col gap-4">
+                        {column.map((cardId) => {
+                          const card = preview.cards.find((item) => item.id === cardId);
+                          if (!card) return null;
 
-                      <div className="mt-4 rounded-[24px] border border-white/10 bg-white/10 px-5 py-5">
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-white/55">Through next income</p>
-                        <p className="mt-2 text-3xl font-semibold tracking-tight text-white">{preview.throughNextIncome}</p>
-                        <p className="mt-3 text-sm leading-6 text-white/72">{preview.nextAction}</p>
-                        <p className="mt-2 text-sm leading-6 text-white/56">{preview.afterThat}</p>
-                      </div>
-                    </div>
+                          const isActive = activePreviewCard === card.id;
+                          const isLight = card.tone === "light";
+                          const isStackedColumn = Boolean(activePreviewCard) && column.length > 1;
+                          const isCompact = Boolean(activePreviewCard) && !isActive;
 
-                    <div className="space-y-4">
-                      <div className="rounded-[24px] border border-white/10 bg-white/10 px-5 py-5">
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-white/55">Income mix</p>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {preview.incomeSources.map((source) => (
-                            <span key={source} className="rounded-full border border-white/12 bg-white/10 px-3 py-2 text-sm text-white/84">
-                              {source}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="rounded-[24px] bg-[rgba(245,239,231,0.92)] px-5 py-5 text-ink">
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-muted">Copilot focus</p>
-                        <p className="mt-2 text-xl font-semibold tracking-tight">{preview.roadmapLabel}</p>
-                        <p className="mt-2 text-sm leading-6 text-muted">
-                          The roadmap and copilot keep the next smart move visible when your income does not arrive on a perfect schedule.
-                        </p>
-                      </div>
-                    </div>
+                          return (
+                            <motion.button
+                              key={card.id}
+                              type="button"
+                              layout
+                              onMouseEnter={() => setActivePreviewCard(card.id)}
+                              onFocus={() => setActivePreviewCard(card.id)}
+                              className={`rounded-[24px] border px-5 py-5 text-left transition duration-300 ${
+                                isLight
+                                  ? "border-[rgba(245,239,231,0.4)] bg-[rgba(245,239,231,0.94)] text-ink"
+                                  : "border-white/10 bg-white/10 text-white"
+                              } ${isActive ? "shadow-[0_18px_40px_rgba(0,0,0,0.16)]" : ""} ${
+                                activePreviewCard
+                                  ? isActive
+                                    ? "h-full"
+                                    : isStackedColumn
+                                      ? "min-h-0 flex-1 py-4"
+                                      : "min-h-0 flex-1"
+                                  : "min-h-0 flex-1"
+                              }`}
+                              animate={{ y: isActive ? -2 : 0 }}
+                              transition={{ layout: { duration: 0.28, ease: "easeOut" }, y: { duration: 0.18, ease: "easeOut" } }}
+                            >
+                              <div className="flex h-full flex-col">
+                                <p className={`text-[10px] uppercase tracking-[0.2em] ${isLight ? "text-muted" : "text-white/55"}`}>{card.eyebrow}</p>
+                                <h3
+                                  className={`mt-2 font-semibold tracking-tight ${
+                                    isCompact
+                                      ? "text-[1.35rem] leading-tight"
+                                      : card.id === "available_now"
+                                      ? "text-[3rem]"
+                                      : card.id === "through_next_income"
+                                        ? "text-3xl"
+                                        : "text-[1.85rem] leading-tight"
+                                  }`}
+                                >
+                                  {card.title}
+                                </h3>
+                                {!isCompact ? <p className={`mt-3 text-sm leading-6 ${isLight ? "text-muted" : "text-white/72"}`}>{card.summary}</p> : null}
+
+                                <motion.div
+                                  initial={false}
+                                  animate={{
+                                    height: isActive ? "auto" : 0,
+                                    opacity: isActive ? 1 : 0,
+                                    marginTop: isActive ? 14 : 0,
+                                  }}
+                                  transition={{ duration: 0.22, ease: "easeOut" }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className={`border-t pt-4 ${isLight ? "border-ink/10" : "border-white/10"}`}>
+                                    <p className={`text-sm leading-6 ${isLight ? "text-muted" : "text-white/68"}`}>{card.detail}</p>
+                                    <p className={`mt-3 text-[10px] uppercase tracking-[0.2em] ${isLight ? "text-muted" : "text-white/50"}`}>
+                                      {card.tieIn}
+                                    </p>
+                                  </div>
+                                </motion.div>
+                              </div>
+                            </motion.button>
+                          );
+                        })}
+                      </motion.div>
+                    ))}
                   </div>
                 </div>
               </div>

@@ -67,7 +67,7 @@ describe("RoadmapCopilotPanelView", () => {
     expect(html).toContain("Tell the copilot what changed");
     expect(html).toContain("Draft plan");
     expect(html).toContain("Record emergency expense");
-    expect(html).toContain("If real money already moved");
+    expect(html).toContain("The copilot can reshape the plan");
   });
 
   it("renders the active draft review state with preview content", () => {
@@ -104,7 +104,7 @@ describe("RoadmapCopilotPanelView", () => {
     expect(html).toContain("Next income from Payroll");
     expect(html).toContain("Pay Rent");
     expect(html).toContain("Preserving 1 expected income entr");
-    expect(html).toContain("ledger truth");
+    expect(html).toContain("what actually happened");
   });
 
   it("renders the adjustment and emergency forms when those controls are open", () => {
