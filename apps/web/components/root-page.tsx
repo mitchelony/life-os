@@ -174,7 +174,7 @@ function LandingPage() {
     <main className="min-h-screen">
       <section className="relative overflow-hidden bg-[linear-gradient(135deg,rgba(13,24,20,0.98),rgba(38,69,60,0.96))] text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(149,197,171,0.12),transparent_22%)]" />
-        <div className="relative mx-auto flex min-h-screen w-full max-w-[1380px] flex-col px-4 py-6 sm:px-6 lg:px-8">
+        <div className="relative mx-auto w-full max-w-[1380px] px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-[1.4rem] font-semibold tracking-[0.18em] text-white sm:text-[1.65rem]">LIFE OS</p>
@@ -197,7 +197,7 @@ function LandingPage() {
             </div>
           </div>
 
-          <div className="grid flex-1 content-start gap-10 py-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-start lg:py-14">
+          <div className="grid gap-10 py-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-start lg:py-14">
             <motion.div
               initial={{ opacity: 0, y: 28 }}
               animate={{ opacity: 1, y: 0 }}
