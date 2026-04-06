@@ -46,3 +46,14 @@ Suggested entry format:
 - Commit/push: no
 - Hosted data: no
 - Notes: Merge markers remain in `apps/api/app/services/roadmap_ai_planner.py` and `apps/api/tests/test_roadmap_ai_planner.py`, which blocks roadmap copilot and quick add backend coverage until resolved.
+
+## 2026-04-06 16:45 America/Chicago | TODO triage
+
+- Result: pass
+- Summary: Reviewed the empty root queue against current API, web, and docs state, then added two verified maintenance items for dev-auth hardening and onboarding truth-source drift. (Added By Project Maintenance Agent)
+- New TODO items added: yes
+- Files changed: `TODOLIST.md`, `automationlog.md`
+- Validation: `sed -n '1,260p' /Users/MAC/Projects/life-os/TODOLIST.md`; `sed -n '1,220p' /Users/MAC/Projects/life-os/docs/WORKING_STATE.md`; `sed -n '1,220p' /Users/MAC/Projects/life-os/docs/ARCHITECTURE.md`; `sed -n '1,260p' /Users/MAC/Projects/life-os/apps/api/app/core/config.py`; `sed -n '1,260p' /Users/MAC/Projects/life-os/apps/api/app/api/routes/auth.py`; `sed -n '1,260p' /Users/MAC/Projects/life-os/apps/web/components/home-gate.tsx`; `sed -n '1,240p' '/Users/MAC/Projects/life-os/apps/web/app/(app)/settings/page.tsx'`; `/Users/MAC/Projects/life-os/.venv/bin/python -m pytest /Users/MAC/Projects/life-os/apps/api/tests/test_roadmap_ai_planner.py /Users/MAC/Projects/life-os/apps/api/tests/test_quick_add.py` (9 passed); `npm --workspace /Users/MAC/Projects/life-os/apps/web run test -- lib/home-gate.test.ts` (2 passed)
+- Commit/push: no
+- Hosted data: no
+- Notes: The earlier planner merge-marker failure no longer reproduces, so the queue now reflects the current verified risks instead of the stale blocker. (Added By Project Maintenance Agent)
