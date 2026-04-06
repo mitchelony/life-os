@@ -563,14 +563,8 @@ class OpenAIResponsesRoadmapPlannerClient:
             "- Keep reset_planning_first true.\n"
             "- Preserve expected income entries by default unless the user explicitly asks to rewrite income planning.\n"
             "- If expected income exists and the request is about payment order (what gets paid first), include non-empty income_plans.\n"
-<<<<<<< ours
-<<<<<<< ours
             "- Keep the response compact: prefer 3-6 goals, 0-1 step per goal unless a second step is necessary, 1-3 income plans, and 3-6 actions.\n"
             "- Omit allowed_values unless they are truly necessary.\n"
-=======
->>>>>>> theirs
-=======
->>>>>>> theirs
             "- Keep top-level obligations and debts empty unless the user explicitly asks to replace those planning records.\n"
             "- Keep summary and rationale short and plain.\n\n"
             f"Response schema:\n{json.dumps(schema, indent=2)}\n\n"
