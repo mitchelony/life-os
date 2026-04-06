@@ -26,3 +26,23 @@ Suggested entry format:
 - Commit/push: `no`, `committed only`, or `committed and pushed`
 - Hosted data: `no` or explain what was touched and cleaned up
 - Notes: anything else worth reviewing
+
+## 2026-04-06 15:37 America/Chicago | TODO triage
+
+- Result: pass
+- Summary: Reviewed the canonical root queue and the historical docs queue, confirmed there are no open maintenance items recorded, and clarified that `docs/TODOLIST.md` is historical while the root file remains the live queue.
+- Files changed: `docs/TODOLIST.md`, `automationlog.md`
+- Validation: `rg -n "effective_balance|balance.*transaction|quick add income" apps/api`; `sed -n '1,180p' apps/api/app/services/accounts.py`; `sed -n '1,220p' apps/api/tests/test_account_service.py`; `/Users/MAC/Projects/life-os/.venv/bin/python -m pytest /Users/MAC/Projects/life-os/apps/api/tests/test_account_service.py` (3 passed); `/Users/MAC/Projects/life-os/.venv/bin/python -m pytest /Users/MAC/Projects/life-os/apps/api/tests/test_quick_add.py` (collection failed on existing merge markers in `apps/api/app/services/roadmap_ai_planner.py`)
+- Commit/push: no
+- Hosted data: no
+- Notes: Best next maintenance item is to resolve the existing merge markers in the roadmap planner path so broader API test collection works again.
+
+## 2026-04-06 15:36 America/Chicago | planner regression check
+
+- Result: fail
+- Summary: Focused planner regression found backend planner-path syntax drift from unresolved merge markers; import, reset, account balance, and targeted web copilot checks passed locally.
+- Files changed: `automationlog.md`
+- Validation: `python3 -m pytest apps/api/tests/test_roadmap_copilot.py apps/api/tests/test_roadmap_ai_planner.py apps/api/tests/test_roadmap_import.py apps/api/tests/test_planning_reset.py apps/api/tests/test_quick_add.py apps/api/tests/test_account_service.py` (failed immediately because global `python3` lacks `pytest`); `/Users/MAC/Projects/life-os/.venv/bin/python -m pytest apps/api/tests/test_roadmap_copilot.py apps/api/tests/test_roadmap_ai_planner.py apps/api/tests/test_roadmap_import.py apps/api/tests/test_planning_reset.py apps/api/tests/test_quick_add.py apps/api/tests/test_account_service.py` (collection failed on merge markers in planner files); `/Users/MAC/Projects/life-os/.venv/bin/python -m pytest apps/api/tests/test_roadmap_import.py apps/api/tests/test_planning_reset.py apps/api/tests/test_account_service.py` (7 passed); `npm --workspace apps/web run test -- components/roadmap-copilot-panel.test.tsx lib/api.test.ts` (22 passed)
+- Commit/push: no
+- Hosted data: no
+- Notes: Merge markers remain in `apps/api/app/services/roadmap_ai_planner.py` and `apps/api/tests/test_roadmap_ai_planner.py`, which blocks roadmap copilot and quick add backend coverage until resolved.
