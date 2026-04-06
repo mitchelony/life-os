@@ -242,6 +242,8 @@ This file is the build contract for Codex agents and human contributors working 
 - Life OS automation triage and maintenance work should use the canonical root queue file at `/Users/MAC/Projects/life-os/TODOLIST.md`.
 - Automation runs should append a review note to `/Users/MAC/Projects/life-os/automationlog.md` with the automation name, timestamp, summary of changes, changed files, validation run, commit/push status, hosted-data status, and any blockers or follow-up.
 - Current Life OS automations cover maintenance work, docs drift audits, planner regressions, and TODO triage.
+- The `TODO triage` automation should not only re-sort the existing queue; it should also look for concrete improvement opportunities, security risks, and missing fallback or failure-path coverage, then record concise findings in `/Users/MAC/Projects/life-os/TODOLIST.md` when they are real and actionable.
+- If the `TODO triage` automation adds new TODO items, it should make that explicit in its run summary and leave those items for a later run rather than resolving or collapsing them immediately.
 - The current recurring automation prompts do not require an automatic commit or push; treat git publication as opt-in unless the run is explicitly told to close out or publish changes.
 
 ## What To Avoid

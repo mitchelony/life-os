@@ -20,6 +20,8 @@ This file is the compact handoff for new threads.
 - Automation triage and maintenance runs should use the canonical root queue file at `/Users/MAC/Projects/life-os/TODOLIST.md`.
 - Review `/Users/MAC/Projects/life-os/automationlog.md` before changing automation-related workflow or trying to reconstruct what a recent automation run changed.
 - Automation runs should append a short review note to `automationlog.md` with the automation name, timestamp, summary, changed files, validation, commit/push status, hosted-data status, and blockers or follow-up.
+- The `TODO triage` automation should also scan for actionable improvements, security risks, and missing fallback behavior instead of only reclassifying already-listed TODO items.
+- If `TODO triage` adds new TODO items, the run summary should call that out clearly and those newly added items should remain queued for a later run instead of being resolved immediately.
 - The current recurring automation prompts do not require an automatic commit or push.
 
 ## Current Product State
