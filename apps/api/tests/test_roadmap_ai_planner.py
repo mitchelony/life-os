@@ -189,6 +189,8 @@ def test_adaptive_planner_surfaces_quota_failures_in_the_warning() -> None:
     assert any("fell back" in warning.lower() for warning in proposal.warnings)
 
 
+<<<<<<< ours
+<<<<<<< ours
 def test_adaptive_planner_surfaces_truncated_json_failures_in_the_warning() -> None:
     class FailingModelClient:
         def plan(self, *, message, context, snapshot, today):
@@ -215,6 +217,10 @@ def test_adaptive_planner_surfaces_truncated_json_failures_in_the_warning() -> N
     assert any("fell back" in warning.lower() for warning in proposal.warnings)
 
 
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs
 def test_adaptive_planner_backfills_income_plans_for_payment_order_drafts_when_expected_income_exists() -> None:
     class FakeModelClient:
         def plan(self, *, message, context, snapshot, today):
