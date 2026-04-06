@@ -6,6 +6,7 @@ This file is the build contract for Codex agents and human contributors working 
 
 - Read `AGENTS.md` at the start of every pass before making changes, validating behavior, or giving repo-specific guidance.
 - Treat a user instruction to "close out" as a required end-of-pass protocol, not a suggestion.
+- Check `/Users/MAC/Projects/life-os/automationlog.md` before changing any automation-related workflow so you understand the recent automation run history.
 - The `close out` protocol is:
   - update all docs that are affected so they match the current repo state
   - clean up after yourself and remove stray local artifacts that should not remain from the pass
@@ -237,6 +238,11 @@ This file is the build contract for Codex agents and human contributors working 
 - Frontend roadmap import should live in Settings rather than being hidden inside onboarding.
 - Import payloads may contain richer advisory fields than the current UI uses; the backend importer is the contract boundary for what is actually persisted.
 - Temp-id resolution currently exists for goals, steps, income plans, and optional top-level debt, obligation, and expected-income temp ids when provided explicitly.
+- The active Life OS recurring automations are stored in the local Codex automation registry and should target `/Users/MAC/Projects/life-os`, not the old `Github` path.
+- Life OS automation triage and maintenance work should use the canonical root queue file at `/Users/MAC/Projects/life-os/TODOLIST.md`.
+- Automation runs should append a review note to `/Users/MAC/Projects/life-os/automationlog.md` with the automation name, timestamp, summary of changes, changed files, validation run, commit/push status, hosted-data status, and any blockers or follow-up.
+- Current Life OS automations cover maintenance work, docs drift audits, planner regressions, and TODO triage.
+- The current recurring automation prompts do not require an automatic commit or push; treat git publication as opt-in unless the run is explicitly told to close out or publish changes.
 
 ## What To Avoid
 

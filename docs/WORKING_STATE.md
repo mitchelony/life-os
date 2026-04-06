@@ -9,6 +9,19 @@ This file is the compact handoff for new threads.
 - If the project is reopened from the wrong path, stop and reopen `/Users/MAC/Projects/life-os` before making changes.
 - If a local server is already running, confirm it is serving this repo before trusting what the browser shows.
 
+## Automation State
+
+- Life OS has active recurring Codex automations for:
+  - maintenance work
+  - docs drift and architecture audits
+  - planner regression checks
+  - TODO triage
+- These automations should target `/Users/MAC/Projects/life-os`.
+- Automation triage and maintenance runs should use the canonical root queue file at `/Users/MAC/Projects/life-os/TODOLIST.md`.
+- Review `/Users/MAC/Projects/life-os/automationlog.md` before changing automation-related workflow or trying to reconstruct what a recent automation run changed.
+- Automation runs should append a short review note to `automationlog.md` with the automation name, timestamp, summary, changed files, validation, commit/push status, hosted-data status, and blockers or follow-up.
+- The current recurring automation prompts do not require an automatic commit or push.
+
 ## Current Product State
 
 - The app is single-user and private.
