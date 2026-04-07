@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { authSessionKey, getBrowserAuthCallbackUrl, signOut, startGoogleSignIn } from "@/lib/auth";
+import { authSessionKey, consumeAuthCallbackFromLocation, getBrowserAuthCallbackUrl, signOut, startGoogleSignIn } from "@/lib/auth";
 
 type MockWindow = Window & {
   localStorage: Storage;
@@ -102,6 +102,8 @@ describe("browser auth callback handling", () => {
         origin: "http://192.168.1.162:3000",
         hostname: "192.168.1.162",
         assign,
+        hash: "",
+        search: "",
       },
     } as unknown as MockWindow;
 
@@ -155,5 +157,23 @@ describe("browser auth callback handling", () => {
 
     const authorizeUrl = new URL((window.location.assign as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]);
     expect(authorizeUrl.searchParams.get("redirect_to")).toBe("https://mitchel-life-os.vercel.app/auth/callback");
+  });
+
+  it("surfaces callback errors returned by Supabase", () => {
+    window.location.hash = "#error_description=Access%20denied";
+
+    expect(consumeAuthCallbackFromLocation()).toEqual({
+      ok: false,
+      error: "Access denied",
+    });
+  });
+
+  it("returns a missing-session error when Supabase sends no tokens", () => {
+    window.location.search = "?code=missing-session";
+
+    expect(consumeAuthCallbackFromLocation()).toEqual({
+      ok: false,
+      error: "No session was returned from Supabase",
+    });
   });
 });

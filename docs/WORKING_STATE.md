@@ -92,6 +92,7 @@ This file is the compact handoff for new threads.
 - Settings should always expose a direct logout action, including on mobile.
 - Signed-in recovery states must also expose logout:
   - the `/` home gate error state should never trap a signed-in mobile user with only `Retry check`
+- The `/auth/callback` error state now exposes a direct recovery action so Supabase error or missing-session returns do not leave you on a message-only screen. (Added By Project Maintenance Agent)
 
 ## Dashboard UX State
 

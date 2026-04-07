@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Panel } from "@/components/ui";
-import { consumeAuthCallbackFromLocation } from "@/lib/auth";
+import { Badge, Button, Panel } from "@/components/ui";
+import { consumeAuthCallbackFromLocation, hasAuthSession } from "@/lib/auth";
+import { getAuthCallbackRecoveryAction, type AuthCallbackRecoveryAction } from "@/lib/auth-callback";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
   const [error, setError] = useState("");
+  const [recoveryAction, setRecoveryAction] = useState<AuthCallbackRecoveryAction | null>(null);
 
   useEffect(() => {
     const result = consumeAuthCallbackFromLocation();
@@ -16,6 +18,7 @@ export default function AuthCallbackPage() {
       return;
     }
     setError(result.error);
+    setRecoveryAction(getAuthCallbackRecoveryAction(hasAuthSession()));
   }, [router]);
 
   return (
@@ -26,6 +29,17 @@ export default function AuthCallbackPage() {
         <p className="mt-3 text-sm leading-6 text-muted">
           {error ? error : "Hold on for a moment while we finish your sign-in and bring you back into the app."}
         </p>
+        {recoveryAction ? (
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button
+              onClick={() => {
+                router.replace(recoveryAction.href);
+              }}
+            >
+              {recoveryAction.label}
+            </Button>
+          </div>
+        ) : null}
       </Panel>
     </main>
   );
