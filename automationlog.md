@@ -110,3 +110,13 @@ Suggested entry format:
 - Commit/push: no
 - Hosted data: no
 - Notes: Existing unrelated worktree edits in `apps/api/app/core/config.py`, `apps/api/tests/test_auth.py`, `apps/web/app/auth/callback/page.tsx`, `apps/web/lib/auth.test.ts`, `apps/web/lib/auth-callback.ts`, `apps/web/lib/auth-callback.test.ts`, and `docs/WORKING_STATE.md` were left untouched. (Added By Project Maintenance Agent)
+
+## 2026-04-07 12:36 America/Chicago | TODO triage
+
+- Result: pass
+- Summary: Published the pending dev-login hardening change by validating the API config and auth regression tests, then committing and pushing the isolated backend patch on `main`. (Added By Project Maintenance Agent)
+- Files changed: `apps/api/app/core/config.py`, `apps/api/tests/test_auth.py`, `automationlog.md`
+- Validation: `cd /Users/MAC/Projects/life-os && ./.venv/bin/python -m pytest apps/api/tests/test_auth.py apps/api/tests/test_config.py -q` (13 passed)
+- Commit/push: committed and pushed
+- Hosted data: no
+- Notes: No additional queue items were changed in this publish step. (Added By Project Maintenance Agent)

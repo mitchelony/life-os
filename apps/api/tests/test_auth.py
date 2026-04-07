@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.deps import get_owner_id
 from app.main import create_app
 
@@ -21,6 +21,18 @@ def test_dev_login_is_available_only_when_explicitly_enabled_in_development(monk
 
     assert response.status_code == 200
     assert response.json()["owner_token"] == "test-owner-token"
+
+
+def test_dev_login_stays_hidden_when_allow_dev_login_is_unset(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.api.routes.auth.get_settings",
+        lambda: Settings(_env_file=None, ENVIRONMENT="development", DEV_OWNER_TOKEN="test-owner-token"),
+    )
+
+    client = _client(monkeypatch)
+    response = client.post("/api/auth/dev-login")
+
+    assert response.status_code == 404
 
 
 def test_dev_login_is_hidden_outside_local_dev(monkeypatch) -> None:

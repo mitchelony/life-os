@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     owner_id: str = Field(default="00000000-0000-0000-0000-000000000001", alias="OWNER_ID")
     dev_owner_token: str = Field(alias="DEV_OWNER_TOKEN")
     auth_strategy: str = Field(default="supabase", alias="AUTH_STRATEGY")
-    allow_dev_login: bool = Field(default=True, alias="ALLOW_DEV_LOGIN")
+    allow_dev_login: bool = Field(default=False, alias="ALLOW_DEV_LOGIN")
     ai_planner_provider: str = Field(default="heuristic", alias="AI_PLANNER_PROVIDER")
     ai_planner_model: str | None = Field(default=None, alias="AI_PLANNER_MODEL")
     ai_planner_base_url: str = Field(default="https://api.openai.com", alias="AI_PLANNER_BASE_URL")
