@@ -7,7 +7,7 @@ import { hasAuthSession, signOut } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/finance";
 import { getHomeGateActionIds } from "@/lib/home-gate";
-import { getInitialAppRoute } from "@/lib/onboarding";
+import { getInitialAppRouteFromOnboardingStart } from "@/lib/onboarding";
 import { sampleDashboard } from "@/lib/sample-data";
 
 const onboardingKey = process.env.NEXT_PUBLIC_ONBOARDING_KEY ?? "life-os-onboarded";
@@ -31,21 +31,19 @@ export function HomeGate() {
       setRouteError(null);
 
       try {
-        const localOnboarded = window.localStorage.getItem(onboardingKey) === "true";
         const onboarding = await api.startOnboarding();
-        const isOnboardingComplete = onboarding?.state.is_complete ?? localOnboarded;
         if (cancelled) return;
 
-        if (isOnboardingComplete) {
+        if (onboarding?.state.is_complete) {
           window.localStorage.setItem(onboardingKey, "true");
         } else {
           window.localStorage.removeItem(onboardingKey);
         }
 
         router.replace(
-          getInitialAppRoute({
+          getInitialAppRouteFromOnboardingStart({
             hasAuthSession: signedIn,
-            isOnboardingComplete,
+            onboarding,
           }),
         );
       } catch {

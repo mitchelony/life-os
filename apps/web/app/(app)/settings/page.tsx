@@ -11,7 +11,7 @@ import { OnboardingFlow } from "@/components/onboarding-flow";
 import { signOut } from "@/lib/auth";
 import { notifyDecisionChanged } from "@/lib/decision";
 import { api } from "@/lib/api";
-import { onboardingKey } from "@/lib/local-state";
+import { isOnboardingCompleteFromStart } from "@/lib/onboarding";
 import { getDefaultSettingsSection, getSettingsSections, type SettingsSectionId } from "@/lib/settings-view";
 
 export default function SettingsPage() {
@@ -37,12 +37,11 @@ export default function SettingsPage() {
       .startOnboarding()
       .then((result) => {
         if (cancelled) return;
-        setActiveSection(getDefaultSettingsSection(result?.state.is_complete ?? false));
+        setActiveSection(getDefaultSettingsSection(isOnboardingCompleteFromStart(result)));
       })
       .catch(() => {
         if (cancelled) return;
-        const isOnboardingComplete = typeof window !== "undefined" && window.localStorage.getItem(onboardingKey) === "true";
-        setActiveSection(getDefaultSettingsSection(isOnboardingComplete));
+        setActiveSection(getDefaultSettingsSection(false));
       });
 
     return () => {

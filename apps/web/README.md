@@ -101,7 +101,7 @@ The frontend currently uses a very small env surface:
 
 - `NEXT_PUBLIC_API_BASE_URL` - optional backend base URL, usually `http://localhost:8000/api`
 - `NEXT_PUBLIC_APP_ORIGIN` - public web origin to use for auth callbacks, for example `https://app.yourdomain.com`
-- `NEXT_PUBLIC_ONBOARDING_KEY` - browser storage key for onboarding state
+- `NEXT_PUBLIC_ONBOARDING_KEY` - browser storage key used to mirror onboarding completion after the API confirms it. (Added By Project Maintenance Agent)
 - `NEXT_PUBLIC_SUPABASE_URL` - hosted Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - hosted Supabase anon key
 
@@ -110,7 +110,7 @@ Important:
 - the web app no longer ships the owner token to the browser
 - the web app signs in the owner through Supabase email/password or Google and sends the bearer token to the backend
 - API-backed persistence is now the preferred path for dashboard, quick add, settings, and roadmap data
-- browser storage is still used as a mirror/fallback, not the primary saved truth
+- browser storage is still used as a mirror for onboarding and setup flows, not as the routing truth. (Added By Project Maintenance Agent)
 - production auth callbacks should use `NEXT_PUBLIC_APP_ORIGIN`, not the current browser's LAN address
 - `NEXT_PUBLIC_APP_ORIGIN` must be a bare origin, not a route like `https://app.yourdomain.com/login`
 - the auth callback builder now strips accidental paths from `NEXT_PUBLIC_APP_ORIGIN`, but the env should still be set correctly
@@ -142,6 +142,7 @@ Current routing behavior:
 - the home gate checks onboarding state through the API
 - incomplete onboarding routes to `Settings`
 - completed onboarding routes to `Dashboard`
+- if the onboarding start payload is missing or the API check fails, signed-in recovery stays on `Settings` or the retry screen until the API confirms completion. (Added By Project Maintenance Agent)
 - logout returns to `/login`
 - Settings defaults incomplete onboarding to the `Onboarding` section
 - the first onboarding step now asks whether to start blank or load student demo data

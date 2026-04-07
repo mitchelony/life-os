@@ -57,3 +57,56 @@ Suggested entry format:
 - Commit/push: no
 - Hosted data: no
 - Notes: The earlier planner merge-marker failure no longer reproduces, so the queue now reflects the current verified risks instead of the stale blocker. (Added By Project Maintenance Agent)
+
+## 2026-04-06 16:52 America/Chicago | TODO triage
+
+- Result: pass
+- Summary: Re-verified the open queue against current auth, onboarding, API config, and docs state; kept the two existing items open and added one callback recovery item for the current OAuth dead-end error path. (Added By Project Maintenance Agent)
+- New TODO items added: yes
+- Files changed: `TODOLIST.md`, `automationlog.md`
+- Validation: `sed -n '1,260p' /Users/MAC/Projects/life-os/TODOLIST.md`; `sed -n '1,260p' /Users/MAC/Projects/life-os/automationlog.md`; `sed -n '1,240p' /Users/MAC/Projects/life-os/apps/api/app/core/config.py`; `sed -n '1,260p' /Users/MAC/Projects/life-os/apps/api/app/api/routes/auth.py`; `sed -n '1,260p' /Users/MAC/Projects/life-os/apps/api/tests/test_auth.py`; `sed -n '1,260p' /Users/MAC/Projects/life-os/apps/web/components/home-gate.tsx`; `sed -n '1,280p' '/Users/MAC/Projects/life-os/apps/web/app/(app)/settings/page.tsx'`; `sed -n '1,260p' /Users/MAC/Projects/life-os/apps/web/app/auth/callback/page.tsx`; `sed -n '1,260p' /Users/MAC/Projects/life-os/apps/web/lib/auth.ts`; `sed -n '1,220p' /Users/MAC/Projects/life-os/apps/web/lib/auth.test.ts`; `sed -n '1,260p' /Users/MAC/Projects/life-os/docs/WORKING_STATE.md`; `sed -n '1,260p' /Users/MAC/Projects/life-os/docs/ARCHITECTURE.md`; `git -C /Users/MAC/Projects/life-os status --short`
+- Commit/push: no
+- Hosted data: no
+- Notes: Best next maintenance item remains the dev-login hardening change because it is isolated, testable, and reduces accidental local exposure without needing a product decision. (Added By Project Maintenance Agent)
+
+## 2026-04-06 17:15 America/Chicago | TODO triage
+
+- Result: pass
+- Summary: Completed the pre-existing dev-login hardening item by defaulting `ALLOW_DEV_LOGIN` to `false`, added a missing-env regression test for `/api/auth/dev-login`, and re-verified the remaining frontend auth TODOs stay queued. (Added By Project Maintenance Agent)
+- New TODO items added: no
+- Files changed: `TODOLIST.md`, `apps/api/app/core/config.py`, `apps/api/tests/test_auth.py`, `automationlog.md`
+- Validation: `cd /Users/MAC/Projects/life-os && ./.venv/bin/python -m pytest apps/api/tests/test_auth.py -q` (failed first: 1 failed, 8 passed, before the config default changed); `cd /Users/MAC/Projects/life-os && ./.venv/bin/python -m pytest apps/api/tests/test_auth.py -q` (9 passed); `cd /Users/MAC/Projects/life-os && ./.venv/bin/python -m pytest apps/api/tests/test_config.py -q` (4 passed)
+- Commit/push: no
+- Hosted data: no
+- Notes: Remaining safe items are the onboarding truth-source cleanup and the auth-callback recovery action; neither was implemented in this run. (Added By Project Maintenance Agent)
+
+## 2026-04-06 18:14 America/Chicago | planner regression check
+
+- Result: pass
+- Summary: Reviewed the current planner-related worktree state and re-ran the focused backend and web regression set for roadmap copilot, AI planner, import, planning reset, quick add, and account-balance behavior; all targeted checks passed locally.
+- Files changed: `automationlog.md`
+- Validation: `/Users/MAC/Projects/life-os/.venv/bin/python -m pytest /Users/MAC/Projects/life-os/apps/api/tests/test_roadmap_copilot.py /Users/MAC/Projects/life-os/apps/api/tests/test_roadmap_ai_planner.py /Users/MAC/Projects/life-os/apps/api/tests/test_roadmap_import.py /Users/MAC/Projects/life-os/apps/api/tests/test_planning_reset.py /Users/MAC/Projects/life-os/apps/api/tests/test_quick_add.py /Users/MAC/Projects/life-os/apps/api/tests/test_account_service.py` (24 passed); `npm --workspace /Users/MAC/Projects/life-os/apps/web run test -- components/roadmap-copilot-panel.test.tsx lib/api.test.ts` (22 passed)
+- Commit/push: no
+- Hosted data: no
+- Notes: No planner-path failures reproduced in this run. The worktree still has unrelated local edits in `TODOLIST.md`, `apps/api/app/core/config.py`, `apps/api/tests/test_auth.py`, and `automationlog.md`; they were left untouched.
+
+## 2026-04-07 08:50 America/Chicago | TODO triage
+
+- Result: pass
+- Summary: Completed the pre-existing auth callback recovery TODO by adding a direct recovery action for Supabase error and missing-session returns, then removed that item from the queue and documented the current recovery behavior. (Added By Project Maintenance Agent)
+- New TODO items added: no
+- Files changed: `TODOLIST.md`, `apps/web/app/auth/callback/page.tsx`, `apps/web/lib/auth-callback.ts`, `apps/web/lib/auth-callback.test.ts`, `apps/web/lib/auth.test.ts`, `docs/WORKING_STATE.md`, `automationlog.md`
+- Validation: `source ~/.nvm/nvm.sh && nvm use 20 >/dev/null && npm --workspace /Users/MAC/Projects/life-os/apps/web run test -- lib/auth.test.ts lib/auth-callback.test.ts` (9 passed); `source ~/.nvm/nvm.sh && nvm use 20 >/dev/null && npm --workspace /Users/MAC/Projects/life-os/apps/web run typecheck` (passed)
+- Commit/push: no
+- Hosted data: no
+- Notes: The remaining pre-existing queue item is the onboarding truth-source cleanup in the home gate and settings fallback path; no additional concrete security or fallback gaps were added in this run. (Added By Project Maintenance Agent)
+
+## 2026-04-07 12:06 America/Chicago | Project Maintenance Agent
+
+- Result: pass
+- Summary: Completed the pre-existing onboarding truth-source cleanup by removing browser-key completion fallback from the home gate and Settings defaults, then documented the API-first routing behavior. (Added By Project Maintenance Agent)
+- Files changed: `TODOLIST.md`, `docs/TODOLIST.md`, `AGENTS.md`, `apps/web/README.md`, `apps/web/components/home-gate.tsx`, `apps/web/app/(app)/settings/page.tsx`, `apps/web/lib/onboarding.ts`, `apps/web/lib/onboarding.test.ts`, `automationlog.md`
+- Validation: `npm --workspace apps/web run test -- lib/onboarding.test.ts` (failed first: 1 failed, 3 passed, before `getInitialAppRouteFromOnboardingStart` existed); `npm --workspace apps/web run test -- lib/onboarding.test.ts lib/home-gate.test.ts` (6 passed); `npm --workspace apps/web run typecheck` (passed)
+- Commit/push: no
+- Hosted data: no
+- Notes: Existing unrelated worktree edits in `apps/api/app/core/config.py`, `apps/api/tests/test_auth.py`, `apps/web/app/auth/callback/page.tsx`, `apps/web/lib/auth.test.ts`, `apps/web/lib/auth-callback.ts`, `apps/web/lib/auth-callback.test.ts`, and `docs/WORKING_STATE.md` were left untouched. (Added By Project Maintenance Agent)

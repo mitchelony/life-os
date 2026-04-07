@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getInitialAppRoute } from "@/lib/onboarding";
+import { getInitialAppRoute, getInitialAppRouteFromOnboardingStart } from "@/lib/onboarding";
 
 describe("getInitialAppRoute", () => {
   it("sends signed-out users to login", () => {
@@ -12,5 +12,9 @@ describe("getInitialAppRoute", () => {
 
   it("sends onboarded signed-in users to dashboard", () => {
     expect(getInitialAppRoute({ hasAuthSession: true, isOnboardingComplete: true })).toBe("/dashboard");
+  });
+
+  it("keeps signed-in recovery on settings when onboarding start state is missing", () => {
+    expect(getInitialAppRouteFromOnboardingStart({ hasAuthSession: true, onboarding: null })).toBe("/settings");
   });
 });

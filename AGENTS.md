@@ -206,6 +206,7 @@ This file is the build contract for Codex agents and human contributors working 
   - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` must point to the same hosted project as backend Supabase config
 - First successful auth should land at `/`, then route through the onboarding decision gate.
 - Local setup storage may mirror setup payloads, but it must not mark onboarding complete by itself.
+- `NEXT_PUBLIC_ONBOARDING_KEY` may mirror onboarding completion after a confirmed API read, but `/api/onboarding/start` is the truth source for the home gate and Settings default section. (Added By Project Maintenance Agent)
 - Backend CORS middleware is required for local web development and currently expects explicit localhost origins.
 - The API now validates Supabase auth/database project alignment during startup and should not be started with mixed-project env vars.
 - Onboarding/profile bootstrap now tolerates duplicate historical owner rows by choosing a canonical row instead of throwing `500`.
